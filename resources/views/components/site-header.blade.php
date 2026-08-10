@@ -34,7 +34,7 @@
                     href="{{ route($item['route']) }}"
                     @class([
                         'rounded-md px-3 py-2 text-sm font-medium transition',
-                        'text-navy' => $active,
+                        'text-navy underline decoration-2 underline-offset-8' => $active,
                         'text-muted-foreground hover:text-zinc-900' => ! $active,
                     ])
                 >
@@ -78,9 +78,16 @@
     <div class="border-t border-border bg-white lg:hidden" x-cloak x-show="open">
         <div class="mx-auto flex max-w-7xl flex-col p-2">
             @foreach ($nav as $item)
+                @php
+                    $active = request()->routeIs($item['match']);
+                @endphp
                 <a
                     href="{{ route($item['route']) }}"
-                    class="rounded-md px-3 py-2.5 text-sm font-medium text-zinc-900 hover:bg-muted"
+                    @class([
+                        'rounded-md px-3 py-2.5 text-sm font-medium hover:bg-muted',
+                        'text-navy underline decoration-2 underline-offset-4' => $active,
+                        'text-zinc-900' => ! $active,
+                    ])
                     @click="open = false"
                 >
                     {{ $item['label'] }}
