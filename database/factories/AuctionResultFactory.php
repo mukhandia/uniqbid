@@ -17,7 +17,7 @@ class AuctionResultFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(3, true);
+        $name = fake()->unique()->sentence(3);
 
         return [
             'slug' => Str::slug($name).'-'.fake()->unique()->numberBetween(100, 999),

@@ -110,7 +110,7 @@ class Auction extends Model
 
     public function primaryImageUrl(): string
     {
-        return $this->images->first()?->url ?? '';
+        return (string) ($this->images->value('url') ?? '');
     }
 
     public function endsAtMs(): int
