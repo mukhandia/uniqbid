@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Auction;
 use App\Models\AuctionResult;
 use App\Models\Product;
-use App\Support\PlaceholderImage;
 use Illuminate\Database\Seeder;
 
 class UniqBidDemoSeeder extends Seeder
@@ -31,9 +30,7 @@ class UniqBidDemoSeeder extends Seeder
                 'similar_sales' => [4210, 3850, 5120, 4600],
                 'is_featured' => true,
                 'images' => [
-                    ['label' => 'iPhone 15 Pro', 'bg' => '#1a3a6b'],
-                    ['label' => 'Back View', 'bg' => '#213f70'],
-                    ['label' => 'In Hand', 'bg' => '#2a4a80'],
+                    ['label' => 'iPhone 15 Pro', 'path' => '/images/auctions/iphone-15-pro.png'],
                 ],
             ],
             [
@@ -49,7 +46,9 @@ class UniqBidDemoSeeder extends Seeder
                 'description' => '2024 model Samsung QLED 55" 4K Smart TV. Sealed, with 2-year warranty. Free delivery within Nairobi.',
                 'retail_value' => 89000,
                 'similar_sales' => [2410, 1980, 3050],
-                'images' => [['label' => 'Samsung QLED 55', 'bg' => '#0f2a4a']],
+                'images' => [
+                    ['label' => 'Samsung QLED 55', 'path' => '/images/auctions/samsung-tv-55.png'],
+                ],
             ],
             [
                 'slug' => 'mkopa-boda',
@@ -64,7 +63,9 @@ class UniqBidDemoSeeder extends Seeder
                 'description' => 'Brand-new Bajaj Boxer 150cc with logbook, insurance, and helmet included. Ready to ride from our Nairobi yard.',
                 'retail_value' => 175000,
                 'similar_sales' => [8920, 7500, 9100],
-                'images' => [['label' => 'Boxer 150cc', 'bg' => '#1a2f5a']],
+                'images' => [
+                    ['label' => 'Boxer 150cc', 'path' => '/images/auctions/boxer-150.png'],
+                ],
             ],
             [
                 'slug' => 'ps5',
@@ -79,7 +80,9 @@ class UniqBidDemoSeeder extends Seeder
                 'description' => 'Sealed PS5 Slim Disc Edition with 1 DualSense controller. 1-year warranty.',
                 'retail_value' => 82000,
                 'similar_sales' => [3120, 2890, 3400],
-                'images' => [['label' => 'PS5 Slim', 'bg' => '#1e3a68']],
+                'images' => [
+                    ['label' => 'PS5 Slim', 'path' => '/images/auctions/ps5-slim.png'],
+                ],
             ],
             [
                 'slug' => 'macbook-air-m3',
@@ -94,7 +97,9 @@ class UniqBidDemoSeeder extends Seeder
                 'description' => 'Sealed MacBook Air M3 13" 256GB in Midnight. Apple Kenya warranty.',
                 'retail_value' => 165000,
                 'similar_sales' => [5100, 4650, 5800],
-                'images' => [['label' => 'MacBook Air M3', 'bg' => '#132a52']],
+                'images' => [
+                    ['label' => 'MacBook Air M3', 'path' => '/images/auctions/macbook-air-m3.png'],
+                ],
             ],
             [
                 'slug' => 'gas-cooker',
@@ -109,7 +114,9 @@ class UniqBidDemoSeeder extends Seeder
                 'description' => 'Ramtons 4-burner gas cooker with electric oven. New, boxed, with delivery.',
                 'retail_value' => 42000,
                 'similar_sales' => [980, 1120, 1450],
-                'images' => [['label' => 'Gas Cooker', 'bg' => '#1c3560']],
+                'images' => [
+                    ['label' => 'Gas Cooker', 'path' => '/images/auctions/gas-cooker.png'],
+                ],
             ],
         ];
 
@@ -132,7 +139,7 @@ class UniqBidDemoSeeder extends Seeder
 
             foreach ($images as $index => $image) {
                 $auction->images()->create([
-                    'url' => PlaceholderImage::make($image['label'], $image['bg']),
+                    'url' => $image['path'],
                     'label' => $image['label'],
                     'sort_order' => $index,
                 ]);
@@ -140,14 +147,82 @@ class UniqBidDemoSeeder extends Seeder
         }
 
         $products = [
-            ['slug' => 'p1', 'name' => 'Leather Cardholder (Black)', 'category' => "Men's Accessories", 'price' => 2400, 'stock' => 12, 'label' => 'Cardholder', 'bg' => '#1a2f5a', 'description' => 'Full-grain leather cardholder, handmade in Kariokor.', 'is_featured' => true],
-            ['slug' => 'p2', 'name' => 'Silk Neck Scarf', 'category' => "Women's Accessories", 'price' => 1800, 'stock' => 8, 'label' => 'Silk Scarf', 'bg' => '#2a4a80', 'description' => '100% mulberry silk, printed in Nairobi.', 'is_featured' => true],
-            ['slug' => 'p3', 'name' => 'Executive Hamper (Premium)', 'category' => 'Hampers', 'price' => 8500, 'stock' => 4, 'label' => 'Executive Hamper', 'bg' => '#132a52', 'description' => 'Wine, chocolates, artisan snacks, and Kenyan coffee.', 'is_featured' => true],
-            ['slug' => 'p4', 'name' => 'Beaded Bracelet (Maasai)', 'category' => "Women's Accessories", 'price' => 950, 'stock' => 22, 'label' => 'Maasai Bracelet', 'bg' => '#213f70', 'description' => 'Authentic Maasai beaded bracelet, handmade.'],
-            ['slug' => 'p5', 'name' => 'Leather Belt (Brown)', 'category' => "Men's Accessories", 'price' => 2100, 'stock' => 15, 'label' => 'Leather Belt', 'bg' => '#1a2f5a', 'description' => 'Full-grain leather with brass buckle.', 'is_featured' => true],
-            ['slug' => 'p6', 'name' => 'Gift Box: Coffee & Mug', 'category' => 'Gifts', 'price' => 1650, 'stock' => 30, 'label' => 'Coffee Gift', 'bg' => '#1e3a68', 'description' => '250g Kenyan AA coffee with branded mug.'],
-            ['slug' => 'p7', 'name' => 'Wooden Watch', 'category' => "Men's Accessories", 'price' => 4200, 'stock' => 6, 'label' => 'Wooden Watch', 'bg' => '#0f2a4a', 'description' => 'Ebony wooden watch, Kenyan-made.'],
-            ['slug' => 'p8', 'name' => 'Corporate Hamper', 'category' => 'Hampers', 'price' => 5400, 'stock' => 9, 'label' => 'Corporate Hamper', 'bg' => '#1c3560', 'description' => 'Perfect for teams: snacks, tea, notebook, pen.'],
+            [
+                'slug' => 'p1',
+                'name' => 'Leather Cardholder (Black)',
+                'category' => "Men's Accessories",
+                'price' => 2400,
+                'stock' => 12,
+                'image' => '/images/products/leather-cardholder.png',
+                'description' => 'Full-grain leather cardholder, handmade in Kariokor.',
+                'is_featured' => true,
+            ],
+            [
+                'slug' => 'p2',
+                'name' => 'Silk Neck Scarf',
+                'category' => "Women's Accessories",
+                'price' => 1800,
+                'stock' => 8,
+                'image' => '/images/products/silk-scarf.png',
+                'description' => '100% mulberry silk, printed in Nairobi.',
+                'is_featured' => true,
+            ],
+            [
+                'slug' => 'p3',
+                'name' => 'Executive Hamper (Premium)',
+                'category' => 'Hampers',
+                'price' => 8500,
+                'stock' => 4,
+                'image' => '/images/products/executive-hamper.png',
+                'description' => 'Wine, chocolates, artisan snacks, and Kenyan coffee.',
+                'is_featured' => true,
+            ],
+            [
+                'slug' => 'p4',
+                'name' => 'Beaded Bracelet (Maasai)',
+                'category' => "Women's Accessories",
+                'price' => 950,
+                'stock' => 22,
+                'image' => '/images/products/maasai-bracelet.png',
+                'description' => 'Authentic Maasai beaded bracelet, handmade.',
+            ],
+            [
+                'slug' => 'p5',
+                'name' => 'Leather Belt (Brown)',
+                'category' => "Men's Accessories",
+                'price' => 2100,
+                'stock' => 15,
+                'image' => '/images/products/leather-belt.png',
+                'description' => 'Full-grain leather with brass buckle.',
+                'is_featured' => true,
+            ],
+            [
+                'slug' => 'p6',
+                'name' => 'Gift Box: Coffee & Mug',
+                'category' => 'Gifts',
+                'price' => 1650,
+                'stock' => 30,
+                'image' => '/images/products/coffee-gift.png',
+                'description' => '250g Kenyan AA coffee with branded mug.',
+            ],
+            [
+                'slug' => 'p7',
+                'name' => 'Wooden Watch',
+                'category' => "Men's Accessories",
+                'price' => 4200,
+                'stock' => 6,
+                'image' => '/images/products/wooden-watch.png',
+                'description' => 'Ebony wooden watch, Kenyan-made.',
+            ],
+            [
+                'slug' => 'p8',
+                'name' => 'Corporate Hamper',
+                'category' => 'Hampers',
+                'price' => 5400,
+                'stock' => 9,
+                'image' => '/images/products/corporate-hamper.png',
+                'description' => 'Perfect for teams: snacks, tea, notebook, pen.',
+            ],
         ];
 
         foreach ($products as $product) {
@@ -159,21 +234,85 @@ class UniqBidDemoSeeder extends Seeder
                     'price' => $product['price'],
                     'stock' => $product['stock'],
                     'description' => $product['description'],
-                    'image' => PlaceholderImage::make($product['label'], $product['bg']),
+                    'image' => $product['image'],
                     'is_featured' => $product['is_featured'] ?? false,
                 ]
             );
         }
 
         $results = [
-            ['slug' => 's1', 'name' => 'iPhone 14 128GB', 'label' => 'iPhone 14', 'bg' => '#1a3a6b', 'sale_price' => 3421, 'buyer' => 'Wanjiru M.', 'date' => '2026-07-18', 'category' => 'Electronics'],
-            ['slug' => 's2', 'name' => 'LG 43" Smart TV', 'label' => 'LG TV 43', 'bg' => '#0f2a4a', 'sale_price' => 1207, 'buyer' => 'Kevin O.', 'date' => '2026-07-15', 'category' => 'Electronics'],
-            ['slug' => 's3', 'name' => 'Fridge (Hisense 200L)', 'label' => 'Hisense Fridge', 'bg' => '#1c3560', 'sale_price' => 890, 'buyer' => 'Aisha H.', 'date' => '2026-07-12', 'category' => 'Home'],
-            ['slug' => 's4', 'name' => 'PS4 Pro Bundle', 'label' => 'PS4 Pro', 'bg' => '#1e3a68', 'sale_price' => 2015, 'buyer' => 'Brian K.', 'date' => '2026-07-10', 'category' => 'Electronics'],
-            ['slug' => 's5', 'name' => 'MacBook Pro 13"', 'label' => 'MacBook Pro', 'bg' => '#132a52', 'sale_price' => 5487, 'buyer' => 'Fatuma A.', 'date' => '2026-07-05', 'category' => 'Electronics'],
-            ['slug' => 's6', 'name' => 'Bajaj Boxer 150', 'label' => 'Boxer 150', 'bg' => '#1a2f5a', 'sale_price' => 8320, 'buyer' => 'Peter N.', 'date' => '2026-06-28', 'category' => 'Vehicles'],
-            ['slug' => 's7', 'name' => 'Ramtons Cooker', 'label' => 'Cooker', 'bg' => '#1c3560', 'sale_price' => 1024, 'buyer' => 'Grace W.', 'date' => '2026-06-24', 'category' => 'Home'],
-            ['slug' => 's8', 'name' => 'iPad Air', 'label' => 'iPad Air', 'bg' => '#1a3a6b', 'sale_price' => 2765, 'buyer' => 'Samuel K.', 'date' => '2026-06-19', 'category' => 'Electronics'],
+            [
+                'slug' => 's1',
+                'name' => 'iPhone 14 128GB',
+                'image' => '/images/results/iphone-14.png',
+                'sale_price' => 3421,
+                'buyer' => 'Wanjiru M.',
+                'date' => '2026-07-18',
+                'category' => 'Electronics',
+            ],
+            [
+                'slug' => 's2',
+                'name' => 'LG 43" Smart TV',
+                'image' => '/images/results/lg-tv-43.png',
+                'sale_price' => 1207,
+                'buyer' => 'Kevin O.',
+                'date' => '2026-07-15',
+                'category' => 'Electronics',
+            ],
+            [
+                'slug' => 's3',
+                'name' => 'Fridge (Hisense 200L)',
+                'image' => '/images/results/hisense-fridge.png',
+                'sale_price' => 890,
+                'buyer' => 'Aisha H.',
+                'date' => '2026-07-12',
+                'category' => 'Home',
+            ],
+            [
+                'slug' => 's4',
+                'name' => 'PS4 Pro Bundle',
+                'image' => '/images/results/ps4-pro.png',
+                'sale_price' => 2015,
+                'buyer' => 'Brian K.',
+                'date' => '2026-07-10',
+                'category' => 'Electronics',
+            ],
+            [
+                'slug' => 's5',
+                'name' => 'MacBook Pro 13"',
+                'image' => '/images/results/macbook-pro.png',
+                'sale_price' => 5487,
+                'buyer' => 'Fatuma A.',
+                'date' => '2026-07-05',
+                'category' => 'Electronics',
+            ],
+            [
+                'slug' => 's6',
+                'name' => 'Bajaj Boxer 150',
+                'image' => '/images/results/boxer-150.png',
+                'sale_price' => 8320,
+                'buyer' => 'Peter N.',
+                'date' => '2026-06-28',
+                'category' => 'Vehicles',
+            ],
+            [
+                'slug' => 's7',
+                'name' => 'Ramtons Cooker',
+                'image' => '/images/results/gas-cooker.png',
+                'sale_price' => 1024,
+                'buyer' => 'Grace W.',
+                'date' => '2026-06-24',
+                'category' => 'Home',
+            ],
+            [
+                'slug' => 's8',
+                'name' => 'iPad Air',
+                'image' => '/images/results/ipad-air.png',
+                'sale_price' => 2765,
+                'buyer' => 'Samuel K.',
+                'date' => '2026-06-19',
+                'category' => 'Electronics',
+            ],
         ];
 
         foreach ($results as $result) {
@@ -182,7 +321,7 @@ class UniqBidDemoSeeder extends Seeder
                 [
                     'name' => $result['name'],
                     'category' => $result['category'],
-                    'image' => PlaceholderImage::make($result['label'], $result['bg']),
+                    'image' => $result['image'],
                     'sale_price' => $result['sale_price'],
                     'buyer_display' => $result['buyer'],
                     'sold_on' => $result['date'],

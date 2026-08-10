@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Auction;
-use App\Support\PlaceholderImage;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -41,7 +40,7 @@ class AuctionFactory extends Factory
     {
         return $this->afterCreating(function (Auction $auction): void {
             $auction->images()->create([
-                'url' => PlaceholderImage::make($auction->name, '#1a3a6b'),
+                'url' => '/images/auctions/iphone-15-pro.png',
                 'label' => $auction->name,
                 'sort_order' => 0,
             ]);

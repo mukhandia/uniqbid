@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Product;
-use App\Support\PlaceholderImage;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -31,7 +30,7 @@ class ProductFactory extends Factory
             'description' => fake()->sentence(),
             'price' => fake()->numberBetween(900, 9000),
             'stock' => fake()->numberBetween(0, 30),
-            'image' => PlaceholderImage::make(Str::title($name), '#132a52'),
+            'image' => '/images/products/leather-cardholder.png',
             'is_featured' => false,
         ];
     }
