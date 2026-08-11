@@ -14,3 +14,11 @@ test('authenticated users can visit the dashboard', function () {
     $response = $this->get(route('dashboard'));
     $response->assertOk();
 });
+
+test('unverified authenticated users can visit the dashboard while MustVerifyEmail is disabled', function () {
+    $user = User::factory()->unverified()->create();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk();
+});

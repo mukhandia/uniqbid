@@ -2,9 +2,8 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Features;
 use Livewire\Livewire;
-
-beforeEach(function () {});
 
 test('security settings page can be rendered', function () {
     $user = User::factory()->create();
@@ -29,7 +28,9 @@ test('security settings page renders without two factor when feature is disabled
         ->assertDontSee('Two-factor authentication');
 });
 
-test('two factor authentication disabled when confirmation abandoned between requests', function () {});
+test('two factor authentication is not enabled for this application', function () {
+    expect(Features::enabled(Features::twoFactorAuthentication()))->toBeFalse();
+});
 
 test('password can be updated', function () {
     $user = User::factory()->create([
