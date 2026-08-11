@@ -69,9 +69,9 @@ class extends Component {
             <p class="mt-1 text-sm text-muted-foreground">Try a different category or check back soon.</p>
         </div>
     @else
-        <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
             @foreach ($auctions as $auction)
-                <x-auction-card :auction="$auction" />
+                <x-auction-card :auction="$auction" class="h-full" />
             @endforeach
         </div>
     @endif

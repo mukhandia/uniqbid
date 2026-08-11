@@ -83,7 +83,7 @@ class extends Component {
             <p class="mt-1 text-sm text-muted-foreground">Try a different keyword or month.</p>
         </div>
     @else
-        <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
             @foreach ($results as $result)
                 <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
                     <div class="aspect-[4/3] overflow-hidden bg-muted">

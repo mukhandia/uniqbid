@@ -32,25 +32,71 @@ class extends Component {
     }
 
     $featured = $heroSlidesForRender[0] ?? null;
-    $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(6)->get();
-    $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(4)->get();
-    $featuredProducts = Product::query()->featured()->limit(4)->get();
+    $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(10)->get();
+    $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
+    $featuredProducts = Product::query()->orderByDesc('is_featured')->orderBy('name')->limit(10)->get();
 @endphp
 
 <div>
     <section
-        class="relative overflow-hidden bg-navy text-navy-foreground"
+        class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]"
+        x-data="{ index: 0, next(){ this.index = (this.index + 1) % 3 }, prev(){ this.index = (this.index + 2) % 3 } }"
+        x-init="setInterval(() => { next() }, 6500)"
     >
-        <div class="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20">
-            <div class="flex flex-col justify-center">
-                <span class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium">
+        {{-- Full-bleed slider background --}}
+        <div class="absolute inset-0" aria-hidden="true">
+            <div
+                class="flex h-full transition-transform duration-700 ease-in-out"
+                :style="'transform: translateX(-' + (index * 100) + '%)'"
+            >
+                @for ($i = 0; $i < 3; $i++)
+                    @php $slide = $heroSlidesForRender[$i]; @endphp
+                    <div class="relative h-full w-full shrink-0">
+                        @if ($slide)
+                            <img
+                                src="{{ $slide->primaryImageUrl() }}"
+                                alt=""
+                                class="h-full w-full object-cover"
+                            >
+                            <div class="absolute inset-0 opacity-40" style="background-image: var(--hero-overlay-{{ $i + 1 }})"></div>
+                        @else
+                            <div class="h-full w-full bg-navy"></div>
+                        @endif
+                    </div>
+                @endfor
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-r from-navy/95 via-navy/80 to-navy/45"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-navy/70 via-transparent to-navy/30"></div>
+        </div>
+
+        {{-- Side arrows: mid-height from sm up; bottom corners on small screens to clear copy --}}
+        <button
+            type="button"
+            aria-label="Previous slide"
+            class="absolute bottom-5 left-3 z-20 grid size-11 place-items-center rounded-full bg-black/40 text-white shadow-sm backdrop-blur transition hover:bg-black/55 active:scale-95 sm:bottom-auto sm:left-4 sm:top-1/2 sm:size-12 sm:-translate-y-1/2 md:left-6 lg:left-8"
+            @click="prev()"
+        >
+            <flux:icon.chevron-left class="size-5 sm:size-6" />
+        </button>
+        <button
+            type="button"
+            aria-label="Next slide"
+            class="absolute bottom-5 right-3 z-20 grid size-11 place-items-center rounded-full bg-black/40 text-white shadow-sm backdrop-blur transition hover:bg-black/55 active:scale-95 sm:bottom-auto sm:right-4 sm:top-1/2 sm:size-12 sm:-translate-y-1/2 md:right-6 lg:right-8"
+            @click="next()"
+        >
+            <flux:icon.chevron-right class="size-5 sm:size-6" />
+        </button>
+
+        <div class="relative z-10 mx-auto flex min-h-[70vh] max-w-7xl flex-col justify-center px-4 py-16 pb-20 md:min-h-[78vh] md:py-24 sm:pb-16">
+            <div class="max-w-xl">
+                <span class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium backdrop-blur">
                     <flux:icon.shield-check class="size-3.5 text-gold" />
                     Licensed Kenyan Auctioneer · Est. 2024
                 </span>
-                <h1 class="mt-4 text-4xl font-bold leading-tight sm:text-5xl">
+                <h1 class="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
                     The lowest <span class="text-gold">unique bid</span> wins.
                 </h1>
-                <p class="mt-4 max-w-md text-base opacity-85">
+                <p class="mt-4 max-w-md text-base opacity-90">
                     Bid transparently on real items — phones, TVs, motorbikes — from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
                 </p>
                 <div class="mt-6 flex flex-wrap gap-3">
@@ -86,81 +132,16 @@ class extends Component {
                 </div>
             </div>
 
-            <div class="relative hero-slider-border rounded-2xl">
-                <div
-                    x-data="{ index: 0, next(){ this.index = (this.index + 1) % 3 }, prev(){ this.index = (this.index + 2) % 3 } }"
-                    x-init="setInterval(() => { next() }, 6500)"
-                    class="relative overflow-hidden"
-                >
+            <div class="mt-10 flex items-center gap-2">
+                @for ($i = 0; $i < 3; $i++)
                     <button
                         type="button"
-                        aria-label="Previous slide"
-                        class="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white/90 shadow-sm backdrop-blur hover:bg-black/40"
-                        @click="prev()"
-                    >
-                        <span class="text-sm font-bold">‹</span>
-                    </button>
-                    <button
-                        type="button"
-                        aria-label="Next slide"
-                        class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white/90 shadow-sm backdrop-blur hover:bg-black/40"
-                        @click="next()"
-                    >
-                        <span class="text-sm font-bold">›</span>
-                    </button>
-
-                    <div
-                        class="flex transition-transform duration-700 ease-in-out"
-                        :style="'transform: translateX(-' + (index * 100) + '%)'"
-                    >
-                        @for ($i = 0; $i < 3; $i++)
-                            @php $slide = $heroSlidesForRender[$i]; @endphp
-                            <div class="w-full flex-shrink-0">
-                                @if ($slide)
-                                    <div class="overflow-hidden rounded-2xl border border-white/15 bg-white/5 shadow-2xl backdrop-blur">
-                                        <div class="relative aspect-[4/3]">
-                                            <div class="absolute inset-0 opacity-30" style="background-image: var(--hero-overlay-{{ $i + 1 }})"></div>
-                                            <img src="{{ $slide->primaryImageUrl() }}" alt="{{ $slide->name }}" class="relative h-full w-full object-cover">
-                                            <div class="absolute left-3 top-3 rounded-full bg-gold px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-foreground">
-                                                Featured Auction
-                                            </div>
-                                        </div>
-                                        <div class="p-5">
-                                            <h3 class="text-lg font-semibold">{{ $slide->name }}</h3>
-                                            <div class="mt-4 grid grid-cols-3 gap-3 text-center">
-                                                <div class="rounded-md bg-white/5 p-2">
-                                                    <div class="text-[10px] uppercase opacity-70">Bid fee</div>
-                                                    <div class="text-sm font-bold text-gold">{{ Money::kes($slide->bid_fee) }}</div>
-                                                </div>
-                                                <div class="rounded-md bg-white/5 p-2">
-                                                    <div class="text-[10px] uppercase opacity-70">Bids</div>
-                                                    <div class="text-sm font-bold">{{ number_format($slide->bids_count) }}</div>
-                                                </div>
-                                                <div class="rounded-md bg-white/5 p-2">
-                                                    <div class="text-[10px] uppercase opacity-70">Retail</div>
-                                                    <div class="text-sm font-bold">{{ Money::kes($slide->retail_value) }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="mt-4 flex items-center justify-between rounded-md bg-black/40 px-3 py-2 text-sm">
-                                                <span class="opacity-80">Closes in</span>
-                                                <x-countdown :target="$slide->endsAtMs()" class="font-mono tabular-nums text-gold" />
-                                            </div>
-                                            <div class="mt-4">
-                                                <flux:button
-                                                    href="{{ route('auctions.show', $slide) }}"
-                                                    class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!"
-                                                >
-                                                    <flux:icon.scale class="size-4" />
-                                                    Place Your Bid
-                                                </flux:button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        @endfor
-                    </div>
-                </div>
+                        aria-label="Go to slide {{ $i + 1 }}"
+                        class="h-1.5 rounded-full transition-all"
+                        :class="index === {{ $i }} ? 'w-6 bg-gold' : 'w-1.5 bg-white/40 hover:bg-white/70'"
+                        @click="index = {{ $i }}"
+                    ></button>
+                @endfor
             </div>
         </div>
     </section>
@@ -173,11 +154,13 @@ class extends Component {
             </div>
             <a href="{{ route('auctions.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">See all →</a>
         </div>
-        <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <x-scroll-row class="mt-6">
             @foreach ($grid as $auction)
-                <x-auction-card :auction="$auction" />
+                <x-scroll-row-item>
+                    <x-auction-card :auction="$auction" class="h-full" />
+                </x-scroll-row-item>
             @endforeach
-        </div>
+        </x-scroll-row>
     </section>
 
     <section class="bg-surface">
@@ -207,23 +190,25 @@ class extends Component {
             <h2 class="text-2xl font-bold text-navy sm:text-3xl">Recent winners</h2>
             <a href="{{ route('results') }}" class="text-sm font-medium text-navy hover:underline">All results →</a>
         </div>
-        <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <x-scroll-row class="mt-6">
             @foreach ($recentSales as $sale)
-                <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-                    <div class="aspect-square overflow-hidden bg-muted">
-                        <img src="{{ $sale->image }}" alt="{{ $sale->name }}" class="h-full w-full object-cover">
-                    </div>
-                    <div class="p-3">
-                        <div class="text-xs text-muted-foreground">{{ $sale->sold_on->format('j M') }}</div>
-                        <div class="mt-0.5 line-clamp-1 text-sm font-semibold">{{ $sale->name }}</div>
-                        <div class="mt-1 flex items-center justify-between">
-                            <span class="text-xs text-muted-foreground">{{ $sale->buyer_display }}</span>
-                            <span class="text-sm font-bold text-navy">{{ Money::kes($sale->sale_price) }}</span>
+                <x-scroll-row-item>
+                    <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+                        <div class="aspect-square overflow-hidden bg-muted">
+                            <img src="{{ $sale->image }}" alt="{{ $sale->name }}" class="h-full w-full object-cover">
+                        </div>
+                        <div class="p-3">
+                            <div class="text-xs text-muted-foreground">{{ $sale->sold_on->format('j M') }}</div>
+                            <div class="mt-0.5 line-clamp-1 text-sm font-semibold">{{ $sale->name }}</div>
+                            <div class="mt-1 flex items-center justify-between">
+                                <span class="text-xs text-muted-foreground">{{ $sale->buyer_display }}</span>
+                                <span class="text-sm font-bold text-navy">{{ Money::kes($sale->sale_price) }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </x-scroll-row-item>
             @endforeach
-        </div>
+        </x-scroll-row>
     </section>
 
     <section class="bg-surface">
@@ -235,20 +220,22 @@ class extends Component {
                 </div>
                 <a href="{{ route('shop.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">Visit shop →</a>
             </div>
-            <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <x-scroll-row class="mt-6">
                 @foreach ($featuredProducts as $product)
-                    <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">
-                        <div class="aspect-square overflow-hidden bg-muted">
-                            <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
-                        </div>
-                        <div class="p-3">
-                            <div class="text-[11px] text-muted-foreground">{{ $product->category }}</div>
-                            <div class="line-clamp-1 text-sm font-semibold">{{ $product->name }}</div>
-                            <div class="mt-1 text-sm font-bold text-navy">{{ Money::kes($product->price) }}</div>
-                        </div>
-                    </a>
+                    <x-scroll-row-item>
+                        <a href="{{ route('shop.show', $product) }}" class="group block overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">
+                            <div class="aspect-square overflow-hidden bg-card-home">
+                                <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
+                            </div>
+                            <div class="p-3">
+                                <div class="text-[11px] text-muted-foreground">{{ $product->category }}</div>
+                                <div class="line-clamp-1 text-sm font-semibold">{{ $product->name }}</div>
+                                <div class="mt-1 text-sm font-bold text-navy">{{ Money::kes($product->price) }}</div>
+                            </div>
+                        </a>
+                    </x-scroll-row-item>
                 @endforeach
-            </div>
+            </x-scroll-row>
         </div>
     </section>
 
