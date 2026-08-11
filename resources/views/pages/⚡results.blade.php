@@ -9,7 +9,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Results — Past UniqBid Auction Winners')]
+#[Title('Past Sales — Completed UniqBid Auctions')]
 class extends Component {
     #[Url]
     public string $q = '';
@@ -51,16 +51,16 @@ class extends Component {
 
 <div class="mx-auto max-w-7xl px-4 py-10">
     <div class="flex items-center gap-3">
-        <flux:icon.trophy class="size-6 text-gold" />
-        <h1 class="text-3xl font-bold text-navy">Past winners</h1>
+        <flux:icon.shopping-bag class="size-6 text-gold" />
+        <h1 class="text-3xl font-bold text-navy">Past sales</h1>
     </div>
     <p class="mt-2 max-w-xl text-sm text-muted-foreground">
-        Full public ledger of completed auctions. Winner photos shown with consent.
+        Full public ledger of completed auctions. Buyer photos shown with consent.
     </p>
 
     <div class="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white p-3">
         <div class="min-w-[220px] flex-1">
-            <flux:input wire:model.live.debounce.300ms="q" placeholder="Search by item or winner" icon="magnifying-glass" />
+            <flux:input wire:model.live.debounce.300ms="q" placeholder="Search by item or buyer" icon="magnifying-glass" />
         </div>
         <div class="w-[200px]">
             <flux:select wire:model.live="month">
@@ -79,7 +79,7 @@ class extends Component {
 
     @if ($results->isEmpty())
         <div class="mt-10 rounded-xl border border-dashed border-border bg-surface p-10 text-center">
-            <div class="text-lg font-semibold">No results match your search</div>
+            <div class="text-lg font-semibold">No sales match your search</div>
             <p class="mt-1 text-sm text-muted-foreground">Try a different keyword or month.</p>
         </div>
     @else

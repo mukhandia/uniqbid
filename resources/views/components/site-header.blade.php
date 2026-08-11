@@ -4,7 +4,8 @@
         ['route' => 'auctions.index', 'label' => 'Live Auctions', 'match' => 'auctions.*'],
         ['route' => 'shop.index', 'label' => 'Shop', 'match' => 'shop.*'],
         ['route' => 'how-it-works', 'label' => 'How It Works', 'match' => 'how-it-works'],
-        ['route' => 'results', 'label' => 'Results', 'match' => 'results'],
+        ['route' => 'past-sales', 'label' => 'Past Sales', 'match' => 'past-sales'],
+        ['route' => 'testimonials', 'label' => 'Testimonials', 'match' => 'testimonials'],
         ['route' => 'contact', 'label' => 'Contact', 'match' => 'contact'],
     ];
     $cartCount = app(\App\Services\CartService::class)->count();

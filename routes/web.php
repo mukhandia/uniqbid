@@ -13,8 +13,10 @@ Route::livewire('shop/{product}', 'pages::shop.show')->name('shop.show');
 Route::livewire('cart', 'pages::cart')->name('cart');
 Route::livewire('checkout', 'pages::checkout')->name('checkout');
 
-Route::livewire('results', 'pages::results')->name('results');
+Route::livewire('past-sales', 'pages::results')->name('past-sales');
+Route::redirect('results', '/past-sales');
 Route::livewire('how-it-works', 'pages::how-it-works')->name('how-it-works');
+Route::livewire('testimonials', 'pages::testimonials')->name('testimonials');
 Route::livewire('contact', 'pages::contact')->name('contact');
 Route::livewire('legal', 'pages::legal')->name('legal');
 Route::livewire('account', 'pages::account')->name('account');

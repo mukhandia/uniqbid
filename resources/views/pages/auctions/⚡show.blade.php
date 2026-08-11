@@ -151,7 +151,7 @@ class extends Component {
             <div class="mt-6 rounded-xl border border-border bg-surface p-5">
                 <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auction rules summary</div>
                 <ul class="mt-3 space-y-2 text-sm text-zinc-800">
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> The lowest unique bid at close wins the item.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> The lowest unique bid at close secures the item.</li>
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Bid fee of {{ Money::kes($auction->bid_fee) }} paid via M-Pesa per bid.</li>
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> You may place multiple bids at different amounts.</li>
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Bid fees are non-refundable per the Auction Rules.</li>

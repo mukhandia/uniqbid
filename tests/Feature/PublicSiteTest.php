@@ -34,6 +34,20 @@ test('auction detail page is reachable by slug', function () {
         ->assertSee('Place your bid');
 });
 
+test('auction countdown uses days hours and minutes without seconds', function () {
+    $auction = Auction::query()->where('slug', 'iphone-15-pro')->firstOrFail();
+
+    $this->get(route('auctions.show', $auction))
+        ->assertOk()
+        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
+        ->assertDontSee("padStart(2, '0')}s", false);
+
+    $this->get(route('auctions.index'))
+        ->assertOk()
+        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
+        ->assertDontSee("padStart(2, '0')}s", false);
+});
+
 test('shop index and product detail work', function () {
     $product = Product::query()->where('slug', 'p1')->firstOrFail();
 
@@ -48,9 +62,32 @@ test('shop index and product detail work', function () {
 });
 
 test('static public pages are reachable', function () {
-    foreach (['results', 'how-it-works', 'legal', 'contact', 'account', 'cart'] as $route) {
+    foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart'] as $route) {
         $this->get(route($route))->assertOk();
     }
+});
+
+test('past sales page uses sale language without win tone', function () {
+    $this->get(route('past-sales'))
+        ->assertOk()
+        ->assertSee('Past sales')
+        ->assertDontSee('Past winners')
+        ->assertDontSee('Winner');
+});
+
+test('how it works uses successful buy language', function () {
+    $this->get(route('how-it-works'))
+        ->assertOk()
+        ->assertSee('Pay for Bid')
+        ->assertSee('Successful Buy')
+        ->assertDontSee('>Win<', false);
+});
+test('testimonials page shows placeholder customer stories', function () {
+    $this->get(route('testimonials'))
+        ->assertOk()
+        ->assertSee('What people say about UniqBid')
+        ->assertSee('Amina Wanjiku')
+        ->assertSee('Browse live auctions');
 });
 
 test('contact form creates a support ticket', function () {

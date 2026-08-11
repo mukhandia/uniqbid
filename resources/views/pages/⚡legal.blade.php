@@ -26,7 +26,7 @@ class extends Component {
             'id' => 'rules',
             'title' => 'Auction Rules',
             'body' => [
-                'Auctions use a lowest-unique-bid mechanism. At the published close time, the lowest bid amount placed by exactly one bidder wins the item at that bid amount.',
+                'Auctions use a lowest-unique-bid mechanism. At the published close time, the lowest bid amount placed by exactly one bidder secures the item at that bid amount.',
                 'Each bid requires payment of the stated bid fee. Bid fees are non-refundable.',
                 'You may place multiple bids at different amounts within the stated range and increments.',
                 'In the event of a system error affecting an auction, UniqBid may extend, void, or re-run the auction and refund related bid fees.',

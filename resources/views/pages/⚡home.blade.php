@@ -94,7 +94,7 @@ class extends Component {
                     Licensed Kenyan Auctioneer · Est. 2024
                 </span>
                 <h1 class="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-                    The lowest <span class="text-gold">unique bid</span> wins.
+                    The lowest <span class="text-gold">unique bid</span> secures the item.
                 </h1>
                 <p class="mt-4 max-w-md text-base opacity-90">
                     Bid transparently on real items — phones, TVs, motorbikes — from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
@@ -120,7 +120,7 @@ class extends Component {
                 <div class="mt-8 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
                     @foreach ([
                         ['icon' => 'shield-check', 'label' => 'Licensed'],
-                        ['icon' => 'trophy', 'label' => 'Transparent'],
+                        ['icon' => 'check-badge', 'label' => 'Transparent'],
                         ['icon' => 'chat-bubble-left-right', 'label' => 'SMS / WhatsApp'],
                         ['icon' => 'device-phone-mobile', 'label' => 'M-Pesa Secure'],
                     ] as $trust)
@@ -172,8 +172,8 @@ class extends Component {
             <div class="mt-8 grid gap-4 md:grid-cols-3">
                 @foreach ([
                     ['n' => '1', 't' => 'Browse auctions', 'd' => 'Explore items with live countdowns, transparent bid fees, and past sale prices.'],
-                    ['n' => '2', 't' => 'Place your bid', 'd' => 'Pay a small bid fee via M-Pesa. Instantly confirmed by SMS or WhatsApp.'],
-                    ['n' => '3', 't' => 'Lowest unique bid wins', 'd' => 'When the auction closes, the lowest unique bid takes the prize at that bid price.'],
+                    ['n' => '2', 't' => 'Pay for Bid', 'd' => 'Pay a small bid fee via M-Pesa. Instantly confirmed by SMS or WhatsApp.'],
+                    ['n' => '3', 't' => 'Successful Buy', 'd' => 'When the auction closes, the lowest unique bid secures the item at that bid price.'],
                 ] as $step)
                     <div class="rounded-xl border border-border bg-white p-6 shadow-sm">
                         <div class="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">{{ $step['n'] }}</div>
@@ -187,8 +187,8 @@ class extends Component {
 
     <section class="mx-auto max-w-7xl px-4 py-14">
         <div class="flex items-end justify-between">
-            <h2 class="text-2xl font-bold text-navy sm:text-3xl">Recent winners</h2>
-            <a href="{{ route('results') }}" class="text-sm font-medium text-navy hover:underline">All results →</a>
+            <h2 class="text-2xl font-bold text-navy sm:text-3xl">Recent sales</h2>
+            <a href="{{ route('past-sales') }}" class="text-sm font-medium text-navy hover:underline">All past sales →</a>
         </div>
         <x-scroll-row class="mt-6">
             @foreach ($recentSales as $sale)
@@ -247,16 +247,16 @@ class extends Component {
                         <flux:icon.check-circle class="size-5" />
                         <span class="text-xs font-semibold uppercase tracking-wider">Regulated & transparent</span>
                     </div>
-                    <h2 class="mt-3 text-2xl font-bold sm:text-3xl">A real auctioneer. Real items. Real winners.</h2>
+                    <h2 class="mt-3 text-2xl font-bold sm:text-3xl">A real auctioneer. Real items. Real sales.</h2>
                     <p class="mt-3 max-w-md text-sm opacity-85">
-                        UniqBid is registered under the Auctioneers Act with published rules, a versioned privacy policy, and public sale results — because trust is earned.
+                        UniqBid is registered under the Auctioneers Act with published rules, a versioned privacy policy, and public past sales — because trust is earned.
                     </p>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     @foreach ([
                         'Licence No. AUC/2024/00847',
                         'Data Protection Act, 2019 compliant',
-                        'Public results ledger',
+                        'Public past sales ledger',
                         'M-Pesa STK push payments',
                     ] as $item)
                         <div class="flex items-start gap-2 rounded-lg bg-white/5 p-3 text-sm">

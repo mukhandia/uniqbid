@@ -24,7 +24,8 @@
             <ul class="space-y-2 text-sm">
                 <li><a href="{{ route('auctions.index') }}" class="opacity-90 hover:text-gold">Live Auctions</a></li>
                 <li><a href="{{ route('how-it-works') }}" class="opacity-90 hover:text-gold">How It Works</a></li>
-                <li><a href="{{ route('results') }}" class="opacity-90 hover:text-gold">Past Results</a></li>
+                <li><a href="{{ route('past-sales') }}" class="opacity-90 hover:text-gold">Past Sales</a></li>
+                <li><a href="{{ route('testimonials') }}" class="opacity-90 hover:text-gold">Testimonials</a></li>
             </ul>
         </div>
 
