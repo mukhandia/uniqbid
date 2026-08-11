@@ -66,7 +66,7 @@ class extends Component {
                     <p class="mt-1 text-sm text-muted-foreground">
                         Your reference is <span class="font-mono font-semibold text-zinc-900">{{ $ticketRef }}</span>.
                     </p>
-                    <flux:button wire:click="resetForm" class="mt-6 bg-navy! text-navy-foreground!">Send another message</flux:button>
+                    <flux:button wire:click="resetForm" class="mt-6 bg-accent! text-accent-foreground!">Send another message</flux:button>
                 </div>
             @else
                 <h2 class="text-base font-semibold">Send us a message</h2>
@@ -91,7 +91,7 @@ class extends Component {
                         <flux:error name="message" />
                     </flux:field>
                     <div class="sm:col-span-2">
-                        <flux:button type="submit" class="bg-gold! text-gold-foreground!">Create support ticket</flux:button>
+                        <flux:button type="submit" class="bg-accent! text-accent-foreground!">Create support ticket</flux:button>
                     </div>
                 </form>
             @endif

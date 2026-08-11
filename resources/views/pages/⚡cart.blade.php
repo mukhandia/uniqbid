@@ -38,8 +38,8 @@ class extends Component {
         </div>
         <h1 class="mt-4 text-2xl font-bold text-navy">Your cart is empty</h1>
         <p class="mt-2 text-sm text-muted-foreground">Browse the shop or explore live auctions.</p>
-        <div class="mt-6 flex justify-center gap-2">
-            <flux:button href="{{ route('shop.index') }}" class="bg-navy! text-navy-foreground!">Go to shop</flux:button>
+            <div class="mt-6 flex justify-center gap-2">
+            <flux:button href="{{ route('shop.index') }}" class="bg-accent! text-accent-foreground!">Go to shop</flux:button>
             <flux:button href="{{ route('auctions.index') }}" variant="outline">Live auctions</flux:button>
         </div>
     </div>
@@ -96,7 +96,7 @@ class extends Component {
                     <span>Total</span>
                     <span class="text-navy">{{ Money::kes($subtotal) }}</span>
                 </div>
-                <flux:button href="{{ route('checkout') }}" class="mt-4 w-full bg-gold! text-gold-foreground!">
+                <flux:button href="{{ route('checkout') }}" class="mt-4 w-full bg-accent! text-accent-foreground!">
                     Proceed to checkout
                 </flux:button>
             </aside>

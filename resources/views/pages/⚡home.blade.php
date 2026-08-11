@@ -17,20 +17,30 @@ class extends Component {
 @php
     use App\Support\Money;
 
-    $featured = Auction::query()->with('images')->live()->featured()->first()
-        ?? Auction::query()->with('images')->live()->orderBy('ends_at')->first();
+    // Hero slider: render exactly 3 slides (repeat the first slide if we have fewer).
+    $heroSlides = Auction::query()->with('images')->live()->featured()->limit(3)->get();
+
+    if ($heroSlides->count() < 3) {
+        $heroSlides = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(3)->get();
+    }
+
+    $heroSlides = $heroSlides->values();
+
+    $heroSlidesForRender = [];
+    for ($i = 0; $i < 3; $i++) {
+        $heroSlidesForRender[] = $heroSlides[$i] ?? $heroSlides[0] ?? null;
+    }
+
+    $featured = $heroSlidesForRender[0] ?? null;
     $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(6)->get();
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(4)->get();
     $featuredProducts = Product::query()->featured()->limit(4)->get();
 @endphp
 
 <div>
-    <section class="relative overflow-hidden bg-navy text-navy-foreground">
-        <div
-            class="absolute inset-0 opacity-30"
-            style="background-image: radial-gradient(circle at 20% 20%, rgba(217,180,74,0.35), transparent 45%), radial-gradient(circle at 80% 60%, rgba(255,255,255,0.08), transparent 40%)"
-        ></div>
-
+    <section
+        class="relative overflow-hidden bg-navy text-navy-foreground"
+    >
         <div class="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20">
             <div class="flex flex-col justify-center">
                 <span class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium">
@@ -47,7 +57,7 @@ class extends Component {
                     @if ($featured)
                         <flux:button
                             href="{{ route('auctions.show', $featured) }}"
-                            class="bg-gold! text-gold-foreground! hover:bg-gold/90!"
+                            class="bg-accent! text-accent-foreground! hover:bg-accent/90!"
                         >
                             Place Your Bid
                             <flux:icon.arrow-right class="size-4" />
@@ -76,48 +86,82 @@ class extends Component {
                 </div>
             </div>
 
-            @if ($featured)
-                <div class="relative">
-                    <div class="overflow-hidden rounded-2xl border border-white/15 bg-white/5 shadow-2xl backdrop-blur">
-                        <div class="relative aspect-[4/3]">
-                            <img src="{{ $featured->primaryImageUrl() }}" alt="{{ $featured->name }}" class="h-full w-full object-cover">
-                            <div class="absolute left-3 top-3 rounded-full bg-gold px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-foreground">
-                                Featured Auction
+            <div class="relative hero-slider-border rounded-2xl">
+                <div
+                    x-data="{ index: 0, next(){ this.index = (this.index + 1) % 3 }, prev(){ this.index = (this.index + 2) % 3 } }"
+                    x-init="setInterval(() => { next() }, 6500)"
+                    class="relative overflow-hidden"
+                >
+                    <button
+                        type="button"
+                        aria-label="Previous slide"
+                        class="absolute left-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white/90 shadow-sm backdrop-blur hover:bg-black/40"
+                        @click="prev()"
+                    >
+                        <span class="text-sm font-bold">‹</span>
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Next slide"
+                        class="absolute right-3 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/30 p-2 text-white/90 shadow-sm backdrop-blur hover:bg-black/40"
+                        @click="next()"
+                    >
+                        <span class="text-sm font-bold">›</span>
+                    </button>
+
+                    <div
+                        class="flex transition-transform duration-700 ease-in-out"
+                        :style="'transform: translateX(-' + (index * 100) + '%)'"
+                    >
+                        @for ($i = 0; $i < 3; $i++)
+                            @php $slide = $heroSlidesForRender[$i]; @endphp
+                            <div class="w-full flex-shrink-0">
+                                @if ($slide)
+                                    <div class="overflow-hidden rounded-2xl border border-white/15 bg-white/5 shadow-2xl backdrop-blur">
+                                        <div class="relative aspect-[4/3]">
+                                            <div class="absolute inset-0 opacity-30" style="background-image: var(--hero-overlay-{{ $i + 1 }})"></div>
+                                            <img src="{{ $slide->primaryImageUrl() }}" alt="{{ $slide->name }}" class="relative h-full w-full object-cover">
+                                            <div class="absolute left-3 top-3 rounded-full bg-gold px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-gold-foreground">
+                                                Featured Auction
+                                            </div>
+                                        </div>
+                                        <div class="p-5">
+                                            <h3 class="text-lg font-semibold">{{ $slide->name }}</h3>
+                                            <div class="mt-4 grid grid-cols-3 gap-3 text-center">
+                                                <div class="rounded-md bg-white/5 p-2">
+                                                    <div class="text-[10px] uppercase opacity-70">Bid fee</div>
+                                                    <div class="text-sm font-bold text-gold">{{ Money::kes($slide->bid_fee) }}</div>
+                                                </div>
+                                                <div class="rounded-md bg-white/5 p-2">
+                                                    <div class="text-[10px] uppercase opacity-70">Bids</div>
+                                                    <div class="text-sm font-bold">{{ number_format($slide->bids_count) }}</div>
+                                                </div>
+                                                <div class="rounded-md bg-white/5 p-2">
+                                                    <div class="text-[10px] uppercase opacity-70">Retail</div>
+                                                    <div class="text-sm font-bold">{{ Money::kes($slide->retail_value) }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-4 flex items-center justify-between rounded-md bg-black/40 px-3 py-2 text-sm">
+                                                <span class="opacity-80">Closes in</span>
+                                                <x-countdown :target="$slide->endsAtMs()" class="font-mono tabular-nums text-gold" />
+                                            </div>
+                                            <div class="mt-4">
+                                                <flux:button
+                                                    href="{{ route('auctions.show', $slide) }}"
+                                                    class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!"
+                                                >
+                                                    <flux:icon.scale class="size-4" />
+                                                    Place Your Bid
+                                                </flux:button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
-                        </div>
-                        <div class="p-5">
-                            <h3 class="text-lg font-semibold">{{ $featured->name }}</h3>
-                            <div class="mt-4 grid grid-cols-3 gap-3 text-center">
-                                <div class="rounded-md bg-white/5 p-2">
-                                    <div class="text-[10px] uppercase opacity-70">Bid fee</div>
-                                    <div class="text-sm font-bold text-gold">{{ Money::kes($featured->bid_fee) }}</div>
-                                </div>
-                                <div class="rounded-md bg-white/5 p-2">
-                                    <div class="text-[10px] uppercase opacity-70">Bids</div>
-                                    <div class="text-sm font-bold">{{ number_format($featured->bids_count) }}</div>
-                                </div>
-                                <div class="rounded-md bg-white/5 p-2">
-                                    <div class="text-[10px] uppercase opacity-70">Retail</div>
-                                    <div class="text-sm font-bold">{{ Money::kes($featured->retail_value) }}</div>
-                                </div>
-                            </div>
-                            <div class="mt-4 flex items-center justify-between rounded-md bg-black/40 px-3 py-2 text-sm">
-                                <span class="opacity-80">Closes in</span>
-                                <x-countdown :target="$featured->endsAtMs()" class="font-mono tabular-nums text-gold" />
-                            </div>
-                            <div class="mt-4">
-                                <flux:button
-                                    href="{{ route('auctions.show', $featured) }}"
-                                    class="w-full bg-gold! text-gold-foreground! hover:bg-gold/90!"
-                                >
-                                    <flux:icon.scale class="size-4" />
-                                    Place Your Bid
-                                </flux:button>
-                            </div>
-                        </div>
+                        @endfor
                     </div>
                 </div>
-            @endif
+            </div>
         </div>
     </section>
 
@@ -193,7 +237,7 @@ class extends Component {
             </div>
             <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
                 @foreach ($featuredProducts as $product)
-                    <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-white shadow-sm transition hover:shadow-md">
+                    <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">
                         <div class="aspect-square overflow-hidden bg-muted">
                             <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
                         </div>

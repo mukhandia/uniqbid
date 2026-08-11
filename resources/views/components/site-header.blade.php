@@ -58,7 +58,7 @@
             </a>
 
             <a href="{{ route('auctions.index') }}" class="hidden sm:inline-flex">
-                <flux:button class="bg-gold! text-gold-foreground! hover:bg-gold/90!">
+                <flux:button class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
                     Place Your Bid
                 </flux:button>
             </a>
@@ -97,7 +97,7 @@
                 My Account
             </a>
             <a href="{{ route('auctions.index') }}" class="mt-2" @click="open = false">
-                <flux:button class="w-full bg-gold! text-gold-foreground! hover:bg-gold/90!">
+                <flux:button class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
                     Place Your Bid
                 </flux:button>
             </a>

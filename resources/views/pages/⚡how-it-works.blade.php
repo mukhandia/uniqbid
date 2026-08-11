@@ -96,7 +96,7 @@ class extends Component {
         </div>
 
         <div class="mt-10 text-center">
-            <flux:button href="{{ route('auctions.index') }}" class="bg-gold! text-gold-foreground!">
+            <flux:button href="{{ route('auctions.index') }}" class="bg-accent! text-accent-foreground!">
                 Browse live auctions
             </flux:button>
         </div>

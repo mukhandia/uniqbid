@@ -59,7 +59,7 @@ class extends Component {
 
     <div class="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         @foreach ($products as $product)
-            <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-white shadow-sm transition hover:shadow-md">
+            <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-card-shop shadow-sm transition hover:shadow-md">
                 <div class="relative aspect-square overflow-hidden bg-muted">
                     <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
                     @if ($product->stock === 0)

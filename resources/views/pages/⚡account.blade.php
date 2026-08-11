@@ -24,14 +24,14 @@ class extends Component {
 
         <div class="mt-6 flex flex-wrap justify-center gap-2">
             @auth
-                <flux:button href="{{ route('dashboard') }}" class="bg-navy! text-navy-foreground!">
+                <flux:button href="{{ route('dashboard') }}" class="bg-accent! text-accent-foreground!">
                     Go to dashboard
                 </flux:button>
                 <flux:button href="{{ route('profile.edit') }}" variant="outline">
                     Profile settings
                 </flux:button>
             @else
-                <flux:button href="{{ route('login') }}" class="bg-navy! text-navy-foreground!">
+                <flux:button href="{{ route('login') }}" class="bg-accent! text-accent-foreground!">
                     Sign in
                 </flux:button>
                 @if (Route::has('register'))

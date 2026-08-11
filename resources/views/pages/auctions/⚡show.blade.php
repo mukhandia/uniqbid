@@ -204,7 +204,7 @@ class extends Component {
                                 <div class="mt-1 flex justify-between"><dt class="text-muted-foreground">Bid amount</dt><dd class="font-semibold">{{ Money::kes((int) $amount) }}</dd></div>
                             </dl>
                             <div class="mt-4 flex gap-2">
-                                <flux:button wire:click="resetForm" class="flex-1 bg-navy! text-navy-foreground!">Place another bid</flux:button>
+                                <flux:button wire:click="resetForm" class="flex-1 bg-accent! text-accent-foreground!">Place another bid</flux:button>
                                 <flux:button href="{{ route('account') }}" variant="outline" class="flex-1">View my bids</flux:button>
                             </div>
                         </div>
@@ -222,7 +222,7 @@ class extends Component {
                             <h3 class="mt-3 text-lg font-bold">Payment failed or timed out</h3>
                             <p class="mt-1 text-sm text-muted-foreground">No money was deducted. You can retry — we've kept your details.</p>
                             <div class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <flux:button wire:click="retryPayment" class="flex-1 bg-gold! text-gold-foreground!">Retry payment</flux:button>
+                                <flux:button wire:click="retryPayment" class="flex-1 bg-accent! text-accent-foreground!">Retry payment</flux:button>
                                 <flux:button wire:click="resetForm" variant="outline" class="flex-1">Edit details</flux:button>
                             </div>
                         </div>
@@ -265,7 +265,7 @@ class extends Component {
                                 <flux:error name="consent" />
                             </flux:field>
 
-                            <flux:button type="submit" class="w-full bg-gold! text-gold-foreground! hover:bg-gold/90!">
+                            <flux:button type="submit" class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
                                 Save Bid & Pay Bid Fee ({{ Money::kes($auction->bid_fee) }})
                             </flux:button>
 

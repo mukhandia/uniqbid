@@ -8,46 +8,61 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@import './color-settings.css';
+
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
     --radius-lg: 0.75rem;
     --radius-xl: 1rem;
     --radius-2xl: 1.25rem;
 
-    --color-navy: oklch(0.24 0.08 260);
-    --color-navy-foreground: oklch(0.98 0 0);
-    --color-gold: oklch(0.78 0.14 82);
-    --color-gold-foreground: oklch(0.20 0.05 260);
-    --color-surface: oklch(0.975 0.005 250);
-    --color-muted: oklch(0.965 0.005 250);
-    --color-muted-foreground: oklch(0.48 0.02 260);
-    --color-border: oklch(0.91 0.01 255);
-    --color-success: oklch(0.62 0.14 155);
-    --color-warning: oklch(0.80 0.15 75);
-    --color-warning-foreground: oklch(0.20 0.05 60);
+    /* Brand colors */
+    --color-navy: var(--brand-navy);
+    --color-navy-foreground: var(--brand-navy-foreground);
+    --color-gold: var(--brand-gold);
+    --color-gold-foreground: var(--brand-gold-foreground);
+    --color-red: var(--brand-red);
+    --color-red-foreground: var(--brand-red-foreground);
 
-    --color-zinc-50: #fafafa;
-    --color-zinc-100: #f5f5f5;
-    --color-zinc-200: #e5e5e5;
-    --color-zinc-300: #d4d4d4;
-    --color-zinc-400: #a3a3a3;
-    --color-zinc-500: #737373;
-    --color-zinc-600: #525252;
-    --color-zinc-700: #404040;
-    --color-zinc-800: #262626;
-    --color-zinc-900: #171717;
-    --color-zinc-950: #0a0a0a;
+    /* Semantic accent (CTAs) */
+    --color-accent: var(--accent);
+    --color-accent-content: var(--accent-content);
+    --color-accent-foreground: var(--accent-foreground);
 
-    --color-accent: var(--color-navy);
-    --color-accent-content: var(--color-navy);
-    --color-accent-foreground: var(--color-navy-foreground);
+    /* Surfaces + cards */
+    --color-surface: var(--surface);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-border: var(--border);
+
+    --color-card-home: var(--card-home);
+    --color-card-shop: var(--card-shop);
+    --color-card: var(--card-home);
+
+    /* Status */
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+
+    /* Zinc scale */
+    --color-zinc-50: var(--zinc-50);
+    --color-zinc-100: var(--zinc-100);
+    --color-zinc-200: var(--zinc-200);
+    --color-zinc-300: var(--zinc-300);
+    --color-zinc-400: var(--zinc-400);
+    --color-zinc-500: var(--zinc-500);
+    --color-zinc-600: var(--zinc-600);
+    --color-zinc-700: var(--zinc-700);
+    --color-zinc-800: var(--zinc-800);
+    --color-zinc-900: var(--zinc-900);
+    --color-zinc-950: var(--zinc-950);
 }
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-gold);
-        --color-accent-content: var(--color-gold);
-        --color-accent-foreground: var(--color-gold-foreground);
+        --color-accent: var(--accent);
+        --color-accent-content: var(--accent-content);
+        --color-accent-foreground: var(--accent-foreground);
     }
 }
 
@@ -82,4 +97,80 @@ input:focus[data-flux-control],
 textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+@layer utilities {
+    /*
+     * Animated border "line" around the hero card.
+     * Uses a conic-gradient + mask so only the border ring is visible.
+     */
+    .hero-card-border {
+        position: relative;
+    }
+
+    .hero-card-border::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: 1rem; /* matches rounded-2xl */
+        padding: 1px;
+        z-index: 0;
+        background: conic-gradient(
+            from 0deg,
+            rgba(239, 68, 68, 0.85),
+            rgba(53, 90, 142, 0.85),
+            rgba(245, 158, 11, 0.85),
+            rgba(239, 68, 68, 0.85)
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: hero-border-spin 3.25s linear infinite;
+        pointer-events: none;
+    }
+
+    .hero-card-border > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    /*
+     * Animated border "line" around the entire hero slider.
+     * This lets the running line go around the slider container (not each card).
+     */
+    .hero-slider-border {
+        position: relative;
+    }
+
+    .hero-slider-border::before {
+        content: '';
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        z-index: 0;
+        background: conic-gradient(
+            from 0deg,
+            rgba(239, 68, 68, 0.85),
+            rgba(53, 90, 142, 0.85),
+            rgba(245, 158, 11, 0.85),
+            rgba(239, 68, 68, 0.85)
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: hero-border-spin 3.25s linear infinite;
+        pointer-events: none;
+    }
+
+    .hero-slider-border > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    @keyframes hero-border-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 }

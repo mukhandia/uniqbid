@@ -88,7 +88,7 @@ class extends Component {
                 </div>
                 <flux:button
                     wire:click="addToCart"
-                    class="flex-1 bg-navy! text-navy-foreground! hover:bg-navy/90!"
+                    class="flex-1 bg-accent! text-accent-foreground! hover:bg-accent/90!"
                     :disabled="$product->stock === 0"
                 >
                     <flux:icon.shopping-cart class="size-4" />

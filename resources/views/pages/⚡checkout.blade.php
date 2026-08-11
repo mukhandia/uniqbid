@@ -68,7 +68,7 @@ class extends Component {
                 Demo checkout complete. Reference <span class="font-mono font-semibold text-zinc-900">{{ $orderRef }}</span>.
             </p>
             <div class="mt-6 flex justify-center gap-2">
-                <flux:button href="{{ route('shop.index') }}" class="bg-navy! text-navy-foreground!">Continue shopping</flux:button>
+                <flux:button href="{{ route('shop.index') }}" class="bg-accent! text-accent-foreground!">Continue shopping</flux:button>
                 <flux:button href="{{ route('account') }}" variant="outline">My account</flux:button>
             </div>
         </div>
@@ -101,7 +101,7 @@ class extends Component {
                         <flux:error name="address" />
                     </flux:field>
                 @endif
-                <flux:button type="submit" class="w-full bg-gold! text-gold-foreground!">
+                <flux:button type="submit" class="w-full bg-accent! text-accent-foreground!">
                     Pay with M-Pesa (demo) — {{ Money::kes($subtotal) }}
                 </flux:button>
             </form>
