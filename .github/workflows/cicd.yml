@@ -72,6 +72,11 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - name: Install PHP dependencies
+        run: |
+          cp .env.example .env
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
       - name: Install JS dependencies
         run: npm ci
 
@@ -160,6 +165,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+
+      - name: Install PHP dependencies
+        run: |
+          cp .env.example .env
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
       - name: Install JS dependencies
         run: npm ci
