@@ -25,4 +25,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
 
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::livewire('auctions', 'pages::admin.auctions')->name('auctions');
+    Route::livewire('auctions/{auction}/bids', 'pages::admin.auction-bids')->name('auction-bids');
+});
+
 require __DIR__.'/settings.php';

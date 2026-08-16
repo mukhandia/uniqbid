@@ -46,25 +46,25 @@ test('auctions index sorts by popular bids', function () {
     expect(strpos($html, 'Hot Auction'))->toBeLessThan(strpos($html, 'Quiet Auction'));
 });
 
-test('auctions index sorts by lowest bid fee', function () {
+test('auctions index sorts by highest product value', function () {
     Auction::factory()->create([
-        'name' => 'Expensive Fee',
-        'bid_fee' => 100,
+        'name' => 'Lower Value',
+        'retail_value' => 20000,
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
     Auction::factory()->create([
-        'name' => 'Cheap Fee',
-        'bid_fee' => 20,
+        'name' => 'Higher Value',
+        'retail_value' => 180000,
         'status' => 'live',
         'ends_at' => now()->addDays(2),
     ]);
 
     $html = Livewire::test('pages::auctions.index')
-        ->set('sort', 'fee')
+        ->set('sort', 'value')
         ->html();
 
-    expect(strpos($html, 'Cheap Fee'))->toBeLessThan(strpos($html, 'Expensive Fee'));
+    expect(strpos($html, 'Higher Value'))->toBeLessThan(strpos($html, 'Lower Value'));
 });
 
 test('auctions index hides closed auctions', function () {

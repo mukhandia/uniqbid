@@ -78,8 +78,9 @@ test('past sales page uses sale language without win tone', function () {
 test('how it works uses successful buy language', function () {
     $this->get(route('how-it-works'))
         ->assertOk()
-        ->assertSee('Pay for Bid')
-        ->assertSee('Successful Buy')
+        ->assertSee('Pay participation fee')
+        ->assertSee('Successful buy')
+        ->assertSee('Bid amount')
         ->assertDontSee('>Win<', false);
 });
 test('testimonials page shows placeholder customer stories', function () {

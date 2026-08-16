@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
@@ -27,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property bool $is_featured
  * @property array<int, int>|null $similar_sales
+ * @property Carbon|null $settled_at
+ * @property int|null $settled_by
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -45,6 +48,8 @@ use Illuminate\Support\Carbon;
     'status',
     'is_featured',
     'similar_sales',
+    'settled_at',
+    'settled_by',
 ])]
 class Auction extends Model
 {
@@ -66,6 +71,7 @@ class Auction extends Model
             'ends_at' => 'datetime',
             'is_featured' => 'boolean',
             'similar_sales' => 'array',
+            'settled_at' => 'datetime',
         ];
     }
 
@@ -83,6 +89,22 @@ class Auction extends Model
     public function result(): HasOne
     {
         return $this->hasOne(AuctionResult::class);
+    }
+
+    /**
+     * @return HasMany<AuctionBid, $this>
+     */
+    public function bids(): HasMany
+    {
+        return $this->hasMany(AuctionBid::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function settledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'settled_by');
     }
 
     /**

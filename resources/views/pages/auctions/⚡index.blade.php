@@ -26,7 +26,7 @@ class extends Component {
 
         match ($this->sort) {
             'popular' => $query->orderByDesc('bids_count'),
-            'fee' => $query->orderBy('bid_fee'),
+            'value' => $query->orderByDesc('retail_value'),
             default => $query->orderBy('ends_at'),
         };
 
@@ -55,7 +55,7 @@ class extends Component {
             <flux:select wire:model.live="sort">
                 <flux:select.option value="closing">Closing soonest</flux:select.option>
                 <flux:select.option value="popular">Most bids</flux:select.option>
-                <flux:select.option value="fee">Lowest bid fee</flux:select.option>
+                <flux:select.option value="value">Highest product value</flux:select.option>
             </flux:select>
         </div>
         <div class="text-sm text-muted-foreground">

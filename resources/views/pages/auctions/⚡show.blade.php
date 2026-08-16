@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Auction;
+use App\Models\PaymentAttempt;
+use App\Services\AuctionBidService;
 use App\Support\Money;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
@@ -19,17 +21,19 @@ class extends Component {
 
     public string $phone = '';
 
-    public bool $whatsapp = true;
+    public string $email = '';
 
     public string $amount = '';
 
-    public bool $consent = false;
+    public bool $rulesConsent = false;
 
-    public bool $forceFail = false;
+    public bool $marketingConsent = false;
 
     public string $formState = 'idle';
 
     public string $reference = '';
+
+    public ?int $paymentAttemptId = null;
 
     public function mount(Auction $auction): void
     {
@@ -47,12 +51,13 @@ class extends Component {
     {
         $this->validate([
             'name' => ['required', 'string', 'min:2'],
-            'phone' => ['required', 'regex:/^0\d{9}$/'],
+            'email' => ['required', 'email'],
+            'phone' => ['required', 'regex:/^(\+?254|0)7\d{8}$/'],
             'amount' => ['required', 'integer', 'min:'.$this->auction->min_bid, 'max:'.$this->auction->max_bid],
-            'consent' => ['accepted'],
+            'rulesConsent' => ['accepted'],
         ], [
-            'phone.regex' => 'Enter a valid Kenyan number (e.g. 0712345678).',
-            'consent.accepted' => 'You must accept the rules to place a bid.',
+            'phone.regex' => 'Enter a valid Kenyan mobile number.',
+            'rulesConsent.accepted' => 'You must accept the rules and privacy policy to place a bid.',
         ]);
 
         $amount = (int) $this->amount;
@@ -63,41 +68,47 @@ class extends Component {
             return;
         }
 
+        $attempt = app(AuctionBidService::class)->initiate($this->auction, $amount, [
+            'name' => $this->name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'marketing_consent' => $this->marketingConsent,
+        ]);
+
+        $this->paymentAttemptId = $attempt->id;
+        $this->reference = $attempt->auctionBid->reference;
         $this->formState = 'pending';
     }
 
-    public function completeSimulatedPayment(): void
+    public function completePlaceholderPayment(): void
     {
-        if ($this->formState !== 'pending') {
+        if ($this->formState !== 'pending' || ! $this->paymentAttemptId) {
             return;
         }
 
-        // Simulated M-Pesa STK push for the POC port.
-        if ($this->forceFail || random_int(1, 100) <= 20) {
-            $this->formState = 'failure';
-
-            return;
-        }
-
-        $this->reference = 'UB'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        app(AuctionBidService::class)->markSucceeded(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
         $this->formState = 'success';
 
         Flux::toast(
             variant: 'success',
-            text: ($this->whatsapp ? 'WhatsApp' : 'SMS').' confirmation sent for ref '.$this->reference.'.',
+            text: 'Participation fee paid for reference '.$this->reference.'.',
         );
     }
 
-    public function retryPayment(): void
+    public function failPlaceholderPayment(): void
     {
-        $this->forceFail = false;
-        $this->formState = 'pending';
+        if ($this->paymentAttemptId) {
+            app(AuctionBidService::class)->markFailed(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
+        }
+
+        $this->formState = 'failure';
     }
 
     public function resetForm(): void
     {
         $this->formState = 'idle';
         $this->reference = '';
+        $this->paymentAttemptId = null;
     }
 }; ?>
 
@@ -149,18 +160,18 @@ class extends Component {
             <p class="mt-4 text-sm leading-relaxed text-zinc-800">{{ $auction->description }}</p>
 
             <div class="mt-6 rounded-xl border border-border bg-surface p-5">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Auction rules summary</div>
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selling rules summary</div>
                 <ul class="mt-3 space-y-2 text-sm text-zinc-800">
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> The lowest unique bid at close secures the item.</li>
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Bid fee of {{ Money::kes($auction->bid_fee) }} paid via M-Pesa per bid.</li>
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> You may place multiple bids at different amounts.</li>
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Bid fees are non-refundable per the Auction Rules.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Enter a bid amount within the published range. The lowest unique bid at close secures the item.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Each bid requires a participation fee of {{ Money::kes($auction->bid_fee) }}, paid now to confirm the bid.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> You may place multiple bids at different amounts; each bid needs its own participation fee.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> If your bid is successful, you later pay that bid amount on collection or delivery — not the product value.</li>
                 </ul>
             </div>
 
             @if ($auction->similar_sales)
                 <div class="mt-6 rounded-xl border border-border bg-white p-5">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent sale prices — similar items</div>
+                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Past successful bid amounts on similar items</div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         @foreach ($auction->similar_sales as $sale)
                             <div class="rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-semibold text-navy">
@@ -174,18 +185,32 @@ class extends Component {
 
         <div>
             <div class="sticky top-20 space-y-4">
-                <div class="rounded-2xl border border-border bg-white p-5 shadow-sm">
-                    <div class="flex items-center justify-between">
+                <div class="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
+                    <div class="grid gap-3 sm:grid-cols-2">
                         <div>
-                            <div class="text-xs text-muted-foreground">Bid fee</div>
-                            <div class="text-2xl font-bold text-navy">{{ Money::kes($auction->bid_fee) }}</div>
+                            <div class="text-xs text-muted-foreground">Product value</div>
+                            <div class="text-xl font-bold text-navy sm:text-2xl">{{ Money::kes($auction->retail_value) }}</div>
                         </div>
-                        <div class="text-right">
+                        <div class="sm:text-right">
                             <div class="text-xs text-muted-foreground">Closes in</div>
                             <x-countdown
                                 :target="$auction->endsAtMs()"
-                                @class(['font-mono text-lg font-bold tabular-nums', 'text-red-600' => $closingSoon, 'text-navy' => ! $closingSoon])
+                                @class(['font-mono text-base font-bold tabular-nums sm:text-lg', 'text-red-600' => $closingSoon, 'text-navy' => ! $closingSoon])
                             />
+                        </div>
+                    </div>
+                    <div class="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
+                        <div>
+                            <div class="text-xs text-muted-foreground">Bid range</div>
+                            <div class="text-sm font-semibold tabular-nums text-zinc-900">
+                                {{ Money::kes($auction->min_bid) }} – {{ Money::kes($auction->max_bid) }}
+                            </div>
+                            <div class="text-[11px] text-muted-foreground">Steps of {{ $auction->bid_increment }}</div>
+                        </div>
+                        <div class="sm:text-right">
+                            <div class="text-xs text-muted-foreground">Participation fee</div>
+                            <div class="text-sm font-semibold text-zinc-900">{{ Money::kes($auction->bid_fee) }}</div>
+                            <div class="text-[11px] text-muted-foreground">Paid per bid</div>
                         </div>
                     </div>
                 </div>
@@ -196,39 +221,50 @@ class extends Component {
                             <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-success/15">
                                 <flux:icon.check-circle class="size-6 text-success" />
                             </div>
-                            <h3 class="mt-3 text-lg font-bold text-navy">Bid received</h3>
-                            <p class="mt-1 text-sm text-muted-foreground">Your bid is safely recorded and will be evaluated at close.</p>
+                            <h3 class="mt-3 text-lg font-bold text-navy">Bid confirmed</h3>
+                            <p class="mt-1 text-sm text-muted-foreground">Your participation fee is paid and this bid amount is recorded for sale close.</p>
                             <dl class="mt-4 rounded-lg bg-surface p-4 text-left text-sm">
                                 <div class="flex justify-between"><dt class="text-muted-foreground">Reference</dt><dd class="font-mono font-semibold">{{ $reference }}</dd></div>
                                 <div class="mt-1 flex justify-between"><dt class="text-muted-foreground">Item</dt><dd class="max-w-[60%] truncate font-medium">{{ $auction->name }}</dd></div>
                                 <div class="mt-1 flex justify-between"><dt class="text-muted-foreground">Bid amount</dt><dd class="font-semibold">{{ Money::kes((int) $amount) }}</dd></div>
+                                <div class="mt-1 flex justify-between"><dt class="text-muted-foreground">Fee paid now</dt><dd class="font-semibold">{{ Money::kes($auction->bid_fee) }}</dd></div>
                             </dl>
+                            <p class="mt-3 text-xs text-muted-foreground">If this bid is the lowest unique at close, you will pay {{ Money::kes((int) $amount) }} on collection or delivery.</p>
                             <div class="mt-4 flex gap-2">
                                 <flux:button wire:click="resetForm" class="flex-1 bg-accent! text-accent-foreground!">Place another bid</flux:button>
-                                <flux:button href="{{ route('account') }}" variant="outline" class="flex-1">View my bids</flux:button>
+                                <flux:button href="{{ route('auctions.index') }}" variant="outline" class="flex-1">Browse sales</flux:button>
                             </div>
                         </div>
                     @elseif ($formState === 'pending')
-                        <div class="py-6 text-center" wire:init="completeSimulatedPayment">
-                            <flux:icon.arrow-path class="mx-auto size-10 animate-spin text-navy" />
-                            <div class="mt-4 text-base font-semibold">Check your phone</div>
-                            <p class="mt-1 text-sm text-muted-foreground">We've sent an M-Pesa prompt. Enter your PIN to complete payment.</p>
+                        <div class="py-3 text-center">
+                            <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy/10">
+                                <flux:icon.device-phone-mobile class="size-6 text-navy" />
+                            </div>
+                            <div class="mt-4 text-base font-semibold">Pay participation fee {{ Money::kes($auction->bid_fee) }}</div>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                This confirms your bid of {{ Money::kes((int) $amount) }}. It is not the product value and is not credited against a later successful-buy payment.
+                            </p>
+                            <p class="mt-2 text-xs text-muted-foreground">IntaSend will send the live payment prompt once credentials are connected. Use the placeholder controls below during development.</p>
+                            <div class="mt-5 grid gap-2 sm:grid-cols-2">
+                                <flux:button wire:click="completePlaceholderPayment" class="bg-accent! text-accent-foreground!">Confirm fee payment</flux:button>
+                                <flux:button wire:click="failPlaceholderPayment" variant="outline">Mark payment failed</flux:button>
+                            </div>
                         </div>
                     @elseif ($formState === 'failure')
                         <div class="text-center">
                             <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-red-100">
                                 <flux:icon.exclamation-triangle class="size-6 text-red-600" />
                             </div>
-                            <h3 class="mt-3 text-lg font-bold">Payment failed or timed out</h3>
-                            <p class="mt-1 text-sm text-muted-foreground">No money was deducted. You can retry — we've kept your details.</p>
+                            <h3 class="mt-3 text-lg font-bold">Participation fee not paid</h3>
+                            <p class="mt-1 text-sm text-muted-foreground">No money was deducted and this bid was not counted. You can try again.</p>
                             <div class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <flux:button wire:click="retryPayment" class="flex-1 bg-accent! text-accent-foreground!">Retry payment</flux:button>
-                                <flux:button wire:click="resetForm" variant="outline" class="flex-1">Edit details</flux:button>
+                                <flux:button wire:click="resetForm" class="flex-1 bg-accent! text-accent-foreground!">Edit and retry</flux:button>
+                                <flux:button href="{{ route('contact') }}" variant="outline" class="flex-1">Contact support</flux:button>
                             </div>
                         </div>
                     @else
                         <h2 class="text-lg font-bold text-navy">Place your bid</h2>
-                        <p class="mt-1 text-xs text-muted-foreground">Fill in and pay the bid fee to enter this auction.</p>
+                        <p class="mt-1 text-xs text-muted-foreground">Choose a bid amount in the range, then pay the participation fee to confirm it. You can place multiple bids.</p>
 
                         <form wire:submit="submitBid" class="mt-4 space-y-4">
                             <flux:field>
@@ -240,39 +276,49 @@ class extends Component {
                             <flux:field>
                                 <flux:label>Mobile number</flux:label>
                                 <flux:input wire:model="phone" inputmode="tel" placeholder="07XX XXX XXX" />
-                                <div class="mt-2 flex items-center justify-between rounded-md bg-surface px-3 py-2">
-                                    <div class="flex items-center gap-2 text-xs">
-                                        <flux:icon.chat-bubble-left-right class="size-4 text-navy" />
-                                        <span>This number is on WhatsApp</span>
-                                    </div>
-                                    <flux:switch wire:model="whatsapp" />
-                                </div>
                                 <flux:error name="phone" />
+                            </flux:field>
+
+                            <flux:field>
+                                <flux:label>Email address</flux:label>
+                                <flux:input wire:model="email" type="email" placeholder="you@example.com" />
+                                <flux:error name="email" />
                             </flux:field>
 
                             <flux:field>
                                 <flux:label>Your bid amount (KES)</flux:label>
                                 <flux:input wire:model="amount" inputmode="numeric" placeholder="{{ $auction->min_bid }} – {{ number_format($auction->max_bid) }}" />
-                                <flux:description>Increments of {{ $auction->bid_increment }}. Bid privately — uniqueness is revealed only at close.</flux:description>
+                                <flux:description>
+                                    Enter {{ Money::kes($auction->min_bid) }}–{{ Money::kes($auction->max_bid) }} in steps of {{ $auction->bid_increment }}. This amount is paid later only if it becomes the successful bid.
+                                </flux:description>
                                 <flux:error name="amount" />
                             </flux:field>
 
+                            <div class="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-zinc-800">
+                                <div class="flex items-center justify-between gap-3">
+                                    <span>Participation fee due now</span>
+                                    <span class="font-semibold text-navy">{{ Money::kes($auction->bid_fee) }}</span>
+                                </div>
+                            </div>
+
                             <flux:field variant="inline">
-                                <flux:checkbox wire:model="consent" />
+                                <flux:checkbox wire:model="rulesConsent" />
                                 <flux:label class="text-xs!">
-                                    I accept the <a href="{{ route('legal') }}" class="font-medium text-navy underline">Auction Rules & Privacy Policy</a>, and agree to receive UniqBid updates by SMS/WhatsApp.
+                                    I accept the <a href="{{ route('legal') }}" class="font-medium text-navy underline">Selling Rules & Privacy Policy</a>.
                                 </flux:label>
-                                <flux:error name="consent" />
+                                <flux:error name="rulesConsent" />
+                            </flux:field>
+
+                            <flux:field variant="inline">
+                                <flux:checkbox wire:model="marketingConsent" />
+                                <flux:label class="text-xs!">
+                                    Send me new sale and promotion updates by SMS, WhatsApp, or email. Optional.
+                                </flux:label>
                             </flux:field>
 
                             <flux:button type="submit" class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
-                                Save Bid & Pay Bid Fee ({{ Money::kes($auction->bid_fee) }})
+                                Pay participation fee {{ Money::kes($auction->bid_fee) }}
                             </flux:button>
-
-                            <label class="flex items-center justify-between rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                                <span>Demo: force payment failure</span>
-                                <flux:switch wire:model="forceFail" />
-                            </label>
                         </form>
                     @endif
                 </div>
@@ -280,9 +326,9 @@ class extends Component {
                 <div class="rounded-xl border border-border bg-surface p-4 text-xs text-muted-foreground">
                     <div class="flex items-center gap-2 font-semibold text-zinc-900">
                         <flux:icon.shield-check class="size-4 text-navy" />
-                        Secure M-Pesa STK push
+                        Secure participation-fee payment
                     </div>
-                    <p class="mt-1">You'll get a prompt on your phone to confirm the bid fee. No card details required.</p>
+                    <p class="mt-1">You pay the participation fee now to confirm each bid. Product value is never charged as a bid payment.</p>
                 </div>
             </div>
         </div>

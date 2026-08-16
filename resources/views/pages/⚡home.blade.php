@@ -17,77 +17,32 @@ class extends Component {
 @php
     use App\Support\Money;
 
-    // Hero slider: render exactly 3 slides (repeat the first slide if we have fewer).
-    $heroSlides = Auction::query()->with('images')->live()->featured()->limit(3)->get();
+    $featured = Auction::query()->with('images')->live()->featured()->orderBy('ends_at')->first()
+        ?? Auction::query()->with('images')->live()->orderBy('ends_at')->first();
 
-    if ($heroSlides->count() < 3) {
-        $heroSlides = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(3)->get();
-    }
-
-    $heroSlides = $heroSlides->values();
-
-    $heroSlidesForRender = [];
-    for ($i = 0; $i < 3; $i++) {
-        $heroSlidesForRender[] = $heroSlides[$i] ?? $heroSlides[0] ?? null;
-    }
-
-    $featured = $heroSlidesForRender[0] ?? null;
     $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(10)->get();
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
     $featuredProducts = Product::query()->orderByDesc('is_featured')->orderBy('name')->limit(10)->get();
 @endphp
 
 <div>
-    <section
-        class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]"
-        x-data="{ index: 0, next(){ this.index = (this.index + 1) % 3 }, prev(){ this.index = (this.index + 2) % 3 } }"
-        x-init="setInterval(() => { next() }, 6500)"
-    >
-        {{-- Full-bleed slider background --}}
+    <section class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]">
         <div class="absolute inset-0" aria-hidden="true">
-            <div
-                class="flex h-full transition-transform duration-700 ease-in-out"
-                :style="'transform: translateX(-' + (index * 100) + '%)'"
-            >
-                @for ($i = 0; $i < 3; $i++)
-                    @php $slide = $heroSlidesForRender[$i]; @endphp
-                    <div class="relative h-full w-full shrink-0">
-                        @if ($slide)
-                            <img
-                                src="{{ $slide->primaryImageUrl() }}"
-                                alt=""
-                                class="h-full w-full object-cover"
-                            >
-                            <div class="absolute inset-0 opacity-40" style="background-image: var(--hero-overlay-{{ $i + 1 }})"></div>
-                        @else
-                            <div class="h-full w-full bg-navy"></div>
-                        @endif
-                    </div>
-                @endfor
-            </div>
+            @if ($featured)
+                <img
+                    src="{{ $featured->primaryImageUrl() }}"
+                    alt=""
+                    class="h-full w-full object-cover"
+                >
+                <div class="absolute inset-0 opacity-40" style="background-image: var(--hero-overlay-1)"></div>
+            @else
+                <div class="h-full w-full bg-navy"></div>
+            @endif
             <div class="absolute inset-0 bg-gradient-to-r from-navy/95 via-navy/80 to-navy/45"></div>
             <div class="absolute inset-0 bg-gradient-to-t from-navy/70 via-transparent to-navy/30"></div>
         </div>
 
-        {{-- Side arrows: mid-height from sm up; bottom corners on small screens to clear copy --}}
-        <button
-            type="button"
-            aria-label="Previous slide"
-            class="absolute bottom-5 left-3 z-20 grid size-11 place-items-center rounded-full bg-black/40 text-white shadow-sm backdrop-blur transition hover:bg-black/55 active:scale-95 sm:bottom-auto sm:left-4 sm:top-1/2 sm:size-12 sm:-translate-y-1/2 md:left-6 lg:left-8"
-            @click="prev()"
-        >
-            <flux:icon.chevron-left class="size-5 sm:size-6" />
-        </button>
-        <button
-            type="button"
-            aria-label="Next slide"
-            class="absolute bottom-5 right-3 z-20 grid size-11 place-items-center rounded-full bg-black/40 text-white shadow-sm backdrop-blur transition hover:bg-black/55 active:scale-95 sm:bottom-auto sm:right-4 sm:top-1/2 sm:size-12 sm:-translate-y-1/2 md:right-6 lg:right-8"
-            @click="next()"
-        >
-            <flux:icon.chevron-right class="size-5 sm:size-6" />
-        </button>
-
-        <div class="relative z-10 mx-auto flex min-h-[70vh] max-w-7xl flex-col justify-center px-4 py-16 pb-20 md:min-h-[78vh] md:py-24 sm:pb-16">
+        <div class="relative z-10 mx-auto grid min-h-[70vh] max-w-7xl items-center gap-10 px-4 py-16 md:min-h-[78vh] md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-10 md:py-24 lg:gap-14">
             <div class="max-w-xl">
                 <span class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium backdrop-blur">
                     <flux:icon.shield-check class="size-3.5 text-gold" />
@@ -132,17 +87,25 @@ class extends Component {
                 </div>
             </div>
 
-            <div class="mt-10 flex items-center gap-2">
-                @for ($i = 0; $i < 3; $i++)
-                    <button
-                        type="button"
-                        aria-label="Go to slide {{ $i + 1 }}"
-                        class="h-1.5 rounded-full transition-all"
-                        :class="index === {{ $i }} ? 'w-6 bg-gold' : 'w-1.5 bg-white/40 hover:bg-white/70'"
-                        @click="index = {{ $i }}"
-                    ></button>
-                @endfor
-            </div>
+            @if ($featured)
+                <a
+                    href="{{ route('auctions.show', $featured) }}"
+                    class="group relative mx-auto hidden w-full max-w-md md:mx-0 md:block md:max-w-none"
+                    aria-label="View {{ $featured->name }}"
+                >
+                    <img
+                        src="{{ $featured->primaryImageUrl() }}"
+                        alt="{{ $featured->name }}"
+                        class="aspect-[4/5] w-full rounded-2xl border border-white/20 object-cover transition duration-500 group-hover:scale-[1.02]"
+                    >
+                    <div class="mt-4">
+                        <div class="text-lg font-semibold leading-snug">{{ $featured->name }}</div>
+                        <div class="mt-1 text-sm opacity-80">
+                            Value {{ Money::kes($featured->retail_value) }} · Bid {{ Money::kes($featured->min_bid) }}–{{ Money::kes($featured->max_bid) }} · Closes {{ $featured->ends_at?->timezone('Africa/Nairobi')->format('d M, H:i') }} EAT
+                        </div>
+                    </div>
+                </a>
+            @endif
         </div>
     </section>
 
@@ -167,13 +130,13 @@ class extends Component {
         <div class="mx-auto max-w-7xl px-4 py-14">
             <h2 class="text-center text-2xl font-bold text-navy sm:text-3xl">How UniqBid works</h2>
             <p class="mx-auto mt-2 max-w-xl text-center text-sm text-muted-foreground">
-                Three simple steps. No jargon, no hidden fees.
+                Product value and bid range up front. Pay a small participation fee per bid. Successful buyers pay their bid amount later.
             </p>
             <div class="mt-8 grid gap-4 md:grid-cols-3">
                 @foreach ([
-                    ['n' => '1', 't' => 'Browse auctions', 'd' => 'Explore items with live countdowns, transparent bid fees, and past sale prices.'],
-                    ['n' => '2', 't' => 'Pay for Bid', 'd' => 'Pay a small bid fee via M-Pesa. Instantly confirmed by SMS or WhatsApp.'],
-                    ['n' => '3', 't' => 'Successful Buy', 'd' => 'When the auction closes, the lowest unique bid secures the item at that bid price.'],
+                    ['n' => '1', 't' => 'Browse sales', 'd' => 'See product value, bid range, countdown, and the participation fee.'],
+                    ['n' => '2', 't' => 'Bid & pay fee', 'd' => 'Enter a bid amount in range, then pay the participation fee to confirm it.'],
+                    ['n' => '3', 't' => 'Successful buy', 'd' => 'Lowest unique bid secures the item. That buyer pays the bid amount on collection.'],
                 ] as $step)
                     <div class="rounded-xl border border-border bg-white p-6 shadow-sm">
                         <div class="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">{{ $step['n'] }}</div>

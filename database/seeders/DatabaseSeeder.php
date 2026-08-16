@@ -20,6 +20,12 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
+        User::factory()->create([
+            'name' => 'UniqBid Admin',
+            'email' => 'admin@uniqbid.co.ke',
+            'is_admin' => true,
+        ]);
+
         $this->call(UniqBidDemoSeeder::class);
     }
 }

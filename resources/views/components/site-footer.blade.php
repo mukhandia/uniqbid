@@ -1,14 +1,13 @@
 <footer class="mt-16 border-t border-border bg-navy text-navy-foreground">
     <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-            <div class="flex items-center gap-2">
-                <div class="grid h-8 w-8 place-items-center rounded-md bg-gold text-gold-foreground">
-                    <flux:icon.scale class="size-4" />
-                </div>
-                <div>
-                    <div class="text-base font-bold">UniqBid</div>
-                    <div class="text-xs opacity-70">Licensed Auctioneer · Kenya</div>
-                </div>
+            <div class="flex items-center gap-3">
+                <img
+                    src="/images/brand/uniqbid-logo.jpeg"
+                    alt="UniqBid"
+                    class="h-16 w-16 rounded-lg bg-white object-contain p-1"
+                />
+                <div class="text-xs opacity-70">Licensed Auctioneer<br>Kenya</div>
             </div>
             <p class="mt-4 text-sm opacity-80">
                 Transparent lowest-unique-bid auctions and a curated accessories shop. Registered under the Auctioneers Act.

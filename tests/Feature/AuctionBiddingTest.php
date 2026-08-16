@@ -12,7 +12,7 @@ test('non live auctions return not found', function () {
     $this->get(route('auctions.show', $auction))->assertNotFound();
 });
 
-test('bid form validates name phone amount and consent', function () {
+test('bid form validates contact details amount and rules consent', function () {
     $auction = Auction::factory()->create([
         'min_bid' => 10,
         'max_bid' => 1000,
@@ -23,11 +23,12 @@ test('bid form validates name phone amount and consent', function () {
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'A')
+        ->set('email', 'not-an-email')
         ->set('phone', '12345')
         ->set('amount', '3')
-        ->set('consent', false)
+        ->set('rulesConsent', false)
         ->call('submitBid')
-        ->assertHasErrors(['name', 'phone', 'amount', 'consent']);
+        ->assertHasErrors(['name', 'email', 'phone', 'amount', 'rulesConsent']);
 });
 
 test('bid amount must match increment', function () {
@@ -41,9 +42,10 @@ test('bid amount must match increment', function () {
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'Amina Wanjiku')
+        ->set('email', 'amina@example.com')
         ->set('phone', '0712345678')
         ->set('amount', '12')
-        ->set('consent', true)
+        ->set('rulesConsent', true)
         ->call('submitBid')
         ->assertHasErrors(['amount'])
         ->assertSet('formState', 'idle');
@@ -60,15 +62,16 @@ test('valid bid moves to pending payment state', function () {
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'Amina Wanjiku')
+        ->set('email', 'amina@example.com')
         ->set('phone', '0712345678')
         ->set('amount', '15')
-        ->set('consent', true)
+        ->set('rulesConsent', true)
         ->call('submitBid')
         ->assertHasNoErrors()
         ->assertSet('formState', 'pending');
 });
 
-test('forced payment failure can be retried and reset', function () {
+test('placeholder payment failure can be reset', function () {
     $auction = Auction::factory()->create([
         'min_bid' => 10,
         'max_bid' => 1000,
@@ -79,17 +82,14 @@ test('forced payment failure can be retried and reset', function () {
 
     $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'James Mwangi')
+        ->set('email', 'james@example.com')
         ->set('phone', '0798765432')
         ->set('amount', '20')
-        ->set('consent', true)
-        ->set('forceFail', true)
+        ->set('rulesConsent', true)
         ->call('submitBid')
         ->assertSet('formState', 'pending')
-        ->call('completeSimulatedPayment')
+        ->call('failPlaceholderPayment')
         ->assertSet('formState', 'failure')
-        ->call('retryPayment')
-        ->assertSet('formState', 'pending')
-        ->assertSet('forceFail', false)
         ->call('resetForm')
         ->assertSet('formState', 'idle')
         ->assertSet('reference', '');
@@ -97,7 +97,7 @@ test('forced payment failure can be retried and reset', function () {
     expect($component->get('formState'))->toBe('idle');
 });
 
-test('simulated payment can succeed and produce a reference', function () {
+test('placeholder payment persists and accepts a bid', function () {
     $auction = Auction::factory()->create([
         'min_bid' => 10,
         'max_bid' => 1000,
@@ -108,30 +108,16 @@ test('simulated payment can succeed and produce a reference', function () {
 
     $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'James Mwangi')
+        ->set('email', 'james@example.com')
         ->set('phone', '0798765432')
         ->set('amount', '25')
-        ->set('consent', true)
-        ->set('forceFail', false)
+        ->set('rulesConsent', true)
         ->call('submitBid')
-        ->assertSet('formState', 'pending');
+        ->assertSet('formState', 'pending')
+        ->call('completePlaceholderPayment')
+        ->assertSet('formState', 'success');
 
-    $succeeded = false;
-
-    for ($attempt = 0; $attempt < 40; $attempt++) {
-        $component->call('completeSimulatedPayment');
-
-        if ($component->get('formState') === 'success') {
-            $succeeded = true;
-            break;
-        }
-
-        if ($component->get('formState') === 'failure') {
-            $component->call('retryPayment');
-        }
-    }
-
-    expect($succeeded)->toBeTrue();
-    expect($component->get('reference'))->toStartWith('UB');
+    expect($component->get('reference'))->toStartWith('BID-');
 });
 
 test('image selection updates active image index', function () {

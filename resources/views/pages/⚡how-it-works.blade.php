@@ -30,11 +30,12 @@ class extends Component {
                 : 'Zabuni ya chini kabisa isiyo na mfano ndiyo inayopata bidhaa. Hii ndio dhana yote katika ukurasa mmoja.' }}
         </p>
 
-        <div class="mt-8 grid gap-4 md:grid-cols-3">
+        <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             @foreach ([
-                ['n' => 1, 't' => 'Browse', 'd' => 'Pick a live auction with a countdown and a small bid fee.'],
-                ['n' => 2, 't' => 'Pay for Bid', 'd' => 'Enter your bid, pay the fee via M-Pesa, get an SMS or WhatsApp receipt.'],
-                ['n' => 3, 't' => 'Successful Buy', 'd' => 'When the timer hits zero, the lowest unique bid secures the item at that price.'],
+                ['n' => 1, 't' => 'Browse', 'd' => 'See product value, the bid range, and the small participation fee for each sale.'],
+                ['n' => 2, 't' => 'Enter a bid amount', 'd' => 'Choose any amount inside the range. You can place multiple bids at different amounts.'],
+                ['n' => 3, 't' => 'Pay participation fee', 'd' => 'Pay the participation fee now to confirm that bid. It is separate from your bid amount.'],
+                ['n' => 4, 't' => 'Successful buy', 'd' => 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount on collection or delivery.'],
             ] as $step)
                 <div class="rounded-2xl border border-border bg-white p-6 shadow-sm">
                     <div class="grid h-10 w-10 place-items-center rounded-full bg-gold font-bold text-gold-foreground">{{ $step['n'] }}</div>
@@ -76,15 +77,17 @@ class extends Component {
                 @endforeach
             </div>
             <p class="mt-4 text-sm text-zinc-800">
-                Bidder C secures the item at <strong>{{ Money::kes(22) }}</strong> — the lowest bid that only one person placed. A and B tied at KES 15 so those bids aren't unique.
+                Each bidder also paid a separate participation fee when placing their bid. Bidder C then pays <strong>{{ Money::kes(22) }}</strong> on collection or delivery — not the product’s retail value. A and B tied at KES 15, so those bids were not unique.
             </p>
         </div>
 
         <div class="mt-10 grid gap-4 md:grid-cols-2">
             <div class="rounded-2xl border border-border bg-white p-6 shadow-sm">
-                <h3 class="text-lg font-semibold text-navy">Fees</h3>
+                <h3 class="text-lg font-semibold text-navy">What you pay</h3>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    Each bid costs a small participation fee shown on the sale page. If your bid is the successful buy, you also pay that bid amount (plus delivery if chosen). Bid fees are not credited against the sale price.
+                    <strong>Participation fee</strong> — paid now for each bid you place.<br>
+                    <strong>Bid amount</strong> — the number you enter in the range; paid later only if it is the successful bid.<br>
+                    <strong>Product value</strong> — shown for comparison only; never charged as a bid payment.
                 </p>
             </div>
             <div class="rounded-2xl border border-border bg-white p-6 shadow-sm">

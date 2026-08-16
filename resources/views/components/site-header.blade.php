@@ -16,12 +16,14 @@
     x-data="{ open: false }"
 >
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-        <a href="{{ route('home') }}" class="flex items-center gap-2">
-            <div class="grid h-8 w-8 place-items-center rounded-md bg-navy text-navy-foreground">
-                <flux:icon.scale class="size-4" />
-            </div>
+        <a href="{{ route('home') }}" class="flex items-center gap-2" aria-label="UniqBid home">
+            <img
+                src="/images/brand/uniqbid-icon.jpeg"
+                alt=""
+                class="size-9 rounded-lg object-cover"
+            />
             <div class="leading-tight">
-                <div class="text-base font-bold text-navy">UniqBid</div>
+                <div class="text-base font-bold"><span class="text-navy">Uniq</span><span class="text-accent">Bid</span></div>
                 <div class="text-[10px] font-medium text-muted-foreground">Licensed Auctioneer · KE</div>
             </div>
         </a>
