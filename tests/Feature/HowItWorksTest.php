@@ -6,8 +6,8 @@ test('how it works defaults to english copy', function () {
     Livewire::test('pages::how-it-works')
         ->assertSet('lang', 'en')
         ->assertSee('How UniqBid works')
-        ->assertSee('Pay for Bid')
-        ->assertSee('Successful Buy');
+        ->assertSee('Pay participation fee')
+        ->assertSee('Successful buy');
 });
 
 test('how it works can switch to kiswahili', function () {
