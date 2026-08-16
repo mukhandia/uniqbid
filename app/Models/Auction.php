@@ -30,6 +30,8 @@ use Illuminate\Support\Carbon;
  * @property array<int, int>|null $similar_sales
  * @property Carbon|null $settled_at
  * @property int|null $settled_by
+ * @property string $no_unique_bid_rule
+ * @property int $extension_minutes
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -50,6 +52,8 @@ use Illuminate\Support\Carbon;
     'similar_sales',
     'settled_at',
     'settled_by',
+    'no_unique_bid_rule',
+    'extension_minutes',
 ])]
 class Auction extends Model
 {
@@ -72,6 +76,7 @@ class Auction extends Model
             'is_featured' => 'boolean',
             'similar_sales' => 'array',
             'settled_at' => 'datetime',
+            'extension_minutes' => 'integer',
         ];
     }
 

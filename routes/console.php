@@ -8,4 +8,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('auctions:settle-ended')->everyMinute();
+Schedule::command('auctions:settle-ended')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();

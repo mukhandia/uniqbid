@@ -23,6 +23,8 @@ class extends Component {
 
     public string $email = '';
 
+    public string $whatsappNumber = '';
+
     public string $amount = '';
 
     public bool $rulesConsent = false;
@@ -53,6 +55,7 @@ class extends Component {
             'name' => ['required', 'string', 'min:2'],
             'email' => ['required', 'email'],
             'phone' => ['required', 'regex:/^(\+?254|0)7\d{8}$/'],
+            'whatsappNumber' => ['nullable', 'regex:/^(\+?254|0)7\d{8}$/'],
             'amount' => ['required', 'integer', 'min:'.$this->auction->min_bid, 'max:'.$this->auction->max_bid],
             'rulesConsent' => ['accepted'],
         ], [
@@ -72,6 +75,7 @@ class extends Component {
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'whatsapp_number' => $this->whatsappNumber,
             'marketing_consent' => $this->marketingConsent,
         ]);
 
@@ -115,6 +119,8 @@ class extends Component {
 @php
     $closingSoon = $auction->ends_at->lt(now()->addHour());
     $image = $auction->images[$activeImage] ?? $auction->images->first();
+    $acceptedBids = $auction->bids()->where('status', 'accepted')->pluck('amount');
+    $uniqueBidAmounts = $acceptedBids->countBy()->filter(fn (int $count): bool => $count === 1)->count();
 @endphp
 
 <div class="mx-auto max-w-7xl px-4 py-8">
@@ -126,7 +132,7 @@ class extends Component {
     <div class="mt-4 grid gap-8 lg:grid-cols-[1.2fr_1fr]">
         <div>
             <div class="overflow-hidden rounded-2xl border border-border bg-white">
-                <div class="aspect-[4/3] bg-muted">
+                <div class="aspect-4/3 bg-muted">
                     @if ($image)
                         <img src="{{ $image->url }}" alt="{{ $auction->name }}" class="h-full w-full object-cover">
                     @endif
@@ -169,6 +175,21 @@ class extends Component {
                 </ul>
             </div>
 
+            <div class="mt-6 rounded-xl border border-border bg-white p-5">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live sale statistics</div>
+                <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div class="rounded-lg bg-surface p-3">
+                        <div class="text-xs text-muted-foreground">Confirmed bids</div>
+                        <div class="mt-1 text-lg font-bold text-navy">{{ number_format($acceptedBids->count()) }}</div>
+                    </div>
+                    <div class="rounded-lg bg-surface p-3">
+                        <div class="text-xs text-muted-foreground">Currently unique amounts</div>
+                        <div class="mt-1 text-lg font-bold text-navy">{{ number_format($uniqueBidAmounts) }}</div>
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-muted-foreground">These statistics update as confirmed bids arrive. A unique amount is not a guarantee until the sale closes.</p>
+            </div>
+
             @if ($auction->similar_sales)
                 <div class="mt-6 rounded-xl border border-border bg-white p-5">
                     <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Past successful bid amounts on similar items</div>
@@ -181,6 +202,24 @@ class extends Component {
                     </div>
                 </div>
             @endif
+
+            <div class="mt-6 rounded-xl border border-border bg-white p-5">
+                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Frequently asked questions</div>
+                <dl class="mt-3 divide-y divide-border text-sm">
+                    <div class="py-3">
+                        <dt class="font-semibold text-zinc-900">Can I place more than one bid?</dt>
+                        <dd class="mt-1 text-muted-foreground">Yes. Each bid must be a different amount in the published range and needs its own participation fee.</dd>
+                    </div>
+                    <div class="py-3">
+                        <dt class="font-semibold text-zinc-900">When do I pay my bid amount?</dt>
+                        <dd class="mt-1 text-muted-foreground">Only if your bid becomes the lowest unique bid at close. You then pay that amount on collection or delivery within 7 days.</dd>
+                    </div>
+                    <div class="py-3">
+                        <dt class="font-semibold text-zinc-900">What happens if there is no unique bid?</dt>
+                        <dd class="mt-1 text-muted-foreground">This sale will extend by {{ $auction->extension_minutes }} minutes to allow further bids, as stated before the sale opened.</dd>
+                    </div>
+                </dl>
+            </div>
         </div>
 
         <div>
@@ -276,7 +315,15 @@ class extends Component {
                             <flux:field>
                                 <flux:label>Mobile number</flux:label>
                                 <flux:input wire:model="phone" inputmode="tel" placeholder="07XX XXX XXX" />
+                                <flux:description>Used for the payment prompt and SMS updates.</flux:description>
                                 <flux:error name="phone" />
+                            </flux:field>
+
+                            <flux:field>
+                                <flux:label>WhatsApp number <span class="font-normal text-muted-foreground">(optional)</span></flux:label>
+                                <flux:input wire:model="whatsappNumber" inputmode="tel" placeholder="Same as mobile number" />
+                                <flux:description>Leave blank to use your mobile number for WhatsApp updates.</flux:description>
+                                <flux:error name="whatsappNumber" />
                             </flux:field>
 
                             <flux:field>

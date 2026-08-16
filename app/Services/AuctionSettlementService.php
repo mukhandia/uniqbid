@@ -58,6 +58,18 @@ class AuctionSettlementService
 
             $successfulBid = $this->lowestUniqueBid($acceptedBids);
 
+            if (! $successfulBid && $auction->no_unique_bid_rule === 'extend') {
+                $auction->forceFill([
+                    'ends_at' => now()->addMinutes($auction->extension_minutes),
+                    'status' => 'live',
+                ])->save();
+
+                return [
+                    'auction' => $auction->fresh(),
+                    'successful_bid' => null,
+                ];
+            }
+
             $auction->forceFill([
                 'status' => 'closed',
                 'settled_at' => now(),
@@ -103,6 +115,44 @@ class AuctionSettlementService
         }
 
         return $count;
+    }
+
+    public function reofferToNextBidder(Auction $auction): ?AuctionBid
+    {
+        return DB::transaction(function () use ($auction): ?AuctionBid {
+            $auction = Auction::query()->lockForUpdate()->with('result')->findOrFail($auction->id);
+
+            if (! $auction->result) {
+                throw ValidationException::withMessages([
+                    'auction' => 'This sale has no successful bid to re-offer.',
+                ]);
+            }
+
+            $acceptedBids = AuctionBid::query()
+                ->with('bidder')
+                ->where('auction_id', $auction->id)
+                ->where('status', 'accepted')
+                ->where('amount', '>', $auction->result->sale_price)
+                ->orderBy('amount')
+                ->orderBy('id')
+                ->get();
+
+            $nextBid = $this->lowestUniqueBid($acceptedBids);
+
+            if (! $nextBid) {
+                return null;
+            }
+
+            $auction->result->update([
+                'sale_price' => $nextBid->amount,
+                'buyer_display' => $this->maskBuyer($nextBid),
+                'sold_on' => now()->toDateString(),
+            ]);
+
+            $this->notifications->successfulBuyer($auction, $nextBid);
+
+            return $nextBid;
+        });
     }
 
     /**

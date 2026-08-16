@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['name', 'email', 'phone', 'marketing_consent', 'marketing_consented_at'])]
+#[Fillable(['name', 'email', 'phone', 'whatsapp_number', 'marketing_consent', 'marketing_consented_at'])]
 class Bidder extends Model
 {
     /** @use HasFactory<BidderFactory> */

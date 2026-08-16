@@ -16,7 +16,7 @@ class AuctionBidService
     ) {}
 
     /**
-     * @param  array{name: string, email: string, phone: string, marketing_consent: bool}  $details
+     * @param  array{name: string, email: string, phone: string, whatsapp_number: string, marketing_consent: bool}  $details
      */
     public function initiate(Auction $auction, int $amount, array $details): PaymentAttempt
     {
@@ -30,12 +30,14 @@ class AuctionBidService
             }
 
             $phone = $this->normalizeKenyanPhone($details['phone']);
+            $whatsapp = $this->normalizeKenyanPhone($details['whatsapp_number'] ?: $details['phone']);
             $consent = $details['marketing_consent'];
 
             $bidder = Bidder::query()->firstOrNew(['phone' => $phone]);
             $bidder->fill([
                 'name' => $details['name'],
                 'email' => $details['email'],
+                'whatsapp_number' => $whatsapp,
                 'marketing_consent' => $consent,
                 'marketing_consented_at' => $consent ? now() : null,
             ])->save();

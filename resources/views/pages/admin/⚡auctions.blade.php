@@ -23,6 +23,54 @@ class extends Component {
 
         Flux::toast(variant: 'success', text: $message);
     }
+
+    public function extend(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+        $auction->update([
+            'ends_at' => max($auction->ends_at, now())->addMinutes($auction->extension_minutes),
+            'status' => 'live',
+            'settled_at' => null,
+            'settled_by' => null,
+        ]);
+
+        Flux::toast(variant: 'success', text: "Sale extended by {$auction->extension_minutes} minutes.");
+    }
+
+    public function void(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+        $auction->update(['status' => 'voided', 'settled_at' => now(), 'settled_by' => auth()->id()]);
+
+        Flux::toast(variant: 'success', text: 'Sale voided. Participation-fee refunds must be processed once the payment provider is connected.');
+    }
+
+    public function rerun(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+        $auction->update([
+            'status' => 'live',
+            'ends_at' => now()->addDay(),
+            'settled_at' => null,
+            'settled_by' => null,
+        ]);
+        $auction->result()?->delete();
+
+        Flux::toast(variant: 'success', text: 'Sale re-run for a new 24-hour window.');
+    }
+
+    public function reoffer(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+        $bid = app(AuctionSettlementService::class)->reofferToNextBidder($auction);
+
+        Flux::toast(
+            variant: $bid ? 'success' : 'warning',
+            text: $bid
+                ? 'Item re-offered to the next lowest unique bid: '.Money::kes($bid->amount)
+                : 'No next unique bid is available. Re-run the sale instead.',
+        );
+    }
 }; ?>
 
 @php
@@ -60,7 +108,7 @@ class extends Component {
                     <tr wire:key="admin-auction-{{ $auction->id }}">
                         <td class="px-4 py-3">
                             <div class="font-medium">{{ $auction->name }}</div>
-                            <div class="text-xs text-zinc-500">{{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }}</div>
+                            <div class="text-xs text-zinc-500">{{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)</div>
                         </td>
                         <td class="px-4 py-3">
                             <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
@@ -90,6 +138,23 @@ class extends Component {
                                 @if (! $auction->settled_at && $auction->ends_at->isPast())
                                     <flux:button size="sm" wire:click="settle({{ $auction->id }})" wire:confirm="Settle this sale now?">
                                         Settle
+                                    </flux:button>
+                                @endif
+                                @if ($auction->status === 'live')
+                                    <flux:button size="sm" variant="outline" wire:click="extend({{ $auction->id }})" wire:confirm="Extend this sale?">
+                                        Extend
+                                    </flux:button>
+                                    <flux:button size="sm" variant="outline" wire:click="void({{ $auction->id }})" wire:confirm="Void this sale?">
+                                        Void
+                                    </flux:button>
+                                @elseif ($auction->status !== 'draft')
+                                    @if ($auction->result)
+                                        <flux:button size="sm" variant="outline" wire:click="reoffer({{ $auction->id }})" wire:confirm="Re-offer this item to the next lowest unique bidder?">
+                                            Re-offer
+                                        </flux:button>
+                                    @endif
+                                    <flux:button size="sm" variant="outline" wire:click="rerun({{ $auction->id }})" wire:confirm="Re-run this sale for 24 hours?">
+                                        Re-run
                                     </flux:button>
                                 @endif
                             </div>
