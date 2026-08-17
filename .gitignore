@@ -1,9 +1,11 @@
 /.phpunit.cache
 /node_modules
 /public/build
+/public/flux
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/public/vendor
 /storage/*.key
 /storage/pail
 /vendor
