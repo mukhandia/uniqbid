@@ -7,8 +7,8 @@
 .zed
 .fleet
 .nova
-node_modules
-vendor
+/node_modules
+/vendor
 public/hot
 .env
 .env.backup

@@ -6,6 +6,7 @@ set -euo pipefail
 # which blocks Laravel-routed asset URLs like /livewire-*/livewire.js and /flux/flux.js.
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PHP_BIN="${PHP_BIN:-php}"
 cd "$ROOT"
 
 if [[ ! -f .env ]]; then
@@ -13,11 +14,11 @@ if [[ ! -f .env ]]; then
 fi
 
 if ! grep -qE '^APP_KEY=.+' .env; then
-  php artisan key:generate --force --no-interaction
+  $PHP_BIN artisan key:generate --force --no-interaction
 fi
 
 echo "==> Publishing Livewire assets to public/vendor/livewire"
-php artisan livewire:publish --assets --no-interaction
+$PHP_BIN artisan livewire:publish --assets --no-interaction
 
 echo "==> Publishing Flux assets to public/flux"
 mkdir -p public/flux

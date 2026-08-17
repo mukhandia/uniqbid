@@ -36,6 +36,9 @@ composer install \
   --prefer-dist \
   --no-progress
 
+echo "==> Publishing Livewire and Flux assets"
+bash scripts/publish-frontend-assets.sh
+
 echo "==> Entering maintenance mode"
 $PHP_BIN artisan down --retry=60 --refresh=15 || true
 MAINTENANCE_ON=1

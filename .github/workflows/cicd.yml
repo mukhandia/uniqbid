@@ -135,12 +135,14 @@ jobs:
             code=$(curl -sS -o /tmp/staging_body -w "%{http_code}" --max-time 20 "$APP_URL" || true)
             if [ "$code" = "200" ] || [ "$code" = "302" ]; then
               echo "Staging responded with HTTP $code"
-              flux_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$APP_URL/flux/flux.js" || true)
-              if [ "$flux_code" != "200" ]; then
-                echo "Flux assets missing (HTTP $flux_code)"
-                exit 1
-              fi
-              echo "Flux assets OK"
+              for asset in "/flux/flux.js" "/vendor/livewire/manifest.json"; do
+                asset_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$APP_URL$asset" || true)
+                if [ "$asset_code" != "200" ]; then
+                  echo "Frontend asset $asset missing (HTTP $asset_code)"
+                  exit 1
+                fi
+              done
+              echo "Livewire and Flux assets OK"
               exit 0
             fi
             echo "Attempt $i failed with HTTP $code — retrying..."
@@ -238,12 +240,14 @@ jobs:
             code=$(curl -sS -o /tmp/prod_body -w "%{http_code}" --max-time 20 "$APP_URL" || true)
             if [ "$code" = "200" ] || [ "$code" = "302" ]; then
               echo "Production responded with HTTP $code"
-              flux_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$APP_URL/flux/flux.js" || true)
-              if [ "$flux_code" != "200" ]; then
-                echo "Flux assets missing (HTTP $flux_code)"
-                exit 1
-              fi
-              echo "Flux assets OK"
+              for asset in "/flux/flux.js" "/vendor/livewire/manifest.json"; do
+                asset_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 20 "$APP_URL$asset" || true)
+                if [ "$asset_code" != "200" ]; then
+                  echo "Frontend asset $asset missing (HTTP $asset_code)"
+                  exit 1
+                fi
+              done
+              echo "Livewire and Flux assets OK"
               exit 0
             fi
             echo "Attempt $i failed with HTTP $code — retrying..."
