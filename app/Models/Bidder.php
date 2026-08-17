@@ -6,9 +6,11 @@ use Database\Factories\BidderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['name', 'email', 'phone', 'whatsapp_number', 'marketing_consent', 'marketing_consented_at'])]
+#[Fillable(['user_id', 'name', 'email', 'phone', 'whatsapp_number', 'marketing_consent', 'marketing_consented_at'])]
 class Bidder extends Model
 {
     /** @use HasFactory<BidderFactory> */
@@ -28,5 +30,21 @@ class Bidder extends Model
     public function bids(): HasMany
     {
         return $this->hasMany(AuctionBid::class);
+    }
+
+    /**
+     * @return HasOne<AuctionBid, $this>
+     */
+    public function latestBid(): HasOne
+    {
+        return $this->hasOne(AuctionBid::class)->latestOfMany();
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

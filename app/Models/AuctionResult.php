@@ -24,11 +24,16 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'auction_id',
+    'auction_bid_id',
     'slug',
     'name',
     'category',
     'image',
     'sale_price',
+    'sale_payment_status',
+    'sale_payment_paid_at',
+    'fulfilment_status',
+    'fulfilment_due_at',
     'buyer_display',
     'sold_on',
 ])]
@@ -45,6 +50,8 @@ class AuctionResult extends Model
         return [
             'sale_price' => 'integer',
             'sold_on' => 'date',
+            'sale_payment_paid_at' => 'datetime',
+            'fulfilment_due_at' => 'datetime',
         ];
     }
 
@@ -54,6 +61,14 @@ class AuctionResult extends Model
     public function auction(): BelongsTo
     {
         return $this->belongsTo(Auction::class);
+    }
+
+    /**
+     * @return BelongsTo<AuctionBid, $this>
+     */
+    public function auctionBid(): BelongsTo
+    {
+        return $this->belongsTo(AuctionBid::class);
     }
 
     public function getRouteKeyName(): string

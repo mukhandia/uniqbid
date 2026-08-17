@@ -18,7 +18,7 @@ class PaymentAttemptFactory extends Factory
     {
         return [
             'auction_bid_id' => AuctionBid::factory(),
-            'provider' => 'intasend_placeholder',
+            'provider' => 'mpesa_daraja_stk_push',
             'reference' => 'PAY-'.str()->upper(str()->random(10)),
             'amount' => fake()->randomElement([20, 30, 40, 50]),
             'status' => 'initiated',
@@ -32,7 +32,7 @@ class PaymentAttemptFactory extends Factory
     {
         return $this->state(fn (): array => [
             'status' => 'succeeded',
-            'response_payload' => ['status' => 'placeholder_paid'],
+            'response_payload' => ['status' => 'stk_push_simulated_success'],
         ]);
     }
 
@@ -41,7 +41,7 @@ class PaymentAttemptFactory extends Factory
         return $this->state(fn (): array => [
             'status' => 'failed',
             'failure_reason' => 'Payment was not completed.',
-            'response_payload' => ['status' => 'placeholder_failed'],
+            'response_payload' => ['status' => 'stk_push_simulated_failure'],
         ]);
     }
 }

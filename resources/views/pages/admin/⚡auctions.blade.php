@@ -86,9 +86,19 @@ class extends Component {
 @endphp
 
 <div class="space-y-6">
-    <div>
-        <flux:heading size="xl">Sales & bidding</flux:heading>
-        <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity.</flux:text>
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <flux:heading size="xl">Sales & bidding</flux:heading>
+            <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity.</flux:text>
+        </div>
+        <div class="flex flex-wrap justify-end gap-2">
+            <flux:button href="{{ route('admin.customers') }}" variant="outline">
+                Customers
+            </flux:button>
+            <flux:button href="{{ route('admin.customer-verifications') }}" variant="outline">
+                Customer verification
+            </flux:button>
+        </div>
     </div>
 
     <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">

@@ -2,9 +2,12 @@
 
 use App\Models\Auction;
 use App\Models\PaymentAttempt;
+use App\Models\User;
 use App\Services\AuctionBidService;
+use App\Services\MobileOtpService;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -33,6 +36,12 @@ class extends Component {
 
     public string $formState = 'idle';
 
+    public string $bidStep = 'phone';
+
+    public string $code = '';
+
+    public string $placeholderCode = '';
+
     public string $reference = '';
 
     public ?int $paymentAttemptId = null;
@@ -42,11 +51,103 @@ class extends Component {
         abort_unless($auction->status === 'live', 404);
 
         $this->auction = $auction->load('images');
+
+        $user = Auth::user();
+
+        if ($user !== null && $user->phone && ! $user->is_admin) {
+            $this->fillFromCustomer($user);
+            $this->bidStep = 'details';
+        }
     }
 
     public function selectImage(int $index): void
     {
         $this->activeImage = $index;
+    }
+
+    public function continueWithPhone(): void
+    {
+        $this->validate([
+            'phone' => ['required', 'string'],
+        ], [
+            'phone.required' => 'Enter a valid Kenyan mobile number.',
+        ]);
+
+        $phone = app(AuctionBidService::class)->normalizeKenyanPhone($this->phone);
+        $this->phone = '0'.substr($phone, 3);
+        $this->resetErrorBag();
+
+        $this->bidStep = User::query()
+            ->where('phone', $phone)
+            ->where('is_admin', false)
+            ->exists()
+            ? 'account'
+            : 'details';
+    }
+
+    public function requestSignInCode(): void
+    {
+        $phone = app(AuctionBidService::class)->normalizeKenyanPhone($this->phone);
+
+        abort_unless(
+            User::query()->where('phone', $phone)->where('is_admin', false)->exists(),
+            422,
+        );
+
+        $this->phone = '0'.substr($phone, 3);
+        $this->placeholderCode = app(MobileOtpService::class)->issue($phone);
+        $this->code = '';
+        $this->bidStep = 'otp';
+        $this->resetErrorBag();
+    }
+
+    public function verifySignInCode(): void
+    {
+        $this->validate([
+            'code' => ['required', 'digits:6'],
+        ]);
+
+        $phone = app(AuctionBidService::class)->normalizeKenyanPhone($this->phone);
+
+        app(MobileOtpService::class)->verify($phone, $this->code);
+
+        $user = User::query()
+            ->where('phone', $phone)
+            ->where('is_admin', false)
+            ->firstOrFail();
+
+        $user->forceFill(['phone_verified_at' => now()])->save();
+
+        Auth::login($user);
+        session()->regenerate();
+
+        $this->fillFromCustomer($user);
+        $this->code = '';
+        $this->placeholderCode = '';
+        $this->bidStep = 'details';
+        $this->resetErrorBag();
+
+        Flux::toast(variant: 'success', text: 'Signed in. Continue with your bid.');
+    }
+
+    public function changePhone(): void
+    {
+        $this->bidStep = 'phone';
+        $this->reset('phone', 'name', 'email', 'whatsappNumber', 'amount', 'rulesConsent', 'marketingConsent', 'code', 'placeholderCode');
+        $this->resetErrorBag();
+    }
+
+    private function fillFromCustomer(User $user): void
+    {
+        $user->loadMissing('bidder');
+
+        $this->name = $user->name;
+        $this->email = $user->email ?? '';
+        $this->phone = '0'.substr((string) $user->phone, 3);
+        $this->whatsappNumber = $user->bidder?->whatsapp_number
+            ? '0'.substr($user->bidder->whatsapp_number, 3)
+            : '';
+        $this->marketingConsent = (bool) $user->marketing_consent;
     }
 
     public function submitBid(): void
@@ -84,7 +185,7 @@ class extends Component {
         $this->formState = 'pending';
     }
 
-    public function completePlaceholderPayment(): void
+    public function simulateStkPushSuccess(): void
     {
         if ($this->formState !== 'pending' || ! $this->paymentAttemptId) {
             return;
@@ -99,7 +200,7 @@ class extends Component {
         );
     }
 
-    public function failPlaceholderPayment(): void
+    public function simulateStkPushFailure(): void
     {
         if ($this->paymentAttemptId) {
             app(AuctionBidService::class)->markFailed(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
@@ -121,6 +222,7 @@ class extends Component {
     $image = $auction->images[$activeImage] ?? $auction->images->first();
     $acceptedBids = $auction->bids()->where('status', 'accepted')->pluck('amount');
     $uniqueBidAmounts = $acceptedBids->countBy()->filter(fn (int $count): bool => $count === 1)->count();
+    $isSignedInCustomer = auth()->user()?->phone && ! auth()->user()?->is_admin;
 @endphp
 
 <div class="mx-auto max-w-7xl px-4 py-8">
@@ -283,10 +385,10 @@ class extends Component {
                             <p class="mt-1 text-sm text-muted-foreground">
                                 This confirms your bid of {{ Money::kes((int) $amount) }}. It is not the product value and is not credited against a later successful-buy payment.
                             </p>
-                            <p class="mt-2 text-xs text-muted-foreground">IntaSend will send the live payment prompt once credentials are connected. Use the placeholder controls below during development.</p>
+                            <p class="mt-2 text-xs text-muted-foreground">M-Pesa STK Push will send the payment prompt once Daraja credentials are connected. Use the simulated controls below during development.</p>
                             <div class="mt-5 grid gap-2 sm:grid-cols-2">
-                                <flux:button wire:click="completePlaceholderPayment" class="bg-accent! text-accent-foreground!">Confirm fee payment</flux:button>
-                                <flux:button wire:click="failPlaceholderPayment" variant="outline">Mark payment failed</flux:button>
+                                <flux:button wire:click="simulateStkPushSuccess" class="bg-accent! text-accent-foreground!">Simulate STK approval</flux:button>
+                                <flux:button wire:click="simulateStkPushFailure" variant="outline">Simulate STK cancellation</flux:button>
                             </div>
                         </div>
                     @elseif ($formState === 'failure')
@@ -302,22 +404,86 @@ class extends Component {
                             </div>
                         </div>
                     @else
-                        <h2 class="text-lg font-bold text-navy">Place your bid</h2>
-                        <p class="mt-1 text-xs text-muted-foreground">Choose a bid amount in the range, then pay the participation fee to confirm it. You can place multiple bids.</p>
+                        @if ($bidStep === 'phone')
+                            <h2 class="text-lg font-bold text-navy">Place your bid</h2>
+                            <p class="mt-1 text-xs text-muted-foreground">Start with your mobile number. We will check whether you need to sign in or add your contact details.</p>
 
-                        <form wire:submit="submitBid" class="mt-4 space-y-4">
+                            <form wire:submit="continueWithPhone" class="mt-4 space-y-4">
+                                <flux:field>
+                                    <flux:label>Mobile number</flux:label>
+                                    <flux:input wire:model="phone" inputmode="tel" placeholder="07XX XXX XXX" autofocus />
+                                    <flux:description>Used for the payment prompt and account security.</flux:description>
+                                    <flux:error name="phone" />
+                                </flux:field>
+
+                                <flux:button type="submit" class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                                    Continue
+                                </flux:button>
+                            </form>
+                        @elseif ($bidStep === 'account')
+                            <h2 class="text-lg font-bold text-navy">Sign in to continue</h2>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                This mobile number already has a UniqBid account. We will send a one-time code to {{ $phone }} so you can use your saved details securely.
+                            </p>
+                            <div class="mt-5 space-y-3">
+                                <flux:button wire:click="requestSignInCode" class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                                    Sign in with mobile
+                                </flux:button>
+                                <flux:button wire:click="changePhone" variant="ghost" class="w-full">
+                                    Use a different number
+                                </flux:button>
+                            </div>
+                        @elseif ($bidStep === 'otp')
+                            <h2 class="text-lg font-bold text-navy">Enter your code</h2>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                Enter the six-digit code sent to {{ $phone }}.
+                            </p>
+
+                            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                <div class="font-semibold">SMS placeholder</div>
+                                <p class="mt-1">SMS delivery will be connected later. For this staging flow, enter <span class="font-mono font-bold">{{ $placeholderCode }}</span>.</p>
+                            </div>
+
+                            <form wire:submit="verifySignInCode" class="mt-4 space-y-4">
+                                <flux:field>
+                                    <flux:label>Six-digit code</flux:label>
+                                    <flux:input wire:model="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus />
+                                    <flux:error name="code" />
+                                </flux:field>
+
+                                <flux:button type="submit" class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                                    Continue
+                                </flux:button>
+                                <flux:button type="button" wire:click="requestSignInCode" variant="ghost" class="w-full">
+                                    Send a new code
+                                </flux:button>
+                                <flux:button type="button" wire:click="changePhone" variant="ghost" class="w-full">
+                                    Use a different number
+                                </flux:button>
+                            </form>
+                        @else
+                            <h2 class="text-lg font-bold text-navy">Add your bid details</h2>
+                            <p class="mt-1 text-xs text-muted-foreground">Choose a bid amount in the range, then pay the participation fee to confirm it. You can place multiple bids.</p>
+
+                            <form wire:submit="submitBid" class="mt-4 space-y-4">
+                            @if (! $isSignedInCustomer)
+                                <div class="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+                                    <span class="font-medium text-zinc-900">{{ $phone }}</span>
+                                    <flux:button type="button" wire:click="changePhone" variant="ghost" size="sm">Change</flux:button>
+                                </div>
+                            @else
+                                <div class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
+                                    Using the saved details for your verified mobile account.
+                                    <a href="{{ route('account') }}" class="font-medium text-navy hover:underline" wire:navigate>Update details</a>
+                                </div>
+                            @endif
+                            @if (! $isSignedInCustomer)
                             <flux:field>
                                 <flux:label>Full name</flux:label>
                                 <flux:input wire:model="name" placeholder="e.g. Wanjiru Kamau" />
                                 <flux:error name="name" />
                             </flux:field>
-
-                            <flux:field>
-                                <flux:label>Mobile number</flux:label>
-                                <flux:input wire:model="phone" inputmode="tel" placeholder="07XX XXX XXX" />
-                                <flux:description>Used for the payment prompt and SMS updates.</flux:description>
-                                <flux:error name="phone" />
-                            </flux:field>
+                            @endif
 
                             <flux:field>
                                 <flux:label>WhatsApp number <span class="font-normal text-muted-foreground">(optional)</span></flux:label>
@@ -326,11 +492,13 @@ class extends Component {
                                 <flux:error name="whatsappNumber" />
                             </flux:field>
 
+                            @if (! $isSignedInCustomer)
                             <flux:field>
                                 <flux:label>Email address</flux:label>
                                 <flux:input wire:model="email" type="email" placeholder="you@example.com" />
                                 <flux:error name="email" />
                             </flux:field>
+                            @endif
 
                             <flux:field>
                                 <flux:label>Your bid amount (KES)</flux:label>
@@ -367,6 +535,7 @@ class extends Component {
                                 Pay participation fee {{ Money::kes($auction->bid_fee) }}
                             </flux:button>
                         </form>
+                        @endif
                     @endif
                 </div>
 

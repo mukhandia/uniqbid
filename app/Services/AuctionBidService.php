@@ -6,6 +6,8 @@ use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Bidder;
 use App\Models\PaymentAttempt;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -32,9 +34,21 @@ class AuctionBidService
             $phone = $this->normalizeKenyanPhone($details['phone']);
             $whatsapp = $this->normalizeKenyanPhone($details['whatsapp_number'] ?: $details['phone']);
             $consent = $details['marketing_consent'];
+            $user = User::query()->where('phone', $phone)->first();
+
+            if ($user !== null && Auth::id() !== $user->id) {
+                throw ValidationException::withMessages([
+                    'phone' => 'This mobile number has an account. Sign in with the one-time code to place a bid.',
+                ]);
+            }
+
+            if ($user !== null) {
+                app(CustomerAccountService::class)->assertCanBid($user, $auction->bid_fee);
+            }
 
             $bidder = Bidder::query()->firstOrNew(['phone' => $phone]);
             $bidder->fill([
+                'user_id' => $user?->id,
                 'name' => $details['name'],
                 'email' => $details['email'],
                 'whatsapp_number' => $whatsapp,
@@ -50,7 +64,7 @@ class AuctionBidService
             ]);
 
             return $bid->paymentAttempts()->create([
-                'provider' => 'intasend_placeholder',
+                'provider' => 'mpesa_daraja_stk_push',
                 'reference' => $this->reference('PAY'),
                 'amount' => $auction->bid_fee,
                 'request_payload' => [
@@ -80,7 +94,7 @@ class AuctionBidService
 
             $attempt->update([
                 'status' => 'succeeded',
-                'response_payload' => ['status' => 'placeholder_paid'],
+                'response_payload' => ['status' => 'stk_push_simulated_success'],
             ]);
             $bid->update(['status' => 'accepted', 'paid_at' => now()]);
             $bid->auction()->increment('bids_count');
@@ -106,7 +120,7 @@ class AuctionBidService
             $attempt->update([
                 'status' => 'failed',
                 'failure_reason' => 'Payment was not completed.',
-                'response_payload' => ['status' => 'placeholder_failed'],
+                'response_payload' => ['status' => 'stk_push_simulated_failure'],
             ]);
 
             $bid->update(['status' => 'failed']);

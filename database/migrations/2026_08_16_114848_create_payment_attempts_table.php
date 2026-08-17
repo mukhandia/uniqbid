@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('payment_attempts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('auction_bid_id')->constrained()->cascadeOnDelete();
-            $table->string('provider')->default('intasend_placeholder');
+            $table->string('provider')->default('mpesa_daraja_stk_push');
             $table->string('reference')->unique();
             $table->unsignedInteger('amount');
             $table->string('status')->default('initiated');

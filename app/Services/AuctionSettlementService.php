@@ -29,11 +29,13 @@ class AuctionSettlementService
                 $successfulBid = null;
 
                 if ($auction->result) {
-                    $successfulBid = AuctionBid::query()
-                        ->where('auction_id', $auction->id)
-                        ->where('status', 'accepted')
-                        ->where('amount', $auction->result->sale_price)
-                        ->first();
+                    $successfulBid = $auction->result->auction_bid_id
+                        ? AuctionBid::query()->find($auction->result->auction_bid_id)
+                        : AuctionBid::query()
+                            ->where('auction_id', $auction->id)
+                            ->where('status', 'accepted')
+                            ->where('amount', $auction->result->sale_price)
+                            ->first();
                 }
 
                 return [
@@ -80,11 +82,16 @@ class AuctionSettlementService
                 AuctionResult::query()->updateOrCreate(
                     ['auction_id' => $auction->id],
                     [
+                        'auction_bid_id' => $successfulBid->id,
                         'slug' => $auction->slug.'-result',
                         'name' => $auction->name,
                         'category' => $auction->category,
                         'image' => $auction->primaryImageUrl() ?: '/images/auctions/iphone-15-pro.png',
                         'sale_price' => $successfulBid->amount,
+                        'sale_payment_status' => 'awaiting_payment',
+                        'sale_payment_paid_at' => null,
+                        'fulfilment_status' => 'pending',
+                        'fulfilment_due_at' => now()->addDays(7),
                         'buyer_display' => $this->maskBuyer($successfulBid),
                         'sold_on' => now()->toDateString(),
                     ],
@@ -144,7 +151,12 @@ class AuctionSettlementService
             }
 
             $auction->result->update([
+                'auction_bid_id' => $nextBid->id,
                 'sale_price' => $nextBid->amount,
+                'sale_payment_status' => 'awaiting_payment',
+                'sale_payment_paid_at' => null,
+                'fulfilment_status' => 'pending',
+                'fulfilment_due_at' => now()->addDays(7),
                 'buyer_display' => $this->maskBuyer($nextBid),
                 'sold_on' => now()->toDateString(),
             ]);
