@@ -43,6 +43,9 @@ MAINTENANCE_ON=1
 echo "==> Running migrations"
 $PHP_BIN artisan migrate --force --no-interaction
 
+echo "==> Ensuring admin user exists"
+$PHP_BIN artisan uniqbid:ensure-admin --no-interaction
+
 echo "==> Ensuring storage symlink"
 $PHP_BIN artisan storage:link --force || true
 

@@ -21,8 +21,9 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::factory()->create([
-            'name' => 'UniqBid Admin',
-            'email' => 'admin@uniqbid.co.ke',
+            'name' => config('uniqbid.admin.name'),
+            'email' => config('uniqbid.admin.email'),
+            'password' => config('uniqbid.admin.password'),
             'is_admin' => true,
         ]);
 
