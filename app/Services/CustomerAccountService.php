@@ -30,11 +30,11 @@ class CustomerAccountService
             return;
         }
 
-        if ($this->isSelfExcluded($user)) {
-            $until = $user->customerControl->self_excluded_until->timezone(config('app.timezone'));
+        $until = $user->customerControl?->self_excluded_until;
 
+        if ($until !== null && $until->isFuture()) {
             throw ValidationException::withMessages([
-                'phone' => 'Your account is self-excluded from bidding until '.$until->format('j M Y, H:i').'.',
+                'phone' => 'Your account is self-excluded from bidding until '.$until->timezone(config('app.timezone'))->format('j M Y, H:i').'.',
             ]);
         }
 
