@@ -46,6 +46,9 @@ MAINTENANCE_ON=1
 echo "==> Running migrations"
 $PHP_BIN artisan migrate --force --no-interaction
 
+echo "==> Seeding UniqBid catalogue (temporary — remove after first successful deploy)"
+$PHP_BIN artisan db:seed --class=Database\\Seeders\\UniqBidDemoSeeder --force --no-interaction
+
 echo "==> Ensuring admin user exists"
 $PHP_BIN artisan uniqbid:ensure-admin --no-interaction
 
