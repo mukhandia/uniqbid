@@ -71,7 +71,7 @@ test('shop index can filter categories whose names contain apostrophes', functio
     $html = $this->get(route('shop.index'))->assertOk()->getContent();
 
     expect($html)
-        ->toContain("Women\\u0027s Beauty")
+        ->toContain('Women\\u0027s Beauty')
         ->not->toContain("wire:click=\"\$set('category', 'Women's Beauty");
 });
 
