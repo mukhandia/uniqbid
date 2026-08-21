@@ -39,23 +39,28 @@ class OrderService
      */
     public function placeFromCart(array $details): Order
     {
-        $lines = $this->cart->lines();
+        $items = $this->cart->items();
 
-        if ($lines->isEmpty()) {
+        if ($items === []) {
             throw ValidationException::withMessages([
                 'cart' => 'Your cart is empty.',
             ]);
         }
 
-        return DB::transaction(function () use ($details, $lines): Order {
+        return DB::transaction(function () use ($details, $items): Order {
             $phone = $this->phones->normalizeKenyanPhone($details['phone']);
             $subtotal = 0;
             $prepared = [];
 
-            foreach ($lines as $line) {
-                /** @var Product $product */
-                $product = Product::query()->lockForUpdate()->findOrFail($line['product']->id);
-                $qty = (int) $line['qty'];
+            foreach ($items as $item) {
+                /** @var Product|null $product */
+                $product = Product::query()->lockForUpdate()->find($item['product_id']);
+
+                if ($product === null) {
+                    continue;
+                }
+
+                $qty = (int) $item['qty'];
 
                 if ($product->stock < $qty) {
                     throw ValidationException::withMessages([
@@ -78,10 +83,16 @@ class OrderService
                 ];
             }
 
+            if ($prepared === []) {
+                throw ValidationException::withMessages([
+                    'cart' => 'Your cart is empty.',
+                ]);
+            }
+
             $deliveryFee = $this->deliveryFee($details['delivery_method']);
             $order = Order::query()->create([
                 'reference' => $this->generateReference(),
-                'user_id' => $details['user']?->id,
+                'user_id' => ($details['user'] ?? null)?->id,
                 'customer_name' => $details['name'],
                 'customer_phone' => $phone,
                 'customer_email' => $details['email'] ?? null,

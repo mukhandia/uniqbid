@@ -22,7 +22,9 @@ test('order service refuses empty carts', function () {
 
 test('order service refuses quantities above stock', function () {
     $product = Product::factory()->create(['stock' => 1, 'price' => 1000]);
-    app(CartService::class)->add($product->id, 2);
+
+    // CartService clamps adds; simulate a stale session line above stock.
+    session(['uniqbid.cart' => [['product_id' => $product->id, 'qty' => 2]]]);
 
     expect(fn () => app(OrderService::class)->placeFromCart([
         'name' => 'Test User',
