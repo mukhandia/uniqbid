@@ -22,10 +22,17 @@ test('cart page lists items and can update and remove quantities', function () {
     Livewire::test('pages::cart')
         ->assertSee('Leather Cardholder')
         ->assertSee('Your cart')
-        ->call('updateQty', $product->id, 3)
-        ->assertOk();
+        ->call('increment', $product->id)
+        ->assertOk()
+        ->assertDispatched('cart-updated');
 
     expect(app(CartService::class)->count())->toBe(3);
+
+    Livewire::test('pages::cart')
+        ->call('decrement', $product->id)
+        ->assertOk();
+
+    expect(app(CartService::class)->count())->toBe(2);
 
     Livewire::test('pages::cart')
         ->call('remove', $product->id)
@@ -40,7 +47,19 @@ test('updating quantity below one removes the cart line', function () {
     app(CartService::class)->add($product->id, 1);
 
     Livewire::test('pages::cart')
-        ->call('updateQty', $product->id, 0);
+        ->call('decrement', $product->id);
 
     expect(app(CartService::class)->items())->toBe([]);
+});
+
+test('cart increment cannot exceed available stock', function () {
+    $product = Product::factory()->create(['stock' => 2, 'reserved_stock' => 0]);
+
+    app(CartService::class)->add($product->id, 2);
+
+    Livewire::test('pages::cart')
+        ->call('increment', $product->id)
+        ->assertOk();
+
+    expect(app(CartService::class)->quantityOf($product->id))->toBe(2);
 });

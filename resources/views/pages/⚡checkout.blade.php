@@ -88,6 +88,8 @@ class extends Component {
         $this->orderRef = $order->reference;
         $this->status = 'success';
 
+        $this->dispatch('cart-updated');
+
         Flux::toast(variant: 'success', text: 'Order '.$order->reference.' placed.');
     }
 

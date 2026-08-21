@@ -19,11 +19,13 @@ class extends Component {
     public function mount(Product $product): void
     {
         $this->product = $product;
+        $this->qty = 1;
     }
 
     public function increment(): void
     {
-        $this->qty = min($this->product->availableStock(), $this->qty + 1);
+        $max = max(1, $this->remainingPurchasable());
+        $this->qty = min($max, $this->qty + 1);
     }
 
     public function decrement(): void
@@ -33,17 +35,47 @@ class extends Component {
 
     public function addToCart(CartService $cart): void
     {
-        if ($this->product->availableStock() < 1) {
+        $remaining = $this->remainingPurchasable($cart);
+
+        if ($remaining < 1) {
+            Flux::toast(variant: 'warning', text: 'No more stock available to add for this item.');
+
             return;
         }
 
-        $this->qty = min($this->product->availableStock(), $this->qty);
-        $cart->add($this->product->id, $this->qty);
+        $this->qty = min($remaining, max(1, $this->qty));
+        $added = $cart->add($this->product->id, $this->qty);
+
+        if ($added < 1) {
+            Flux::toast(variant: 'warning', text: 'No more stock available to add for this item.');
+
+            return;
+        }
+
+        $this->dispatch('cart-updated');
+        $this->qty = 1;
 
         Flux::toast(
             variant: 'success',
-            text: "Added {$this->qty} × {$this->product->name} to cart.",
+            text: "Added {$added} × {$this->product->name} to cart.",
         );
+    }
+
+    public function with(): array
+    {
+        $remaining = $this->remainingPurchasable();
+
+        return [
+            'remaining' => $remaining,
+            'inCart' => app(CartService::class)->quantityOf($this->product->id),
+        ];
+    }
+
+    private function remainingPurchasable(?CartService $cart = null): int
+    {
+        $cart ??= app(CartService::class);
+
+        return max(0, $this->product->availableStock() - $cart->quantityOf($this->product->id));
     }
 }; ?>
 
@@ -80,6 +112,9 @@ class extends Component {
             @if ($product->availableStock() > 0)
                 <span class="mt-3 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
                     In stock — {{ $product->availableStock() }} available
+                    @if ($inCart > 0)
+                        · {{ $inCart }} in cart
+                    @endif
                 </span>
             @else
                 <span class="mt-3 inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
@@ -92,19 +127,25 @@ class extends Component {
             <div class="mt-6 flex items-center gap-3">
                 <div class="inline-flex items-center rounded-md border border-border">
                     <button type="button" wire:click="decrement" class="p-2 hover:bg-muted" aria-label="Decrease">
-                        <flux:icon.minus class="size-4" />
+                        <flux:icon.minus class="pointer-events-none size-4" />
                     </button>
                     <span class="w-10 text-center text-sm font-semibold">{{ $qty }}</span>
-                    <button type="button" wire:click="increment" class="p-2 hover:bg-muted" aria-label="Increase">
-                        <flux:icon.plus class="size-4" />
+                    <button
+                        type="button"
+                        wire:click="increment"
+                        class="p-2 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+                        @disabled($remaining < 1 || $qty >= $remaining)
+                        aria-label="Increase"
+                    >
+                        <flux:icon.plus class="pointer-events-none size-4" />
                     </button>
                 </div>
                 <flux:button
                     wire:click="addToCart"
+                    icon="shopping-cart"
                     class="flex-1 bg-accent! text-accent-foreground! hover:bg-accent/90!"
-                    :disabled="$product->availableStock() === 0"
+                    :disabled="$remaining < 1"
                 >
-                    <flux:icon.shopping-cart class="size-4" />
                     Add to cart
                 </flux:button>
             </div>

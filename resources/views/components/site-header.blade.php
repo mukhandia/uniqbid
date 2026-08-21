@@ -8,7 +8,6 @@
         ['route' => 'testimonials', 'label' => 'Testimonials', 'match' => 'testimonials'],
         ['route' => 'contact', 'label' => 'Contact', 'match' => 'contact'],
     ];
-    $cartCount = app(\App\Services\CartService::class)->count();
     $onShop = request()->routeIs('shop.*');
 @endphp
 
@@ -48,14 +47,7 @@
         </nav>
 
         <div class="flex items-center gap-2">
-            <a href="{{ route('cart') }}" class="relative rounded-md p-2 text-zinc-900 hover:bg-muted">
-                <flux:icon.shopping-cart class="size-5" />
-                @if ($cartCount > 0)
-                    <span class="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gold px-1 text-[10px] font-bold text-gold-foreground">
-                        {{ $cartCount }}
-                    </span>
-                @endif
-            </a>
+            <livewire:cart-count />
 
             <a href="{{ route('account') }}" class="hidden rounded-md p-2 text-zinc-900 hover:bg-muted sm:block">
                 <flux:icon.user class="size-5" />

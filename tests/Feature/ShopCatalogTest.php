@@ -123,10 +123,27 @@ test('add to cart adds the selected quantity', function () {
     Livewire::test('pages::shop.show', ['product' => $product])
         ->call('increment')
         ->call('addToCart')
-        ->assertOk();
+        ->assertOk()
+        ->assertDispatched('cart-updated');
 
     expect(app(CartService::class)->count())->toBe(2);
     expect(app(CartService::class)->subtotal())->toBe(3600);
+});
+
+test('cart count component refreshes when cart-updated is dispatched', function () {
+    $product = Product::factory()->create(['stock' => 5, 'price' => 1000]);
+    app(CartService::class)->add($product->id, 2);
+
+    Livewire::test('cart-count')
+        ->assertSee('2')
+        ->call('refreshCount')
+        ->assertSee('2');
+
+    app(CartService::class)->add($product->id, 1);
+
+    Livewire::test('cart-count')
+        ->dispatch('cart-updated')
+        ->assertSee('3');
 });
 
 test('out of stock products cannot be added to cart', function () {
