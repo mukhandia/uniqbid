@@ -23,7 +23,7 @@ class extends Component {
 
     public function increment(): void
     {
-        $this->qty = min($this->product->stock, $this->qty + 1);
+        $this->qty = min($this->product->availableStock(), $this->qty + 1);
     }
 
     public function decrement(): void
@@ -33,10 +33,11 @@ class extends Component {
 
     public function addToCart(CartService $cart): void
     {
-        if ($this->product->stock < 1) {
+        if ($this->product->availableStock() < 1) {
             return;
         }
 
+        $this->qty = min($this->product->availableStock(), $this->qty);
         $cart->add($this->product->id, $this->qty);
 
         Flux::toast(
@@ -48,8 +49,11 @@ class extends Component {
 
 <div class="mx-auto max-w-6xl px-4 py-8">
     <div class="text-xs text-muted-foreground">
-        <a href="{{ route('shop.index') }}" class="hover:underline">Shop</a>
+        <a href="{{ route('shop.index') }}" class="hover:underline" wire:navigate>Shop</a>
         / {{ $product->category }}
+        @if ($product->subcategory)
+            / {{ $product->subcategory }}
+        @endif
     </div>
 
     <div class="mt-4 grid gap-8 md:grid-cols-2">
@@ -64,12 +68,21 @@ class extends Component {
             <h1 class="mt-1 text-3xl font-bold text-navy">{{ $product->name }}</h1>
             <div class="mt-3 text-2xl font-bold">{{ Money::kes($product->price) }}</div>
 
-            @if ($product->stock > 0)
-                <span class="mt-2 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-                    In stock — {{ $product->stock }} available
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                @if ($product->price_tier)
+                    <span class="rounded-full border border-border bg-surface px-2.5 py-1 font-medium">{{ $product->price_tier }}</span>
+                @endif
+                @if ($product->gender_age)
+                    <span class="rounded-full border border-border bg-surface px-2.5 py-1 font-medium">{{ $product->gender_age }}</span>
+                @endif
+            </div>
+
+            @if ($product->availableStock() > 0)
+                <span class="mt-3 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
+                    In stock — {{ $product->availableStock() }} available
                 </span>
             @else
-                <span class="mt-2 inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
+                <span class="mt-3 inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
                     Out of stock
                 </span>
             @endif
@@ -89,7 +102,7 @@ class extends Component {
                 <flux:button
                     wire:click="addToCart"
                     class="flex-1 bg-accent! text-accent-foreground! hover:bg-accent/90!"
-                    :disabled="$product->stock === 0"
+                    :disabled="$product->availableStock() === 0"
                 >
                     <flux:icon.shopping-cart class="size-4" />
                     Add to cart
@@ -99,12 +112,18 @@ class extends Component {
             <div class="mt-6 space-y-2 rounded-lg border border-border bg-surface p-4 text-sm">
                 <div class="flex items-center gap-2">
                     <flux:icon.truck class="size-4 text-navy" />
-                    Free delivery within Nairobi, or free pick-up from our office
+                    Free delivery within Nairobi, or free pick-up from our Westlands office
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:icon.shield-check class="size-4 text-navy" />
-                    M-Pesa secure checkout with SMS/WhatsApp confirmation
+                    M-Pesa checkout · Cancel free before dispatch · Returns within 7 days if eligible
                 </div>
+                @unless ($product->is_returnable)
+                    <div class="flex items-start gap-2 text-amber-800">
+                        <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0" />
+                        This item is marked non-returnable under our Refund Policy.
+                    </div>
+                @endunless
             </div>
         </div>
     </div>

@@ -1,8 +1,10 @@
 <?php
 
+use App\Models\Order;
 use App\Models\User;
 use App\Services\AuctionBidService;
 use App\Services\CustomerAccountService;
+use App\Services\OrderService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Collection;
@@ -63,6 +65,37 @@ class extends Component {
         }
 
         return app(CustomerAccountService::class)->bidHistory($user);
+    }
+
+    #[Computed]
+    public function shopOrders(): Collection
+    {
+        $user = Auth::user();
+
+        if ($user === null || $user->is_admin) {
+            return collect();
+        }
+
+        return $user->orders()->with('items')->limit(20)->get();
+    }
+
+    public function cancelShopOrder(int $orderId): void
+    {
+        $user = Auth::user();
+        abort_if($user === null || $user->is_admin, 403);
+
+        $order = Order::query()->whereKey($orderId)->where('user_id', $user->id)->firstOrFail();
+
+        try {
+            app(OrderService::class)->cancelBeforeDispatch($order);
+            unset($this->shopOrders);
+            Flux::toast(variant: 'success', text: 'Order '.$order->reference.' cancelled.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: collect($exception->errors())->flatten()->first() ?? 'Unable to cancel this order.',
+            );
+        }
     }
 
     #[Computed]
@@ -290,6 +323,57 @@ class extends Component {
                             </p>
                         </section>
                     @endif
+
+                    <section>
+                        <h2 class="text-lg font-semibold text-navy">Shop orders</h2>
+                        @if ($this->shopOrders->isEmpty())
+                            <p class="mt-2 text-sm text-muted-foreground">
+                                No shop orders yet.
+                                <a href="{{ route('shop.index') }}" class="font-medium text-navy underline" wire:navigate>Browse the shop</a>
+                                or
+                                <a href="{{ route('orders.track') }}" class="font-medium text-navy underline" wire:navigate>track an order</a>.
+                            </p>
+                        @else
+                            <div class="mt-4 space-y-3">
+                                @foreach ($this->shopOrders as $order)
+                                    <div class="rounded-xl border border-border p-4" wire:key="order-{{ $order->id }}">
+                                        <div class="flex flex-wrap items-start justify-between gap-2">
+                                            <div>
+                                                <a href="{{ route('orders.show', $order) }}" class="font-mono text-sm font-semibold text-navy hover:underline" wire:navigate>
+                                                    {{ $order->reference }}
+                                                </a>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    {{ $order->created_at?->timezone(config('app.timezone'))->format('j M Y') }}
+                                                    · {{ $order->items->sum('quantity') }} item(s)
+                                                    · {{ Money::kes($order->total) }}
+                                                </div>
+                                            </div>
+                                            <flux:badge size="sm" :color="match ($order->status) {
+                                                'paid', 'processing' => 'amber',
+                                                'dispatched' => 'sky',
+                                                'delivered' => 'green',
+                                                'cancelled' => 'red',
+                                                default => 'zinc',
+                                            }">
+                                                {{ $order->statusLabel() }}
+                                            </flux:badge>
+                                        </div>
+                                        @if ($order->canCancelBeforeDispatch())
+                                            <flux:button
+                                                size="sm"
+                                                variant="ghost"
+                                                class="mt-2"
+                                                wire:click="cancelShopOrder({{ $order->id }})"
+                                                wire:confirm="Cancel order {{ $order->reference }} before dispatch?"
+                                            >
+                                                Cancel before dispatch
+                                            </flux:button>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </section>
 
                     <section>
                         <h2 class="text-lg font-semibold text-navy">Bid history</h2>

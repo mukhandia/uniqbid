@@ -7,9 +7,10 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 test('product scopes featured and in stock', function () {
-    Product::factory()->create(['is_featured' => true, 'stock' => 5, 'name' => 'Featured In Stock']);
-    Product::factory()->create(['is_featured' => false, 'stock' => 5, 'name' => 'Regular In Stock']);
-    Product::factory()->create(['is_featured' => true, 'stock' => 0, 'name' => 'Featured Out']);
+    Product::factory()->create(['is_featured' => true, 'stock' => 5, 'reserved_stock' => 0, 'name' => 'Featured In Stock']);
+    Product::factory()->create(['is_featured' => false, 'stock' => 5, 'reserved_stock' => 0, 'name' => 'Regular In Stock']);
+    Product::factory()->create(['is_featured' => true, 'stock' => 0, 'reserved_stock' => 0, 'name' => 'Featured Out']);
+    Product::factory()->create(['is_featured' => false, 'stock' => 2, 'reserved_stock' => 2, 'name' => 'Fully Reserved']);
 
     expect(Product::query()->featured()->pluck('name')->all())
         ->toContain('Featured In Stock', 'Featured Out')
@@ -17,7 +18,7 @@ test('product scopes featured and in stock', function () {
 
     expect(Product::query()->inStock()->pluck('name')->all())
         ->toContain('Featured In Stock', 'Regular In Stock')
-        ->not->toContain('Featured Out');
+        ->not->toContain('Featured Out', 'Fully Reserved');
 });
 
 test('product low stock helper', function () {

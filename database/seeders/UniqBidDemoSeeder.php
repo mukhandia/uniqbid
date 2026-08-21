@@ -4,8 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\Auction;
 use App\Models\AuctionResult;
+use App\Models\Category;
 use App\Models\Product;
+use App\Models\Subcategory;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class UniqBidDemoSeeder extends Seeder
 {
@@ -146,96 +149,115 @@ class UniqBidDemoSeeder extends Seeder
             }
         }
 
-        $products = [
-            [
-                'slug' => 'p1',
-                'name' => 'Leather Cardholder (Black)',
-                'category' => "Men's Accessories",
-                'price' => 2400,
-                'stock' => 12,
-                'image' => '/images/products/leather-cardholder.png',
-                'description' => 'Full-grain leather cardholder, handmade in Kariokor.',
-                'is_featured' => true,
-            ],
-            [
-                'slug' => 'p2',
-                'name' => 'Silk Neck Scarf',
-                'category' => "Women's Accessories",
-                'price' => 1800,
-                'stock' => 8,
-                'image' => '/images/products/silk-scarf.png',
-                'description' => '100% mulberry silk, printed in Nairobi.',
-                'is_featured' => true,
-            ],
-            [
-                'slug' => 'p3',
-                'name' => 'Executive Hamper (Premium)',
-                'category' => 'Hampers',
-                'price' => 8500,
-                'stock' => 4,
-                'image' => '/images/products/executive-hamper.png',
-                'description' => 'Wine, chocolates, artisan snacks, and Kenyan coffee.',
-                'is_featured' => true,
-            ],
-            [
-                'slug' => 'p4',
-                'name' => 'Beaded Bracelet (Maasai)',
-                'category' => "Women's Accessories",
-                'price' => 950,
-                'stock' => 22,
-                'image' => '/images/products/maasai-bracelet.png',
-                'description' => 'Authentic Maasai beaded bracelet, handmade.',
-            ],
-            [
-                'slug' => 'p5',
-                'name' => 'Leather Belt (Brown)',
-                'category' => "Men's Accessories",
-                'price' => 2100,
-                'stock' => 15,
-                'image' => '/images/products/leather-belt.png',
-                'description' => 'Full-grain leather with brass buckle.',
-                'is_featured' => true,
-            ],
-            [
-                'slug' => 'p6',
-                'name' => 'Gift Box: Coffee & Mug',
-                'category' => 'Gifts',
-                'price' => 1650,
-                'stock' => 30,
-                'image' => '/images/products/coffee-gift.png',
-                'description' => '250g Kenyan AA coffee with branded mug.',
-            ],
-            [
-                'slug' => 'p7',
-                'name' => 'Wooden Watch',
-                'category' => "Men's Accessories",
-                'price' => 4200,
-                'stock' => 6,
-                'image' => '/images/products/wooden-watch.png',
-                'description' => 'Ebony wooden watch, Kenyan-made.',
-            ],
-            [
-                'slug' => 'p8',
-                'name' => 'Corporate Hamper',
-                'category' => 'Hampers',
-                'price' => 5400,
-                'stock' => 9,
-                'image' => '/images/products/corporate-hamper.png',
-                'description' => 'Perfect for teams: snacks, tea, notebook, pen.',
-            ],
+        $placeholderImages = [
+            '/images/products/leather-cardholder.png',
+            '/images/products/silk-scarf.png',
+            '/images/products/executive-hamper.png',
+            '/images/products/maasai-bracelet.png',
+            '/images/products/leather-belt.png',
+            '/images/products/coffee-gift.png',
+            '/images/products/wooden-watch.png',
+            '/images/products/corporate-hamper.png',
         ];
 
-        foreach ($products as $product) {
+        $cataloguePath = database_path('data/catalogue_launch.json');
+        /** @var array{categories?: list<array<string, mixed>>, subcategories?: list<array<string, mixed>>, products?: list<array<string, mixed>>}|list<array<string, mixed>> $catalogue */
+        $catalogue = is_file($cataloguePath)
+            ? json_decode((string) file_get_contents($cataloguePath), true)
+            : [];
+
+        $categoryRows = is_array($catalogue) && isset($catalogue['categories'])
+            ? $catalogue['categories']
+            : [];
+        $subcategoryRows = is_array($catalogue) && isset($catalogue['subcategories'])
+            ? $catalogue['subcategories']
+            : [];
+        $productRows = is_array($catalogue) && isset($catalogue['products'])
+            ? $catalogue['products']
+            : (is_array($catalogue) ? $catalogue : []);
+
+        $categoriesByName = [];
+
+        foreach ($categoryRows as $row) {
+            $category = Category::query()->updateOrCreate(
+                ['slug' => $row['slug']],
+                [
+                    'name' => $row['name'],
+                    'sort_order' => (int) ($row['sort_order'] ?? 0),
+                    'is_active' => true,
+                ]
+            );
+            $categoriesByName[$category->name] = $category;
+        }
+
+        $subcategoriesByKey = [];
+
+        foreach ($subcategoryRows as $row) {
+            $category = $categoriesByName[$row['category']] ?? null;
+
+            if ($category === null) {
+                continue;
+            }
+
+            $subcategory = Subcategory::query()->updateOrCreate(
+                [
+                    'category_id' => $category->id,
+                    'slug' => $row['slug'],
+                ],
+                [
+                    'name' => $row['name'],
+                    'sort_order' => (int) ($row['sort_order'] ?? 0),
+                    'is_active' => true,
+                ]
+            );
+            $subcategoriesByKey[$category->name.'|'.$subcategory->name] = $subcategory;
+        }
+
+        foreach (array_values($productRows) as $index => $product) {
+            $categoryName = $product['category'];
+            $subcategoryName = $product['subcategory'] ?? '';
+            $key = $categoryName.'|'.$subcategoryName;
+            $subcategory = $subcategoriesByKey[$key] ?? null;
+
+            if ($subcategory === null && isset($categoriesByName[$categoryName])) {
+                $category = $categoriesByName[$categoryName];
+                $subcategory = Subcategory::query()->firstOrCreate(
+                    [
+                        'category_id' => $category->id,
+                        'slug' => Str::slug($subcategoryName ?: 'general'),
+                    ],
+                    [
+                        'name' => $subcategoryName !== '' ? $subcategoryName : 'General',
+                        'sort_order' => 999,
+                        'is_active' => true,
+                    ]
+                );
+                $subcategoriesByKey[$key] = $subcategory;
+            }
+
             Product::query()->updateOrCreate(
                 ['slug' => $product['slug']],
                 [
+                    'subcategory_id' => $subcategory?->id,
                     'name' => $product['name'],
-                    'category' => $product['category'],
-                    'price' => $product['price'],
-                    'stock' => $product['stock'],
-                    'description' => $product['description'],
-                    'image' => $product['image'],
-                    'is_featured' => $product['is_featured'] ?? false,
+                    'category' => $categoryName,
+                    'subcategory' => $subcategoryName,
+                    'gender_age' => $product['gender_age'] ?? 'Unisex',
+                    'price_tier' => $product['price_tier'] ?? 'Affordable',
+                    'price' => (int) $product['price'],
+                    'stock' => ($product['is_featured'] ?? false) ? 25 : random_int(8, 40),
+                    'reserved_stock' => 0,
+                    'description' => trim(implode(' ', array_filter([
+                        $product['name'].'.',
+                        $subcategoryName !== '' ? "From our {$subcategoryName} range." : null,
+                        "Part of UniqBid's {$categoryName} shop selection.",
+                        ($product['is_returnable'] ?? true)
+                            ? 'Eligible for return within 7 days if unused and in original packaging.'
+                            : 'Marked non-returnable under the Refund Policy (personalised or hygiene-restricted item).',
+                    ]))),
+                    'image' => $placeholderImages[$index % count($placeholderImages)],
+                    'is_featured' => (bool) ($product['is_featured'] ?? false),
+                    'is_returnable' => (bool) ($product['is_returnable'] ?? true),
                 ]
             );
         }

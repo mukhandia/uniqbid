@@ -1,27 +1,96 @@
 <?php
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Services\CartService;
 use Livewire\Livewire;
 
+test('shop pages hide the place your bid header button', function () {
+    $product = Product::factory()->create(['stock' => 5]);
+
+    $this->get(route('shop.index'))
+        ->assertOk()
+        ->assertDontSee('Place Your Bid');
+
+    $this->get(route('shop.show', $product))
+        ->assertOk()
+        ->assertDontSee('Place Your Bid');
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Place Your Bid');
+});
+
 test('shop index filters products by category', function () {
     Product::factory()->create([
         'name' => 'Men Belt',
-        'category' => "Men's Accessories",
+        'category' => 'Fashion Accessories',
         'stock' => 5,
     ]);
     Product::factory()->create([
         'name' => 'Gift Box',
-        'category' => 'Gifts',
+        'category' => 'Gifts & Hampers',
         'stock' => 5,
     ]);
+
+    Category::factory()->create(['name' => 'Fashion Accessories', 'slug' => 'fashion-accessories', 'sort_order' => 1]);
+    Category::factory()->create(['name' => 'Gifts & Hampers', 'slug' => 'gifts-hampers', 'sort_order' => 2]);
 
     Livewire::test('pages::shop.index')
         ->assertSee('Men Belt')
         ->assertSee('Gift Box')
-        ->set('category', 'Gifts')
+        ->set('category', 'Gifts & Hampers')
         ->assertSee('Gift Box')
         ->assertDontSee('Men Belt');
+});
+
+test('shop index can filter categories whose names contain apostrophes', function () {
+    Category::factory()->create([
+        'name' => "Women's Beauty & Personal",
+        'slug' => 'womens-beauty-personal',
+        'sort_order' => 1,
+    ]);
+
+    Product::factory()->create([
+        'name' => 'Makeup brush set',
+        'category' => "Women's Beauty & Personal",
+        'stock' => 5,
+    ]);
+    Product::factory()->create([
+        'name' => 'Beard grooming kit',
+        'category' => "Men's Grooming & Accessories",
+        'stock' => 5,
+    ]);
+
+    Livewire::test('pages::shop.index')
+        ->assertSee("Women's Beauty & Personal")
+        ->set('category', "Women's Beauty & Personal")
+        ->assertSee('Makeup brush set')
+        ->assertDontSee('Beard grooming kit');
+
+    $html = $this->get(route('shop.index'))->assertOk()->getContent();
+
+    expect($html)
+        ->toContain("Women\\u0027s Beauty")
+        ->not->toContain("wire:click=\"\$set('category', 'Women's Beauty");
+});
+
+test('shop index searches products by name', function () {
+    Product::factory()->create([
+        'name' => 'Slim minimalist watch',
+        'category' => 'Watches',
+        'stock' => 5,
+    ]);
+    Product::factory()->create([
+        'name' => 'Structured tote handbag',
+        'category' => 'Fashion Accessories',
+        'stock' => 5,
+    ]);
+
+    Livewire::test('pages::shop.index')
+        ->set('q', 'minimalist')
+        ->assertSee('Slim minimalist watch')
+        ->assertDontSee('Structured tote handbag');
 });
 
 test('product quantity can be incremented and decremented within stock', function () {

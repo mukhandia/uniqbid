@@ -1,8 +1,12 @@
 <?php
 
+use App\Models\Order;
 use App\Services\CartService;
+use App\Services\OrderService;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -15,7 +19,9 @@ class extends Component {
 
     public string $phone = '';
 
-    public string $delivery = 'nairobi';
+    public string $email = '';
+
+    public string $delivery = Order::DELIVERY_NAIROBI;
 
     public string $address = '';
 
@@ -27,32 +33,77 @@ class extends Component {
     {
         if ($cart->count() === 0) {
             $this->redirect(route('cart'), navigate: true);
+
+            return;
+        }
+
+        $user = Auth::user();
+
+        if ($user !== null && ! $user->is_admin) {
+            $this->name = $user->name;
+            $this->email = $user->email ?? '';
+            $phone = $user->phone ?? '';
+            $this->phone = str_starts_with($phone, '254') ? '0'.substr($phone, 3) : $phone;
         }
     }
 
-    public function placeOrder(CartService $cart): void
+    public function updatedDelivery(): void
     {
+        if ($this->delivery === Order::DELIVERY_COLLECTION) {
+            $this->resetErrorBag('address');
+        }
+    }
+
+    public function placeOrder(OrderService $orders, CartService $cart): void
+    {
+        if ($cart->count() === 0) {
+            $this->redirect(route('cart'), navigate: true);
+
+            return;
+        }
+
         $this->validate([
-            'name' => ['required', 'string', 'min:2'],
-            'phone' => ['required', 'regex:/^0\d{9}$/'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'phone' => ['required', 'regex:/^(\+?254|0)7\d{8}$/'],
+            'email' => ['nullable', 'email', 'max:255'],
             'delivery' => ['required', 'in:nairobi,collection,upcountry'],
-            'address' => [$this->delivery === 'collection' ? 'nullable' : 'required', 'string'],
+            'address' => [$this->delivery === Order::DELIVERY_COLLECTION ? 'nullable' : 'required', 'string', 'max:1000'],
         ]);
 
-        $this->orderRef = 'ORD'.random_int(10000, 99999);
-        $cart->clear();
+        try {
+            $order = $orders->placeFromCart([
+                'name' => $this->name,
+                'phone' => $this->phone,
+                'email' => $this->email !== '' ? $this->email : null,
+                'delivery_method' => $this->delivery,
+                'delivery_address' => $this->address,
+                'user' => Auth::user()?->is_admin ? null : Auth::user(),
+            ]);
+        } catch (ValidationException $exception) {
+            $message = collect($exception->errors())->flatten()->first() ?? 'Unable to place order.';
+            Flux::toast(variant: 'danger', text: $message);
+            throw $exception;
+        }
+
+        $this->orderRef = $order->reference;
         $this->status = 'success';
 
-        Flux::toast(variant: 'success', text: 'Order '.$this->orderRef.' placed (demo).');
+        Flux::toast(variant: 'success', text: 'Order '.$order->reference.' placed.');
     }
 
     public function with(): array
     {
         $cart = app(CartService::class);
+        $orders = app(OrderService::class);
+        $subtotal = $cart->subtotal();
+        $deliveryFee = $orders->deliveryFee($this->delivery);
 
         return [
             'lines' => $cart->lines(),
-            'subtotal' => $cart->subtotal(),
+            'subtotal' => $subtotal,
+            'deliveryFee' => $deliveryFee,
+            'total' => $subtotal + $deliveryFee,
+            'hasNonReturnable' => $cart->lines()->contains(fn (array $line): bool => ! $line['product']->is_returnable),
         ];
     }
 }; ?>
@@ -65,15 +116,24 @@ class extends Component {
             </div>
             <h1 class="mt-4 text-2xl font-bold text-navy">Order received</h1>
             <p class="mt-2 text-sm text-muted-foreground">
-                Demo checkout complete. Reference <span class="font-mono font-semibold text-zinc-900">{{ $orderRef }}</span>.
+                Payment confirmed (demo M-Pesa). Reference
+                <span class="font-mono font-semibold text-zinc-900">{{ $orderRef }}</span>.
             </p>
-            <div class="mt-6 flex justify-center gap-2">
-                <flux:button href="{{ route('shop.index') }}" class="bg-accent! text-accent-foreground!">Continue shopping</flux:button>
-                <flux:button href="{{ route('account') }}" variant="outline">My account</flux:button>
+            <p class="mt-3 text-sm text-zinc-700">
+                You may cancel free of charge anytime before dispatch. After delivery, eligible unused items can be returned within 7 days —
+                see our <a href="{{ route('legal') }}#refunds" class="font-medium text-navy underline">Refund Policy</a>.
+            </p>
+            <div class="mt-6 flex flex-wrap justify-center gap-2">
+                <flux:button href="{{ route('orders.show', $orderRef) }}" class="bg-accent! text-accent-foreground!">View receipt</flux:button>
+                <flux:button href="{{ route('shop.index') }}" variant="outline">Continue shopping</flux:button>
             </div>
         </div>
     @else
         <h1 class="text-3xl font-bold text-navy">Checkout</h1>
+        <p class="mt-2 text-sm text-muted-foreground">
+            M-Pesa is the default payment method. Live Daraja STK Push arrives in Milestone 2.6 — this checkout records a paid demo order.
+        </p>
+
         <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
             <form wire:submit="placeOrder" class="space-y-4 rounded-2xl border border-border bg-white p-6">
                 <flux:field>
@@ -87,11 +147,16 @@ class extends Component {
                     <flux:error name="phone" />
                 </flux:field>
                 <flux:field>
+                    <flux:label>Email <span class="font-normal text-muted-foreground">(optional)</span></flux:label>
+                    <flux:input wire:model="email" type="email" />
+                    <flux:error name="email" />
+                </flux:field>
+                <flux:field>
                     <flux:label>Delivery method</flux:label>
                     <flux:select wire:model.live="delivery">
-                        <flux:select.option value="nairobi">Delivery within Nairobi</flux:select.option>
-                        <flux:select.option value="collection">Office collection (Westlands)</flux:select.option>
-                        <flux:select.option value="upcountry">Delivery outside Nairobi</flux:select.option>
+                        <flux:select.option value="nairobi">Delivery within Nairobi — free</flux:select.option>
+                        <flux:select.option value="collection">Office collection (Westlands) — free</flux:select.option>
+                        <flux:select.option value="upcountry">Delivery outside Nairobi — {{ Money::kes(350) }}</flux:select.option>
                     </flux:select>
                 </flux:field>
                 @if ($delivery !== 'collection')
@@ -101,8 +166,20 @@ class extends Component {
                         <flux:error name="address" />
                     </flux:field>
                 @endif
+
+                <div class="rounded-lg border border-border bg-surface p-4 text-xs leading-relaxed text-zinc-700">
+                    <p class="font-semibold text-zinc-900">Before you pay</p>
+                    <ul class="mt-2 list-disc space-y-1 pl-4">
+                        <li>Cancel free of charge before we dispatch (Cancellation Policy 5.3).</li>
+                        <li>Eligible shop returns within 7 days of delivery if unused and in original packaging (Refund Policy 4.4).</li>
+                        @if ($hasNonReturnable)
+                            <li class="text-amber-800">Your cart includes one or more non-returnable items.</li>
+                        @endif
+                    </ul>
+                </div>
+
                 <flux:button type="submit" class="w-full bg-accent! text-accent-foreground!">
-                    Pay with M-Pesa (demo) — {{ Money::kes($subtotal) }}
+                    Pay with M-Pesa (demo) — {{ Money::kes($total) }}
                 </flux:button>
             </form>
 
@@ -115,10 +192,14 @@ class extends Component {
                             <span class="font-medium">{{ Money::kes($line['line_total']) }}</span>
                         </div>
                     @endforeach
+                    <div class="flex justify-between text-muted-foreground">
+                        <span>Delivery</span>
+                        <span>{{ $deliveryFee === 0 ? 'Free' : Money::kes($deliveryFee) }}</span>
+                    </div>
                 </div>
                 <div class="mt-3 flex justify-between border-t border-border pt-3 text-base font-bold">
                     <span>Total</span>
-                    <span class="text-navy">{{ Money::kes($subtotal) }}</span>
+                    <span class="text-navy">{{ Money::kes($total) }}</span>
                 </div>
             </aside>
         </div>

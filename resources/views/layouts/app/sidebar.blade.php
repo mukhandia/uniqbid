@@ -16,8 +16,17 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                     @if (auth()->user()->is_admin)
-                        <flux:sidebar.item icon="scale" :href="route('admin.auctions')" :current="request()->routeIs('admin.*')" wire:navigate>
-                            {{ __('Sales admin') }}
+                        <flux:sidebar.item icon="scale" :href="route('admin.auctions')" :current="request()->routeIs('admin.auctions*')" wire:navigate>
+                            {{ __('Sales') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="squares-2x2" :href="route('admin.categories')" :current="request()->routeIs('admin.categories')" wire:navigate>
+                            {{ __('Categories') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate>
+                            {{ __('Products') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="users" :href="route('admin.customers')" :current="request()->routeIs('admin.customers') || request()->routeIs('admin.customer-verifications')" wire:navigate>
+                            {{ __('Customers') }}
                         </flux:sidebar.item>
                     @endif
                 </flux:sidebar.group>

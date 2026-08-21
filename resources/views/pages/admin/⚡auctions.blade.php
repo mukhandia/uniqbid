@@ -41,6 +41,7 @@ class extends Component {
     {
         $auction = Auction::query()->findOrFail($auctionId);
         $auction->update(['status' => 'voided', 'settled_at' => now(), 'settled_by' => auth()->id()]);
+        app(\App\Services\CreateSaleFromProductService::class)->releaseReservedStock($auction);
 
         Flux::toast(variant: 'success', text: 'Sale voided. Participation-fee refunds must be processed once the payment provider is connected.');
     }
@@ -92,6 +93,12 @@ class extends Component {
             <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity.</flux:text>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
+            <flux:button href="{{ route('admin.products') }}" variant="outline">
+                Products
+            </flux:button>
+            <flux:button href="{{ route('admin.categories') }}" variant="outline">
+                Categories
+            </flux:button>
             <flux:button href="{{ route('admin.customers') }}" variant="outline">
                 Customers
             </flux:button>

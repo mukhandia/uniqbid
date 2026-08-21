@@ -89,7 +89,7 @@ class extends Component {
                     </div>
                     <div class="flex justify-between text-muted-foreground">
                         <span>Delivery</span>
-                        <span>Calculated at checkout</span>
+                        <span>Free in Nairobi / collection · KES 350 upcountry</span>
                     </div>
                 </div>
                 <div class="mt-3 flex justify-between border-t border-border pt-3 text-base font-bold">

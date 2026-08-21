@@ -12,6 +12,8 @@ Route::livewire('shop/{product}', 'pages::shop.show')->name('shop.show');
 
 Route::livewire('cart', 'pages::cart')->name('cart');
 Route::livewire('checkout', 'pages::checkout')->name('checkout');
+Route::livewire('orders/track', 'pages::orders.track')->name('orders.track');
+Route::livewire('orders/{order}', 'pages::orders.show')->name('orders.show');
 
 Route::livewire('past-sales', 'pages::results')->name('past-sales');
 Route::redirect('results', '/past-sales');
@@ -29,6 +31,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::livewire('auctions', 'pages::admin.auctions')->name('auctions');
     Route::livewire('auctions/{auction}/bids', 'pages::admin.auction-bids')->name('auction-bids');
+    Route::livewire('categories', 'pages::admin.categories')->name('categories');
+    Route::livewire('products', 'pages::admin.products')->name('products');
     Route::livewire('customers', 'pages::admin.customers')->name('customers');
     Route::livewire('customer-verifications', 'pages::admin.customer-verifications')->name('customer-verifications');
 });

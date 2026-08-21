@@ -49,11 +49,11 @@ test('auction countdown uses days hours and minutes without seconds', function (
 });
 
 test('shop index and product detail work', function () {
-    $product = Product::query()->where('slug', 'p1')->firstOrFail();
+    $product = Product::query()->orderBy('id')->firstOrFail();
 
     $this->get(route('shop.index'))
         ->assertOk()
-        ->assertSee('Leather Cardholder');
+        ->assertSee($product->name);
 
     $this->get(route('shop.show', $product))
         ->assertOk()
@@ -62,7 +62,7 @@ test('shop index and product detail work', function () {
 });
 
 test('static public pages are reachable', function () {
-    foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart'] as $route) {
+    foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart', 'orders.track'] as $route) {
         $this->get(route($route))->assertOk();
     }
 });

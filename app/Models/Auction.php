@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int|null $product_id
  * @property string $slug
  * @property string $name
  * @property string $category
@@ -36,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
+    'product_id',
     'slug',
     'name',
     'category',
@@ -78,6 +80,14 @@ class Auction extends Model
             'settled_at' => 'datetime',
             'extension_minutes' => 'integer',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Product, $this>
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     /**

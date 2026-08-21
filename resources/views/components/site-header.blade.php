@@ -9,6 +9,7 @@
         ['route' => 'contact', 'label' => 'Contact', 'match' => 'contact'],
     ];
     $cartCount = app(\App\Services\CartService::class)->count();
+    $onShop = request()->routeIs('shop.*');
 @endphp
 
 <header
@@ -60,11 +61,13 @@
                 <flux:icon.user class="size-5" />
             </a>
 
-            <a href="{{ route('auctions.index') }}" class="hidden sm:inline-flex">
-                <flux:button class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
-                    Place Your Bid
-                </flux:button>
-            </a>
+            @unless ($onShop)
+                <a href="{{ route('auctions.index') }}" class="hidden sm:inline-flex">
+                    <flux:button class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                        Place Your Bid
+                    </flux:button>
+                </a>
+            @endunless
 
             <button
                 type="button"
@@ -99,11 +102,13 @@
             <a href="{{ route('account') }}" class="rounded-md px-3 py-2.5 text-sm font-medium text-zinc-900 hover:bg-muted" @click="open = false">
                 My Account
             </a>
-            <a href="{{ route('auctions.index') }}" class="mt-2" @click="open = false">
-                <flux:button class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
-                    Place Your Bid
-                </flux:button>
-            </a>
+            @unless ($onShop)
+                <a href="{{ route('auctions.index') }}" class="mt-2" @click="open = false">
+                    <flux:button class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                        Place Your Bid
+                    </flux:button>
+                </a>
+            @endunless
         </div>
     </div>
 </header>
