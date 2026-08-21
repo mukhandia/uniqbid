@@ -161,20 +161,23 @@ class UniqBidDemoSeeder extends Seeder
         ];
 
         $cataloguePath = database_path('data/catalogue_launch.json');
-        /** @var array{categories?: list<array<string, mixed>>, subcategories?: list<array<string, mixed>>, products?: list<array<string, mixed>>}|list<array<string, mixed>> $catalogue */
-        $catalogue = is_file($cataloguePath)
+        $decoded = is_file($cataloguePath)
             ? json_decode((string) file_get_contents($cataloguePath), true)
-            : [];
+            : null;
+        $catalogue = is_array($decoded) ? $decoded : [];
 
-        $categoryRows = is_array($catalogue) && isset($catalogue['categories'])
+        /** @var list<array<string, mixed>> $categoryRows */
+        $categoryRows = isset($catalogue['categories']) && is_array($catalogue['categories'])
             ? $catalogue['categories']
             : [];
-        $subcategoryRows = is_array($catalogue) && isset($catalogue['subcategories'])
+        /** @var list<array<string, mixed>> $subcategoryRows */
+        $subcategoryRows = isset($catalogue['subcategories']) && is_array($catalogue['subcategories'])
             ? $catalogue['subcategories']
             : [];
-        $productRows = is_array($catalogue) && isset($catalogue['products'])
+        /** @var list<array<string, mixed>> $productRows */
+        $productRows = isset($catalogue['products']) && is_array($catalogue['products'])
             ? $catalogue['products']
-            : (is_array($catalogue) ? $catalogue : []);
+            : [];
 
         $categoriesByName = [];
 
@@ -213,7 +216,7 @@ class UniqBidDemoSeeder extends Seeder
             $subcategoriesByKey[$category->name.'|'.$subcategory->name] = $subcategory;
         }
 
-        foreach (array_values($productRows) as $index => $product) {
+        foreach ($productRows as $index => $product) {
             $categoryName = $product['category'];
             $subcategoryName = $product['subcategory'] ?? '';
             $key = $categoryName.'|'.$subcategoryName;

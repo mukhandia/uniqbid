@@ -17,7 +17,7 @@ class SubcategoryFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(2, true);
+        $name = fake()->unique()->sentence(2);
 
         return [
             'category_id' => Category::factory(),
