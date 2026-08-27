@@ -6,12 +6,70 @@ use App\Support\Money;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 new
 #[Layout('layouts.app')]
 #[Title('Admin: Sales')]
 class extends Component {
+    use WithPagination;
+
+    #[Url(except: '')]
+    public string $search = '';
+
+    #[Url(except: 'all')]
+    public string $status = 'all';
+
+    #[Url(except: '')]
+    public string $category = '';
+
+    public function updatedSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedStatus(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedCategory(): void
+    {
+        $this->resetPage();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->status = 'all';
+        $this->category = '';
+        $this->resetPage();
+    }
+
+    public function with(): array
+    {
+        $auctions = Auction::query()
+            ->withCount([
+                'bids as accepted_bids_count' => fn ($query) => $query->where('status', 'accepted'),
+                'bids as pending_bids_count' => fn ($query) => $query->where('status', 'pending_payment'),
+                'bids as failed_bids_count' => fn ($query) => $query->where('status', 'failed'),
+            ])
+            ->with('result')
+            ->search($this->search)
+            ->adminStatus($this->status)
+            ->adminCategory($this->category)
+            ->latest('ends_at')
+            ->paginate(20);
+
+        return [
+            'auctions' => $auctions,
+            'categories' => Auction::query()->distinct()->orderBy('category')->pluck('category'),
+            'hasActiveFilters' => $this->search !== '' || $this->status !== 'all' || $this->category !== '',
+        ];
+    }
+
     public function settle(int $auctionId): void
     {
         $auction = Auction::query()->findOrFail($auctionId);
@@ -95,18 +153,6 @@ class extends Component {
     }
 }; ?>
 
-@php
-    $auctions = Auction::query()
-        ->withCount([
-            'bids as accepted_bids_count' => fn ($query) => $query->where('status', 'accepted'),
-            'bids as pending_bids_count' => fn ($query) => $query->where('status', 'pending_payment'),
-            'bids as failed_bids_count' => fn ($query) => $query->where('status', 'failed'),
-        ])
-        ->with('result')
-        ->latest('ends_at')
-        ->paginate(20);
-@endphp
-
 <div class="space-y-6">
     <div class="flex items-start justify-between gap-4">
         <div>
@@ -129,6 +175,47 @@ class extends Component {
         </div>
     </div>
 
+    <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+        <div class="lg:w-64">
+            <flux:field>
+                <flux:label>Search</flux:label>
+                <flux:input wire:model.live.debounce.300ms="search" placeholder="Name, category, or slug" />
+            </flux:field>
+        </div>
+        <div class="lg:w-52">
+            <flux:field>
+                <flux:label>Status</flux:label>
+                <flux:select wire:model.live="status">
+                    <flux:select.option value="all">All statuses</flux:select.option>
+                    <flux:select.option value="live">Live</flux:select.option>
+                    <flux:select.option value="ending_soon">Ending within 6 hours</flux:select.option>
+                    <flux:select.option value="needs_settle">Needs settle</flux:select.option>
+                    <flux:select.option value="settled">Settled</flux:select.option>
+                    <flux:select.option value="voided">Voided</flux:select.option>
+                    <flux:select.option value="draft">Draft</flux:select.option>
+                    <flux:select.option value="homepage">Homepage hero</flux:select.option>
+                </flux:select>
+            </flux:field>
+        </div>
+        <div class="lg:w-52">
+            <flux:field>
+                <flux:label>Category</flux:label>
+                <flux:select wire:model.live="category">
+                    <flux:select.option value="">All categories</flux:select.option>
+                    @foreach ($categories as $saleCategory)
+                        <flux:select.option value="{{ $saleCategory }}">{{ $saleCategory }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+        </div>
+        @if ($hasActiveFilters)
+            <flux:button type="button" variant="ghost" wire:click="clearFilters">Clear filters</flux:button>
+        @endif
+        <flux:text class="lg:ms-auto">
+            {{ $auctions->total() }} {{ $auctions->total() === 1 ? 'sale' : 'sales' }}
+        </flux:text>
+    </div>
+
     <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
@@ -142,7 +229,7 @@ class extends Component {
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                @foreach ($auctions as $auction)
+                @forelse ($auctions as $auction)
                     @php
                         $isSettled = $auction->settled_at !== null;
                         $isLiveOpen = $auction->status === 'live' && $auction->ends_at->isFuture();
@@ -241,7 +328,11 @@ class extends Component {
                             </div>
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-zinc-500">No sales match these filters.</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>

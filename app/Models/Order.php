@@ -90,6 +90,18 @@ class Order extends Model
     }
 
     /**
+     * @return array<string, string>
+     */
+    public static function deliveryMethods(): array
+    {
+        return [
+            self::DELIVERY_NAIROBI => 'Delivery within Nairobi',
+            self::DELIVERY_COLLECTION => 'Office collection (Westlands)',
+            self::DELIVERY_UPCOUNTRY => 'Delivery outside Nairobi',
+        ];
+    }
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [
@@ -186,6 +198,82 @@ class Order extends Model
     public function scopePaidNotCancelled(Builder $query): Builder
     {
         return $query->where('status', '!=', self::STATUS_CANCELLED);
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($term): void {
+            $builder
+                ->where('reference', 'like', '%'.$term.'%')
+                ->orWhere('customer_name', 'like', '%'.$term.'%')
+                ->orWhere('customer_phone', 'like', '%'.$term.'%')
+                ->orWhere('customer_email', 'like', '%'.$term.'%')
+                ->orWhere('payment_reference', 'like', '%'.$term.'%');
+        });
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeAdminStatus(Builder $query, string $status): Builder
+    {
+        if ($status === 'attention') {
+            return $query->awaitingFulfilment();
+        }
+
+        if ($status === 'all') {
+            return $query;
+        }
+
+        if (array_key_exists($status, self::statuses())) {
+            return $query->where('status', $status);
+        }
+
+        return $query->awaitingFulfilment();
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeAdminDelivery(Builder $query, string $method): Builder
+    {
+        if ($method === '' || ! array_key_exists($method, self::deliveryMethods())) {
+            return $query;
+        }
+
+        return $query->where('delivery_method', $method);
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopePlacedInPeriod(Builder $query, string $period): Builder
+    {
+        $start = match ($period) {
+            'today' => now()->timezone('Africa/Nairobi')->startOfDay(),
+            '7d' => now()->timezone('Africa/Nairobi')->startOfDay()->subDays(7),
+            '30d' => now()->timezone('Africa/Nairobi')->startOfDay()->subDays(30),
+            default => null,
+        };
+
+        if ($start === null) {
+            return $query;
+        }
+
+        return $query->where('created_at', '>=', $start);
     }
 
     public function deliveryMethodLabel(): string

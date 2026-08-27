@@ -117,3 +117,61 @@ test('admin cannot mark a cancelled order dispatched', function () {
 
     expect($order->fresh()->status)->toBe(Order::STATUS_CANCELLED);
 });
+
+test('admins can filter orders by search delivery method and period', function () {
+    $nairobi = Order::factory()->create([
+        'reference' => 'ORDNAIROBI01',
+        'customer_name' => 'Faith Wambui',
+        'payment_reference' => 'MPESANAIR001',
+        'status' => Order::STATUS_PAID,
+        'delivery_method' => Order::DELIVERY_NAIROBI,
+        'created_at' => now(),
+    ]);
+    $collection = Order::factory()->create([
+        'reference' => 'ORDCOLLECT02',
+        'customer_name' => 'Peter Otieno',
+        'status' => Order::STATUS_PAID,
+        'delivery_method' => Order::DELIVERY_COLLECTION,
+        'created_at' => now(),
+    ]);
+    $oldDelivered = Order::factory()->delivered()->create([
+        'reference' => 'ORDOLDDELIV3',
+        'customer_name' => 'Old Delivered Buyer',
+        'delivery_method' => Order::DELIVERY_NAIROBI,
+        'created_at' => now()->subDays(40),
+    ]);
+
+    $this->actingAs($this->admin);
+
+    Livewire::test('pages::admin.orders')
+        ->assertSee('ORDNAIROBI01')
+        ->assertSee('ORDCOLLECT02')
+        ->assertDontSee('ORDOLDDELIV3')
+        ->set('search', 'Faith Wambui')
+        ->assertSee('ORDNAIROBI01')
+        ->assertDontSee('ORDCOLLECT02')
+        ->call('clearFilters')
+        ->set('search', 'MPESANAIR001')
+        ->assertSee('ORDNAIROBI01')
+        ->assertDontSee('ORDCOLLECT02')
+        ->call('clearFilters')
+        ->set('delivery', Order::DELIVERY_COLLECTION)
+        ->assertSee('ORDCOLLECT02')
+        ->assertDontSee('ORDNAIROBI01')
+        ->call('clearFilters')
+        ->set('status', 'all')
+        ->assertSee('ORDNAIROBI01')
+        ->assertSee('ORDOLDDELIV3')
+        ->set('period', 'today')
+        ->assertSee('ORDNAIROBI01')
+        ->assertDontSee('ORDOLDDELIV3')
+        ->call('clearFilters')
+        ->assertSet('status', 'attention')
+        ->assertDontSee('ORDOLDDELIV3');
+
+    $this->get(route('admin.orders', ['status' => 'all', 'delivery' => Order::DELIVERY_NAIROBI]))
+        ->assertSuccessful()
+        ->assertSee($nairobi->reference)
+        ->assertSee($oldDelivered->reference)
+        ->assertDontSee($collection->reference);
+});

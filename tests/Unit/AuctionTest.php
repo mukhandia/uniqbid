@@ -35,6 +35,37 @@ test('featured scope filters featured auctions', function () {
         ->toBe(['Featured One']);
 });
 
+test('admin status scope matches live ending soon and needs settle queues', function () {
+    Auction::factory()->create([
+        'name' => 'Open Long',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+        'is_featured' => false,
+    ]);
+    Auction::factory()->create([
+        'name' => 'Open Soon',
+        'status' => 'live',
+        'ends_at' => now()->addHours(2),
+        'is_featured' => true,
+    ]);
+    Auction::factory()->create([
+        'name' => 'Ready To Settle',
+        'status' => 'live',
+        'ends_at' => now()->subMinute(),
+        'settled_at' => null,
+        'is_featured' => false,
+    ]);
+
+    expect(Auction::query()->adminStatus('live')->pluck('name')->all())
+        ->toEqualCanonicalizing(['Open Long', 'Open Soon'])
+        ->and(Auction::query()->adminStatus('ending_soon')->pluck('name')->all())
+        ->toBe(['Open Soon'])
+        ->and(Auction::query()->adminStatus('needs_settle')->pluck('name')->all())
+        ->toBe(['Ready To Settle'])
+        ->and(Auction::query()->adminStatus('homepage')->pluck('name')->all())
+        ->toBe(['Open Soon']);
+});
+
 test('making a sale the homepage hero unfeatures other sales', function () {
     $previous = Auction::factory()->create(['name' => 'Previous Hero', 'is_featured' => true]);
     $next = Auction::factory()->create(['name' => 'New Hero', 'is_featured' => false]);

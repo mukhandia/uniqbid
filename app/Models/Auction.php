@@ -168,9 +168,41 @@ class Auction extends Model
         return $query->where(function (Builder $builder) use ($term): void {
             $builder
                 ->where('name', 'like', '%'.$term.'%')
+                ->orWhere('slug', 'like', '%'.$term.'%')
                 ->orWhere('category', 'like', '%'.$term.'%')
                 ->orWhere('description', 'like', '%'.$term.'%');
         });
+    }
+
+    /**
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
+    public function scopeAdminStatus(Builder $query, string $status): Builder
+    {
+        return match ($status) {
+            'live' => $query->live(),
+            'ending_soon' => $query->live()->where('ends_at', '<=', now()->addHours(6)),
+            'needs_settle' => $query->endedUnsettled(),
+            'settled' => $query->whereNotNull('settled_at'),
+            'voided' => $query->where('status', 'voided'),
+            'draft' => $query->where('status', 'draft'),
+            'homepage' => $query->featured(),
+            default => $query,
+        };
+    }
+
+    /**
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
+    public function scopeAdminCategory(Builder $query, string $category): Builder
+    {
+        if ($category === '') {
+            return $query;
+        }
+
+        return $query->where('category', $category);
     }
 
     public function getRouteKeyName(): string

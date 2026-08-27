@@ -201,3 +201,66 @@ test('admins can remove a sale from the homepage hero', function () {
 
     expect($auction->fresh()->is_featured)->toBeFalse();
 });
+
+test('admins can filter sales by search status and category', function () {
+    $admin = User::factory()->admin()->create();
+    $liveSale = Auction::factory()->create([
+        'name' => 'Purple Telescope Sale',
+        'category' => 'Electronics',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+        'is_featured' => true,
+    ]);
+    $endedSale = Auction::factory()->create([
+        'name' => 'Amber Camera Closeout',
+        'category' => 'Vehicles',
+        'status' => 'live',
+        'ends_at' => now()->subHour(),
+        'settled_at' => null,
+        'is_featured' => false,
+    ]);
+    $settledSale = Auction::factory()->create([
+        'name' => 'Settled Watch Bundle',
+        'category' => 'Home',
+        'status' => 'closed',
+        'ends_at' => now()->subDay(),
+        'settled_at' => now()->subDay(),
+        'is_featured' => false,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test('pages::admin.auctions')
+        ->assertSee('Purple Telescope Sale')
+        ->assertSee('Amber Camera Closeout')
+        ->assertSee('Settled Watch Bundle')
+        ->set('search', 'Purple Telescope')
+        ->assertSee('Purple Telescope Sale')
+        ->assertDontSee('Amber Camera Closeout')
+        ->assertDontSee('Settled Watch Bundle')
+        ->call('clearFilters')
+        ->assertSee('Purple Telescope Sale')
+        ->assertSee('Amber Camera Closeout')
+        ->set('status', 'needs_settle')
+        ->assertSee('Amber Camera Closeout')
+        ->assertDontSee('Purple Telescope Sale')
+        ->assertDontSee('Settled Watch Bundle')
+        ->set('status', 'live')
+        ->set('category', '')
+        ->assertSee('Purple Telescope Sale')
+        ->assertDontSee('Amber Camera Closeout')
+        ->set('status', 'all')
+        ->set('category', 'Vehicles')
+        ->assertSee('Amber Camera Closeout')
+        ->assertDontSee('Purple Telescope Sale')
+        ->set('category', '')
+        ->set('status', 'homepage')
+        ->assertSee('Purple Telescope Sale')
+        ->assertDontSee('Amber Camera Closeout');
+
+    $this->get(route('admin.auctions', ['status' => 'needs_settle']))
+        ->assertSuccessful()
+        ->assertSee($endedSale->name)
+        ->assertDontSee($liveSale->name)
+        ->assertDontSee($settledSale->name);
+});

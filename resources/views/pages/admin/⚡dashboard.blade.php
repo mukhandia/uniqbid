@@ -32,7 +32,7 @@ class extends Component {
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <a href="{{ route('admin.auctions') }}" class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 transition hover:border-emerald-400/70 dark:border-emerald-400/30 dark:bg-emerald-500/15" wire:navigate>
+        <a href="{{ route('admin.auctions', ['status' => 'live']) }}" class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 transition hover:border-emerald-400/70 dark:border-emerald-400/30 dark:bg-emerald-500/15" wire:navigate>
             <div class="flex items-start gap-3">
                 <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
                     <flux:icon.bolt variant="micro" class="size-5" />
@@ -49,7 +49,7 @@ class extends Component {
                 </div>
             </div>
         </a>
-        <a href="{{ route('admin.auctions') }}" class="rounded-xl border border-gold/50 bg-gold/10 p-4 transition hover:border-gold dark:border-gold/40 dark:bg-gold/15" wire:navigate>
+        <a href="{{ route('admin.auctions', ['status' => 'needs_settle']) }}" class="rounded-xl border border-gold/50 bg-gold/10 p-4 transition hover:border-gold dark:border-gold/40 dark:bg-gold/15" wire:navigate>
             <div class="flex items-start gap-3">
                 <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gold text-gold-foreground">
                     <flux:icon.clock variant="micro" class="size-5" />
@@ -137,7 +137,7 @@ class extends Component {
             <div class="overflow-hidden rounded-xl border border-gold/40 bg-gold/5 dark:border-gold/30 dark:bg-gold/10">
                 <div class="flex items-center justify-between gap-3 border-b border-gold/30 px-4 py-3 dark:border-gold/20">
                     <h2 class="font-medium">Sales to settle</h2>
-                    <a href="{{ route('admin.auctions') }}" class="text-sm text-navy hover:underline dark:text-white" wire:navigate>Open sales</a>
+                    <a href="{{ route('admin.auctions', ['status' => 'needs_settle']) }}" class="text-sm text-navy hover:underline dark:text-white" wire:navigate>Open sales</a>
                 </div>
                 <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                     @foreach ($attention['unsettledSales'] as $sale)
@@ -351,7 +351,7 @@ class extends Component {
         <section class="overflow-hidden rounded-xl border border-navy/25 bg-navy/5 dark:border-sky-400/25 dark:bg-navy/20">
             <div class="flex items-center justify-between gap-3 border-b border-navy/20 px-4 py-3 dark:border-sky-400/20">
                 <h2 class="font-medium">Recent shop orders</h2>
-                <a href="{{ route('admin.orders') }}" class="text-sm text-navy hover:underline dark:text-white" wire:navigate>All orders</a>
+                <a href="{{ route('admin.orders', ['status' => 'all']) }}" class="text-sm text-navy hover:underline dark:text-white" wire:navigate>All orders</a>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">

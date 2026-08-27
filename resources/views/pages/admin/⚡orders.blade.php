@@ -17,7 +17,14 @@ class extends Component {
     #[Url]
     public string $status = 'attention';
 
+    #[Url(except: '')]
     public string $search = '';
+
+    #[Url(except: '')]
+    public string $delivery = '';
+
+    #[Url(except: 'all')]
+    public string $period = 'all';
 
     public function updatedStatus(): void
     {
@@ -29,33 +36,42 @@ class extends Component {
         $this->resetPage();
     }
 
+    public function updatedDelivery(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedPeriod(): void
+    {
+        $this->resetPage();
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->status = 'attention';
+        $this->delivery = '';
+        $this->period = 'all';
+        $this->resetPage();
+    }
+
     public function with(): array
     {
         $query = Order::query()
             ->withCount('items')
+            ->search($this->search)
+            ->adminStatus($this->status)
+            ->adminDelivery($this->delivery)
+            ->placedInPeriod($this->period)
             ->latest();
-
-        if ($this->status === 'attention') {
-            $query->awaitingFulfilment();
-        } elseif ($this->status !== 'all') {
-            $query->where('status', $this->status);
-        }
-
-        $term = trim($this->search);
-
-        if ($term !== '') {
-            $query->where(function ($builder) use ($term): void {
-                $builder
-                    ->where('reference', 'like', '%'.$term.'%')
-                    ->orWhere('customer_name', 'like', '%'.$term.'%')
-                    ->orWhere('customer_phone', 'like', '%'.$term.'%')
-                    ->orWhere('customer_email', 'like', '%'.$term.'%');
-            });
-        }
 
         return [
             'orders' => $query->paginate(20),
             'attentionCount' => Order::query()->awaitingFulfilment()->count(),
+            'hasActiveFilters' => $this->search !== ''
+                || $this->status !== 'attention'
+                || $this->delivery !== ''
+                || $this->period !== 'all',
         ];
     }
 }; ?>
@@ -71,18 +87,23 @@ class extends Component {
 @endphp
 
 <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-            <flux:heading size="xl">Orders</flux:heading>
-            <flux:text class="mt-1">
-                {{ $attentionCount }} shop orders waiting to pack or dispatch. Mark processing, dispatched, or delivered here.
-            </flux:text>
+    <div>
+        <flux:heading size="xl">Orders</flux:heading>
+        <flux:text class="mt-1">
+            {{ $attentionCount }} shop orders waiting to pack or dispatch. Mark processing, dispatched, or delivered here.
+        </flux:text>
+    </div>
+
+    <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+        <div class="lg:w-64">
+            <flux:field>
+                <flux:label>Search</flux:label>
+                <flux:input wire:model.live.debounce.400ms="search" placeholder="Reference, name, phone, M-Pesa" />
+            </flux:field>
         </div>
-        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <div class="sm:w-56">
-                <flux:input wire:model.live.debounce.400ms="search" placeholder="Search reference, name, phone" />
-            </div>
-            <div class="sm:w-52">
+        <div class="lg:w-52">
+            <flux:field>
+                <flux:label>Status</flux:label>
                 <flux:select wire:model.live="status">
                     <flux:select.option value="attention">Needs packing</flux:select.option>
                     <flux:select.option value="all">All statuses</flux:select.option>
@@ -92,8 +113,36 @@ class extends Component {
                     <flux:select.option value="delivered">Delivered</flux:select.option>
                     <flux:select.option value="cancelled">Cancelled</flux:select.option>
                 </flux:select>
-            </div>
+            </flux:field>
         </div>
+        <div class="lg:w-56">
+            <flux:field>
+                <flux:label>Delivery</flux:label>
+                <flux:select wire:model.live="delivery">
+                    <flux:select.option value="">All delivery methods</flux:select.option>
+                    @foreach (Order::deliveryMethods() as $value => $label)
+                        <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
+                    @endforeach
+                </flux:select>
+            </flux:field>
+        </div>
+        <div class="lg:w-48">
+            <flux:field>
+                <flux:label>Placed</flux:label>
+                <flux:select wire:model.live="period">
+                    <flux:select.option value="all">Any time</flux:select.option>
+                    <flux:select.option value="today">Today</flux:select.option>
+                    <flux:select.option value="7d">Last 7 days</flux:select.option>
+                    <flux:select.option value="30d">Last 30 days</flux:select.option>
+                </flux:select>
+            </flux:field>
+        </div>
+        @if ($hasActiveFilters)
+            <flux:button type="button" variant="ghost" wire:click="clearFilters">Clear filters</flux:button>
+        @endif
+        <flux:text class="lg:ms-auto">
+            {{ $orders->total() }} {{ $orders->total() === 1 ? 'order' : 'orders' }}
+        </flux:text>
     </div>
 
     <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
