@@ -44,7 +44,10 @@ test('admins can view sales and bid payment records', function () {
     $this->actingAs($admin)
         ->get(route('admin.auctions'))
         ->assertSuccessful()
-        ->assertSee($auction->name);
+        ->assertSee($auction->name)
+        ->assertSee('Live')
+        ->assertSee('fee paid')
+        ->assertSee('awaiting payment');
 
     $this->actingAs($admin)
         ->get(route('admin.auction-bids', $auction))

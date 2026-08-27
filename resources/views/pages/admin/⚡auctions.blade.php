@@ -129,46 +129,77 @@ class extends Component {
         </div>
     </div>
 
-    <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+    <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
                 <tr>
-                    <th class="px-4 py-3 font-medium">Sale</th>
-                    <th class="px-4 py-3 font-medium">Status</th>
-                    <th class="px-4 py-3 font-medium">Bids</th>
-                    <th class="px-4 py-3 font-medium">Closes</th>
-                    <th class="px-4 py-3 font-medium">Result</th>
-                    <th class="px-4 py-3 font-medium"></th>
+                    <th class="px-4 py-3 font-semibold">Sale</th>
+                    <th class="px-4 py-3 font-semibold">Status</th>
+                    <th class="px-4 py-3 font-semibold">Bids</th>
+                    <th class="px-4 py-3 font-semibold">Closes</th>
+                    <th class="px-4 py-3 font-semibold">Result</th>
+                    <th class="px-4 py-3 font-semibold"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($auctions as $auction)
+                    @php
+                        $isSettled = $auction->settled_at !== null;
+                        $isLiveOpen = $auction->status === 'live' && $auction->ends_at->isFuture();
+                        $needsSettle = ! $isSettled && $auction->ends_at->isPast() && $auction->status !== 'voided';
+                        $statusLabel = match (true) {
+                            $isSettled => 'Settled',
+                            $needsSettle => 'Needs settle',
+                            $auction->status === 'live' => 'Live',
+                            $auction->status === 'closed' => 'Closed',
+                            $auction->status === 'voided' => 'Voided',
+                            $auction->status === 'draft' => 'Draft',
+                            default => ucfirst($auction->status),
+                        };
+                        $statusColor = match (true) {
+                            $isLiveOpen => 'green',
+                            $needsSettle => 'amber',
+                            $isSettled => 'sky',
+                            $auction->status === 'voided' => 'red',
+                            default => 'zinc',
+                        };
+                    @endphp
                     <tr wire:key="admin-auction-{{ $auction->id }}">
                         <td class="px-4 py-3">
-                            <div class="font-medium">{{ $auction->name }}</div>
-                            <div class="text-xs text-zinc-500">{{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)</div>
+                            <div class="text-base font-semibold">{{ $auction->name }}</div>
+                            <div class="mt-0.5 text-xs text-zinc-500">
+                                {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)
+                            </div>
                             @if ($auction->is_featured)
-                                <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">Homepage hero</span>
+                                <div class="mt-1.5">
+                                    <flux:badge size="sm" color="amber">Homepage hero</flux:badge>
+                                </div>
                             @endif
                         </td>
+                        <td class="whitespace-nowrap px-4 py-3">
+                            <flux:badge size="sm" :color="$statusColor">{{ $statusLabel }}</flux:badge>
+                        </td>
                         <td class="px-4 py-3">
-                            <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
-                                {{ $auction->settled_at ? 'settled' : $auction->status }}
-                            </span>
+                            <div class="flex flex-col items-start gap-1.5">
+                                <flux:badge size="sm" color="green">{{ $auction->accepted_bids_count }} fee paid</flux:badge>
+                                <flux:badge size="sm" color="amber">{{ $auction->pending_bids_count }} awaiting payment</flux:badge>
+                                <flux:badge size="sm" color="zinc">{{ $auction->failed_bids_count }} failed</flux:badge>
+                            </div>
                         </td>
-                        <td class="px-4 py-3 text-xs">
-                            <div>Accepted: {{ $auction->accepted_bids_count }}</div>
-                            <div>Pending: {{ $auction->pending_bids_count }}</div>
-                            <div>Failed: {{ $auction->failed_bids_count }}</div>
+                        <td class="whitespace-nowrap px-4 py-3">
+                            <div class="text-sm font-semibold tabular-nums">
+                                {{ $auction->ends_at->isFuture() ? $auction->ends_at->diffForHumans() : 'Ended' }}
+                            </div>
+                            <div class="mt-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                {{ $auction->ends_at->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                            </div>
                         </td>
-                        <td class="px-4 py-3 text-xs">
-                            {{ $auction->ends_at->timezone('Africa/Nairobi')->format('d M Y H:i') }} EAT
-                        </td>
-                        <td class="px-4 py-3 text-xs">
+                        <td class="px-4 py-3">
                             @if ($auction->result)
-                                {{ Money::kes($auction->result->sale_price) }} · {{ $auction->result->buyer_display }}
+                                <div class="text-sm font-semibold tabular-nums">{{ Money::kes($auction->result->sale_price) }}</div>
+                                <div class="mt-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">{{ $auction->result->buyer_display }}</div>
                             @else
-                                None
+                                <div class="text-sm font-medium text-zinc-500">No successful bid yet</div>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">

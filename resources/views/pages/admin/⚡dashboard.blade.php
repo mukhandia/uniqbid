@@ -309,9 +309,9 @@ class extends Component {
                 <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                     <thead class="bg-emerald-500/10 text-left dark:bg-emerald-500/15">
                         <tr>
-                            <th class="px-4 py-3 font-medium">Sale</th>
-                            <th class="px-4 py-3 font-medium">Closes</th>
-                            <th class="px-4 py-3 font-medium">Bids</th>
+                            <th class="px-4 py-3 font-semibold">Sale</th>
+                            <th class="px-4 py-3 font-semibold">Closes</th>
+                            <th class="px-4 py-3 font-semibold">Bid fees</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -323,8 +323,20 @@ class extends Component {
                                         <div class="text-xs text-amber-700 dark:text-amber-200">Homepage hero</div>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-300">{{ $sale->ends_at->timezone('Africa/Nairobi')->format('d M Y H:i') }} EAT</td>
-                                <td class="px-4 py-3 text-xs">Accepted {{ $sale->accepted_bids_count }} · Pending {{ $sale->pending_bids_count }}</td>
+                                <td class="whitespace-nowrap px-4 py-3">
+                                    <div class="text-sm font-semibold tabular-nums text-emerald-950 dark:text-white">
+                                        {{ $sale->ends_at->isFuture() ? $sale->ends_at->diffForHumans() : 'Ended' }}
+                                    </div>
+                                    <div class="mt-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                                        {{ $sale->ends_at->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-col items-start gap-1.5">
+                                        <flux:badge size="sm" color="green">{{ $sale->accepted_bids_count }} fee paid</flux:badge>
+                                        <flux:badge size="sm" color="amber">{{ $sale->pending_bids_count }} awaiting payment</flux:badge>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -345,20 +357,30 @@ class extends Component {
                 <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
                     <thead class="bg-navy/10 text-left dark:bg-navy/40">
                         <tr>
-                            <th class="px-4 py-3 font-medium">Order</th>
-                            <th class="px-4 py-3 font-medium">Customer</th>
-                            <th class="px-4 py-3 font-medium">Total</th>
+                            <th class="px-4 py-3 font-semibold">Order</th>
+                            <th class="px-4 py-3 font-semibold">Customer</th>
+                            <th class="px-4 py-3 font-semibold">Total</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @forelse ($recentOrders as $order)
                             <tr wire:key="recent-order-{{ $order->id }}">
                                 <td class="px-4 py-3">
-                                    <a href="{{ route('admin.orders.show', $order) }}" class="font-mono hover:underline" wire:navigate>{{ $order->reference }}</a>
-                                    <div class="text-xs text-zinc-500">{{ $order->statusLabel() }}</div>
+                                    <a href="{{ route('admin.orders.show', $order) }}" class="font-mono text-sm font-semibold hover:underline" wire:navigate>{{ $order->reference }}</a>
+                                    <div class="mt-1.5">
+                                        <flux:badge size="sm" :color="match ($order->status) {
+                                            'paid', 'processing' => 'amber',
+                                            'dispatched' => 'sky',
+                                            'delivered' => 'green',
+                                            'cancelled' => 'red',
+                                            default => 'zinc',
+                                        }">
+                                            {{ $order->statusLabel() }}
+                                        </flux:badge>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3">{{ $order->customer_name }}</td>
-                                <td class="px-4 py-3">{{ Money::kes($order->total) }}</td>
+                                <td class="px-4 py-3 font-medium">{{ $order->customer_name }}</td>
+                                <td class="px-4 py-3 text-sm font-semibold tabular-nums">{{ Money::kes($order->total) }}</td>
                             </tr>
                         @empty
                             <tr>
