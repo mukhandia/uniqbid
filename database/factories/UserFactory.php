@@ -62,4 +62,12 @@ class UserFactory extends Factory
             'is_admin' => true,
         ]);
     }
+
+    public function marketingConsent(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'marketing_consent' => true,
+            'marketing_consented_at' => now(),
+        ]);
+    }
 }

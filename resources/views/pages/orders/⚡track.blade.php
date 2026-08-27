@@ -7,7 +7,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Track order — UniqBid Shop')]
+#[Title('Track order: UniqBid Shop')]
 class extends Component {
     public string $reference = '';
 

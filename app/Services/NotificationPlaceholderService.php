@@ -87,6 +87,42 @@ class NotificationPlaceholderService
         );
     }
 
+    public function notifyOrderDispatched(Order $order): void
+    {
+        $message = $order->delivery_method === Order::DELIVERY_COLLECTION
+            ? "UniqBid: Order {$order->reference} is ready for collection at the Westlands office."
+            : "UniqBid: Order {$order->reference} has been dispatched. Track it on the order tracking page.";
+
+        $this->send(
+            channel: 'sms_whatsapp_placeholder',
+            to: $order->customer_phone,
+            template: 'shop_order_dispatched',
+            message: $message,
+            context: [
+                'order_id' => $order->id,
+                'email' => $order->customer_email,
+            ],
+        );
+    }
+
+    public function notifyOrderDelivered(Order $order): void
+    {
+        $message = $order->delivery_method === Order::DELIVERY_COLLECTION
+            ? "UniqBid: Order {$order->reference} was collected. Thank you."
+            : "UniqBid: Order {$order->reference} was marked delivered. Eligible unused items may be returned within 7 days.";
+
+        $this->send(
+            channel: 'sms_whatsapp_placeholder',
+            to: $order->customer_phone,
+            template: 'shop_order_delivered',
+            message: $message,
+            context: [
+                'order_id' => $order->id,
+                'email' => $order->customer_email,
+            ],
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $context
      */

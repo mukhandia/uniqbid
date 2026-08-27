@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\BidderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,5 +47,23 @@ class Bidder extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @param  Builder<Bidder>  $query
+     * @return Builder<Bidder>
+     */
+    public function scopeMarketingConsent(Builder $query): Builder
+    {
+        return $query->where('marketing_consent', true);
+    }
+
+    /**
+     * @param  Builder<Bidder>  $query
+     * @return Builder<Bidder>
+     */
+    public function scopeGuest(Builder $query): Builder
+    {
+        return $query->whereNull('user_id');
     }
 }

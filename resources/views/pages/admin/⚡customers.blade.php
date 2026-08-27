@@ -7,7 +7,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Customers')]
+#[Title('Admin: Customers')]
 class extends Component {
     //
 }; ?>

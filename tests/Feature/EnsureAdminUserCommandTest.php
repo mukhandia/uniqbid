@@ -11,6 +11,7 @@ test('ensure admin command creates the admin user', function () {
 
     expect($user)->not->toBeNull()
         ->and($user->is_admin)->toBeTrue()
+        ->and($user->email_verified_at)->not->toBeNull()
         ->and(Hash::check(config('uniqbid.admin.password'), $user->password))->toBeTrue();
 });
 

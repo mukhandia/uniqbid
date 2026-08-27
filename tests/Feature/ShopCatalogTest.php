@@ -75,22 +75,81 @@ test('shop index can filter categories whose names contain apostrophes', functio
         ->not->toContain("wire:click=\"\$set('category', 'Women's Beauty");
 });
 
-test('shop index searches products by name', function () {
+test('shop index filters products by price range', function () {
+    Product::factory()->create([
+        'name' => 'Budget belt',
+        'price' => 1500,
+        'stock' => 5,
+    ]);
+    Product::factory()->create([
+        'name' => 'Premium watch',
+        'price' => 8000,
+        'stock' => 5,
+    ]);
+
+    Livewire::test('pages::shop.index')
+        ->set('minPrice', '2000')
+        ->set('maxPrice', '10000')
+        ->assertSee('Premium watch')
+        ->assertDontSee('Budget belt')
+        ->set('minPrice', '8000')
+        ->set('maxPrice', '1000')
+        ->assertSee('Budget belt')
+        ->assertSee('Premium watch');
+});
+
+test('shop index can clear category and price filters', function () {
+    Category::factory()->create(['name' => 'Watches', 'slug' => 'watches', 'sort_order' => 1]);
+
+    Product::factory()->create([
+        'name' => 'Budget belt',
+        'category' => 'Fashion Accessories',
+        'price' => 1500,
+        'stock' => 5,
+    ]);
+    Product::factory()->create([
+        'name' => 'Premium watch',
+        'category' => 'Watches',
+        'price' => 8000,
+        'stock' => 5,
+    ]);
+
+    Livewire::test('pages::shop.index')
+        ->set('category', 'Watches')
+        ->set('minPrice', '5000')
+        ->assertSee('Premium watch')
+        ->assertDontSee('Budget belt')
+        ->call('clearFilters')
+        ->assertSet('category', 'All')
+        ->assertSet('minPrice', '')
+        ->assertSet('maxPrice', '')
+        ->assertSee('Premium watch')
+        ->assertSee('Budget belt');
+});
+
+test('shop index shows a track an order button and category filters', function () {
+    Category::factory()->create(['name' => 'Fashion Accessories', 'slug' => 'fashion-accessories']);
+
+    $this->get(route('shop.index'))
+        ->assertOk()
+        ->assertSee('Track an order')
+        ->assertSee('All products')
+        ->assertSee('Price (KES)')
+        ->assertSee(route('orders.track'), false);
+});
+
+test('shop index does not show a local product search field', function () {
     Product::factory()->create([
         'name' => 'Slim minimalist watch',
         'category' => 'Watches',
         'stock' => 5,
     ]);
-    Product::factory()->create([
-        'name' => 'Structured tote handbag',
-        'category' => 'Fashion Accessories',
-        'stock' => 5,
-    ]);
 
-    Livewire::test('pages::shop.index')
-        ->set('q', 'minimalist')
-        ->assertSee('Slim minimalist watch')
-        ->assertDontSee('Structured tote handbag');
+    $this->get(route('shop.index'))
+        ->assertOk()
+        ->assertDontSee('Search products…')
+        ->assertSee('Search live sales and shop', false)
+        ->assertSee('Slim minimalist watch');
 });
 
 test('product quantity can be incremented and decremented within stock', function () {
@@ -144,6 +203,31 @@ test('cart count component refreshes when cart-updated is dispatched', function 
     Livewire::test('cart-count')
         ->dispatch('cart-updated')
         ->assertSee('3');
+});
+
+test('shop product page warns when an item is non-returnable', function () {
+    $product = Product::factory()->nonReturnable()->create([
+        'name' => 'Personalised hamper',
+        'stock' => 4,
+    ]);
+
+    $this->get(route('shop.show', $product))
+        ->assertOk()
+        ->assertSee('Personalised hamper')
+        ->assertSee('This item is marked non-returnable under our Refund Policy.');
+});
+
+test('shop product page does not show a non-returnable notice for returnable items', function () {
+    $product = Product::factory()->create([
+        'name' => 'Leather cardholder',
+        'stock' => 4,
+        'is_returnable' => true,
+    ]);
+
+    $this->get(route('shop.show', $product))
+        ->assertOk()
+        ->assertSee('Leather cardholder')
+        ->assertDontSee('This item is marked non-returnable under our Refund Policy.');
 });
 
 test('out of stock products cannot be added to cart', function () {

@@ -27,10 +27,35 @@ test('new customers can register through the mobile OTP flow', function () {
 
     expect($user->name)->toBe('Jane Bidder')
         ->and($user->marketing_consent)->toBeTrue()
+        ->and($user->sms_notifications)->toBeFalse()
+        ->and($user->whatsapp_notifications)->toBeFalse()
         ->and($user->phone_verified_at)->not->toBeNull()
         ->and(Bidder::query()->where('user_id', $user->id)->exists())->toBeTrue()
         ->and(MobileLoginCode::query()->where('phone', $user->phone)->whereNotNull('consumed_at')->exists())->toBeTrue();
 
+    $this->assertAuthenticatedAs($user);
+});
+
+test('new customers can register with a Safaricom 01 mobile number', function () {
+    $component = Livewire::test('pages::auth.mobile-login')
+        ->set('phone', '0112 345 678')
+        ->call('requestCode')
+        ->assertHasNoErrors()
+        ->assertSet('step', 'code')
+        ->assertSet('normalizedPhone', '254112345678');
+
+    $component
+        ->set('code', $component->get('placeholderCode'))
+        ->call('verifyCode')
+        ->assertSet('step', 'profile')
+        ->set('name', 'Safaricom One')
+        ->set('email', 'one@example.com')
+        ->call('completeRegistration')
+        ->assertRedirect(route('account', absolute: false));
+
+    $user = User::query()->where('phone', '254112345678')->firstOrFail();
+
+    expect($user->name)->toBe('Safaricom One');
     $this->assertAuthenticatedAs($user);
 });
 
@@ -92,4 +117,30 @@ test('new customers must enter a valid code before the profile step', function (
         ->assertHasErrors('code')
         ->assertSet('step', 'code')
         ->assertSet('phoneVerified', false);
+});
+
+test('new customers cannot enable sms or whatsapp updates without offers consent', function () {
+    $component = Livewire::test('pages::auth.mobile-login')
+        ->set('phone', '0712 345 678')
+        ->call('requestCode');
+
+    $component
+        ->set('code', $component->get('placeholderCode'))
+        ->call('verifyCode')
+        ->assertSet('step', 'profile')
+        ->set('name', 'No Offers')
+        ->set('email', 'no-offers@example.com')
+        ->set('marketingConsent', false)
+        ->set('smsNotifications', true)
+        ->assertSet('smsNotifications', false)
+        ->set('whatsappNotifications', true)
+        ->assertSet('whatsappNotifications', false)
+        ->call('completeRegistration')
+        ->assertRedirect(route('account', absolute: false));
+
+    $user = User::query()->where('phone', '254712345678')->firstOrFail();
+
+    expect($user->marketing_consent)->toBeFalse()
+        ->and($user->sms_notifications)->toBeFalse()
+        ->and($user->whatsapp_notifications)->toBeFalse();
 });

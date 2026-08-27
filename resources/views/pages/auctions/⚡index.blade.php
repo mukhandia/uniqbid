@@ -8,7 +8,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Live Auctions — UniqBid')]
+#[Title('Live Auctions: UniqBid')]
 class extends Component {
     #[Url]
     public string $category = 'All';

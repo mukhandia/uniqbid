@@ -22,7 +22,14 @@ test('checkout page renders when cart has items', function () {
     $this->get(route('checkout'))
         ->assertOk()
         ->assertSee('Checkout')
-        ->assertSee('Gift Hamper');
+        ->assertSee('Gift Hamper')
+        ->assertSee('Delivery outside Nairobi: charges apply')
+        ->assertDontSee('KES 350');
+
+    Livewire::test('pages::checkout')
+        ->set('delivery', Order::DELIVERY_UPCOUNTRY)
+        ->assertSee('Charges apply')
+        ->assertSee('The amount is confirmed when you collect or when the item is delivered');
 });
 
 test('checkout validates required fields', function () {
@@ -72,4 +79,20 @@ test('checkout places order and clears the cart', function () {
 
     expect(app(CartService::class)->count())->toBe(0)
         ->and($product->fresh()->stock)->toBe(4);
+});
+
+test('checkout accepts Safaricom 01 mobile numbers', function () {
+    $product = Product::factory()->create(['stock' => 5, 'price' => 1200]);
+    app(CartService::class)->add($product->id, 1);
+
+    Livewire::test('pages::checkout')
+        ->set('name', 'James Mwangi')
+        ->set('phone', '0112345678')
+        ->set('delivery', Order::DELIVERY_COLLECTION)
+        ->set('address', '')
+        ->call('placeOrder')
+        ->assertHasNoErrors()
+        ->assertSet('status', 'success');
+
+    expect(Order::query()->latest('id')->first()->customer_phone)->toBe('254112345678');
 });

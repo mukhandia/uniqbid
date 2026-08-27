@@ -162,4 +162,22 @@ class Product extends Model
 
         return $available > 0 && $available < 10;
     }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeOutOfStock(Builder $query): Builder
+    {
+        return $query->where('stock', 0);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeReservedForSales(Builder $query): Builder
+    {
+        return $query->where('reserved_stock', '>', 0);
+    }
 }

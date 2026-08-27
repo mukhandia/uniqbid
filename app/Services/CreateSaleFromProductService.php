@@ -60,10 +60,14 @@ class CreateSaleFromProductService
                 'bids_count' => 0,
                 'ends_at' => now()->addHours($hours),
                 'status' => 'live',
-                'is_featured' => (bool) ($options['is_featured'] ?? false),
+                'is_featured' => false,
                 'no_unique_bid_rule' => 'extend',
                 'extension_minutes' => 60,
             ]);
+
+            if ((bool) ($options['is_featured'] ?? false)) {
+                $auction->makeHomepageHero();
+            }
 
             if (filled($product->image)) {
                 $auction->images()->create([

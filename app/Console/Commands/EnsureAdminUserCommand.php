@@ -26,12 +26,14 @@ class EnsureAdminUserCommand extends Command
         $user = User::query()->where('email', $email)->first();
 
         if ($user === null) {
-            User::query()->create([
+            $user = new User;
+            $user->forceFill([
                 'name' => $name,
                 'email' => $email,
                 'password' => $password,
                 'is_admin' => true,
-            ]);
+                'email_verified_at' => now(),
+            ])->save();
 
             $this->info("Created admin user [{$email}].");
 
@@ -43,11 +45,15 @@ class EnsureAdminUserCommand extends Command
             'is_admin' => true,
         ];
 
+        if ($user->email_verified_at === null) {
+            $payload['email_verified_at'] = now();
+        }
+
         if ($this->option('reset-password')) {
             $payload['password'] = $password;
         }
 
-        $user->update($payload);
+        $user->forceFill($payload)->save();
 
         $this->info(
             $this->option('reset-password')

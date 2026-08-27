@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\AuctionResultFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -69,6 +70,36 @@ class AuctionResult extends Model
     public function auctionBid(): BelongsTo
     {
         return $this->belongsTo(AuctionBid::class);
+    }
+
+    /**
+     * @param  Builder<AuctionResult>  $query
+     * @return Builder<AuctionResult>
+     */
+    public function scopeAwaitingSalePayment(Builder $query): Builder
+    {
+        return $query->where('sale_payment_status', 'awaiting_payment');
+    }
+
+    /**
+     * @param  Builder<AuctionResult>  $query
+     * @return Builder<AuctionResult>
+     */
+    public function scopeIncompleteFulfilment(Builder $query): Builder
+    {
+        return $query->whereNotIn('fulfilment_status', ['collected', 'delivered']);
+    }
+
+    /**
+     * @param  Builder<AuctionResult>  $query
+     * @return Builder<AuctionResult>
+     */
+    public function scopeOverdueFulfilment(Builder $query): Builder
+    {
+        return $query
+            ->incompleteFulfilment()
+            ->whereNotNull('fulfilment_due_at')
+            ->where('fulfilment_due_at', '<', now());
     }
 
     public function getRouteKeyName(): string

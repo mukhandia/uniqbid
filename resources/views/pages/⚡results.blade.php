@@ -9,7 +9,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Past Sales — Completed UniqBid Auctions')]
+#[Title('Past Sales: Completed UniqBid Auctions')]
 class extends Component {
     #[Url]
     public string $q = '';

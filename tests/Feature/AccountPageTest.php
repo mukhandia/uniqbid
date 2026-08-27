@@ -99,6 +99,82 @@ test('customers can update profile from my account', function () {
         ->and($user->bidder->whatsapp_number)->toBe('254711222333');
 });
 
+test('sale and account update channels cannot be enabled without updates and offers', function () {
+    $user = User::factory()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+        'marketing_consent' => false,
+        'sms_notifications' => true,
+        'whatsapp_notifications' => true,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::account')
+        ->assertSet('smsNotifications', false)
+        ->assertSet('whatsappNotifications', false)
+        ->set('smsNotifications', true)
+        ->assertSet('smsNotifications', false)
+        ->set('whatsappNotifications', true)
+        ->assertSet('whatsappNotifications', false)
+        ->call('saveProfile')
+        ->assertHasNoErrors();
+
+    $user->refresh();
+
+    expect($user->marketing_consent)->toBeFalse()
+        ->and($user->sms_notifications)->toBeFalse()
+        ->and($user->whatsapp_notifications)->toBeFalse();
+});
+
+test('sms and whatsapp update checkboxes stay disabled until updates and offers is ticked', function () {
+    $user = User::factory()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+        'marketing_consent' => false,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::account')
+        ->assertSee('Tick Receive UniqBid updates and offers first to choose SMS or WhatsApp.')
+        ->set('marketingConsent', true)
+        ->assertDontSee('Tick Receive UniqBid updates and offers first to choose SMS or WhatsApp.')
+        ->set('smsNotifications', true)
+        ->set('whatsappNotifications', true)
+        ->call('saveProfile')
+        ->assertHasNoErrors();
+
+    $user->refresh();
+
+    expect($user->marketing_consent)->toBeTrue()
+        ->and($user->sms_notifications)->toBeTrue()
+        ->and($user->whatsapp_notifications)->toBeTrue();
+});
+
+test('unchecking updates and offers clears sms and whatsapp update preferences', function () {
+    $user = User::factory()->marketingConsent()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+        'sms_notifications' => true,
+        'whatsapp_notifications' => true,
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::account')
+        ->assertSet('smsNotifications', true)
+        ->assertSet('whatsappNotifications', true)
+        ->set('marketingConsent', false)
+        ->assertSet('smsNotifications', false)
+        ->assertSet('whatsappNotifications', false)
+        ->call('saveProfile')
+        ->assertHasNoErrors();
+
+    $user->refresh();
+
+    expect($user->marketing_consent)->toBeFalse()
+        ->and($user->sms_notifications)->toBeFalse()
+        ->and($user->whatsapp_notifications)->toBeFalse();
+});
+
 test('customers can set an optional participation fee limit', function () {
     $user = User::factory()->create([
         'phone' => '254712345678',

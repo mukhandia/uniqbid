@@ -14,7 +14,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Auction — UniqBid')]
+#[Title('Auction: UniqBid')]
 class extends Component {
     public Auction $auction;
 
@@ -155,8 +155,8 @@ class extends Component {
         $this->validate([
             'name' => ['required', 'string', 'min:2'],
             'email' => ['required', 'email'],
-            'phone' => ['required', 'regex:/^(\+?254|0)7\d{8}$/'],
-            'whatsappNumber' => ['nullable', 'regex:/^(\+?254|0)7\d{8}$/'],
+            'phone' => ['required', 'regex:'.AuctionBidService::KENYAN_MOBILE_INPUT_REGEX],
+            'whatsappNumber' => ['nullable', 'regex:'.AuctionBidService::KENYAN_MOBILE_INPUT_REGEX],
             'amount' => ['required', 'integer', 'min:'.$this->auction->min_bid, 'max:'.$this->auction->max_bid],
             'rulesConsent' => ['accepted'],
         ], [
@@ -273,7 +273,7 @@ class extends Component {
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Enter a bid amount within the published range. The lowest unique bid at close secures the item.</li>
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> Each bid requires a participation fee of {{ Money::kes($auction->bid_fee) }}, paid now to confirm the bid.</li>
                     <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> You may place multiple bids at different amounts; each bid needs its own participation fee.</li>
-                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> If your bid is successful, you later pay that bid amount on collection or delivery — not the product value.</li>
+                    <li class="flex gap-2"><flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-navy" /> If your bid is successful, you later pay that bid amount on collection or delivery, not the product value.</li>
                 </ul>
             </div>
 
@@ -411,7 +411,7 @@ class extends Component {
                             <form wire:submit="continueWithPhone" class="mt-4 space-y-4">
                                 <flux:field>
                                     <flux:label>Mobile number</flux:label>
-                                    <flux:input wire:model="phone" inputmode="tel" placeholder="07XX XXX XXX" autofocus />
+                                    <flux:input wire:model="phone" inputmode="tel" placeholder="07XX or 01XX XXX XXX" autofocus />
                                     <flux:description>Used for the payment prompt and account security.</flux:description>
                                     <flux:error name="phone" />
                                 </flux:field>

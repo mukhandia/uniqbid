@@ -32,9 +32,29 @@ test('creating a sale from a product reserves stock and links the auction', func
         ->and($auction->retail_value)->toBe(4950)
         ->and($auction->bid_fee)->toBe(40)
         ->and($auction->status)->toBe('live')
+        ->and($auction->is_featured)->toBeFalse()
         ->and($auction->images)->toHaveCount(1)
         ->and($product->fresh()->reserved_stock)->toBe(1)
         ->and($product->fresh()->availableStock())->toBe(4);
+});
+
+test('creating a featured sale from a product makes it the only homepage hero', function () {
+    $previous = Auction::factory()->create(['is_featured' => true]);
+    $product = Product::factory()->create([
+        'name' => 'Homepage hero watch',
+        'price' => 4950,
+        'stock' => 3,
+        'reserved_stock' => 0,
+    ]);
+
+    $auction = app(CreateSaleFromProductService::class)->handle($product, [
+        'bid_fee' => 40,
+        'is_featured' => true,
+    ]);
+
+    expect($auction->fresh()->is_featured)->toBeTrue()
+        ->and($previous->fresh()->is_featured)->toBeFalse()
+        ->and(Auction::query()->featured()->count())->toBe(1);
 });
 
 test('creating a sale fails when no available stock remains', function () {

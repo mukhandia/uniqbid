@@ -11,21 +11,11 @@ use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
-    public const UPCOUNTRY_DELIVERY_FEE = 350;
-
     public function __construct(
         private readonly CartService $cart,
         private readonly AuctionBidService $phones,
         private readonly NotificationPlaceholderService $notifications,
     ) {}
-
-    public function deliveryFee(string $method): int
-    {
-        return match ($method) {
-            Order::DELIVERY_UPCOUNTRY => self::UPCOUNTRY_DELIVERY_FEE,
-            default => 0,
-        };
-    }
 
     /**
      * @param  array{
@@ -89,7 +79,6 @@ class OrderService
                 ]);
             }
 
-            $deliveryFee = $this->deliveryFee($details['delivery_method']);
             $order = Order::query()->create([
                 'reference' => $this->generateReference(),
                 'user_id' => ($details['user'] ?? null)?->id,
@@ -101,8 +90,8 @@ class OrderService
                     ? null
                     : ($details['delivery_address'] ?? null),
                 'subtotal' => $subtotal,
-                'delivery_fee' => $deliveryFee,
-                'total' => $subtotal + $deliveryFee,
+                'delivery_fee' => 0,
+                'total' => $subtotal,
                 'status' => Order::STATUS_PAID,
                 'payment_provider' => 'mpesa_demo',
                 'payment_reference' => 'MPESA'.random_int(100000, 999999),
@@ -168,6 +157,74 @@ class OrderService
             $this->notifications->notifyOrderCancelled($order);
 
             return $order->fresh('items');
+        });
+    }
+
+    public function markProcessing(Order $order): Order
+    {
+        return $this->transition($order, function (Order $locked): void {
+            if (! $locked->canMarkProcessing()) {
+                throw ValidationException::withMessages([
+                    'order' => 'Only paid orders can be marked as processing.',
+                ]);
+            }
+
+            $locked->update(['status' => Order::STATUS_PROCESSING]);
+        });
+    }
+
+    public function markDispatched(Order $order): Order
+    {
+        return $this->transition($order, function (Order $locked): void {
+            if (! $locked->canMarkDispatched()) {
+                throw ValidationException::withMessages([
+                    'order' => 'This order cannot be marked as dispatched.',
+                ]);
+            }
+
+            $locked->update([
+                'status' => Order::STATUS_DISPATCHED,
+                'dispatched_at' => $locked->dispatched_at ?? now(),
+            ]);
+        }, notify: 'dispatched');
+    }
+
+    public function markDelivered(Order $order): Order
+    {
+        return $this->transition($order, function (Order $locked): void {
+            if (! $locked->canMarkDelivered()) {
+                throw ValidationException::withMessages([
+                    'order' => 'Mark the order dispatched before marking it delivered.',
+                ]);
+            }
+
+            $locked->update([
+                'status' => Order::STATUS_DELIVERED,
+                'delivered_at' => now(),
+            ]);
+        }, notify: 'delivered');
+    }
+
+    /**
+     * @param  callable(Order): void  $callback
+     */
+    private function transition(Order $order, callable $callback, ?string $notify = null): Order
+    {
+        return DB::transaction(function () use ($order, $callback, $notify): Order {
+            $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
+            $callback($locked);
+
+            $fresh = $locked->fresh('items');
+
+            if ($notify === 'dispatched') {
+                $this->notifications->notifyOrderDispatched($fresh);
+            }
+
+            if ($notify === 'delivered') {
+                $this->notifications->notifyOrderDelivered($fresh);
+            }
+
+            return $fresh;
         });
     }
 

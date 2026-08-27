@@ -22,6 +22,10 @@ test('cart page lists items and can update and remove quantities', function () {
     Livewire::test('pages::cart')
         ->assertSee('Leather Cardholder')
         ->assertSee('Your cart')
+        ->assertSee('Order summary')
+        ->assertSee('Delivery charges apply outside Nairobi')
+        ->assertSee('Charges apply')
+        ->assertDontSee('KES 350')
         ->call('increment', $product->id)
         ->assertOk()
         ->assertDispatched('cart-updated');

@@ -73,6 +73,12 @@
         </div>
     </div>
 
+    <div class="border-t border-border bg-white">
+        <div class="mx-auto max-w-7xl px-4 py-2">
+            <livewire:site-search />
+        </div>
+    </div>
+
     <div class="border-t border-border bg-white lg:hidden" x-cloak x-show="open">
         <div class="mx-auto flex max-w-7xl flex-col p-2">
             @foreach ($nav as $item)

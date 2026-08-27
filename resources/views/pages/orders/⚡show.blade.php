@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Order;
+use App\Models\SiteSetting;
 use App\Services\OrderService;
 use App\Support\Money;
 use Flux\Flux;
@@ -12,7 +13,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Order receipt — UniqBid Shop')]
+#[Title('Order receipt: UniqBid Shop')]
 class extends Component {
     public Order $order;
 
@@ -32,6 +33,13 @@ class extends Component {
                 text: collect($exception->errors())->flatten()->first() ?? 'Unable to cancel this order.',
             );
         }
+    }
+
+    public function with(): array
+    {
+        return [
+            'supportEmail' => SiteSetting::current()->email,
+        ];
     }
 }; ?>
 
@@ -104,8 +112,13 @@ class extends Component {
                 </div>
                 <div class="flex justify-between text-muted-foreground">
                     <span>Delivery</span>
-                    <span>{{ $order->delivery_fee === 0 ? 'Free' : Money::kes($order->delivery_fee) }}</span>
+                    <span>{{ $order->deliveryChargeLabel() }}</span>
                 </div>
+                @if ($order->delivery_method === Order::DELIVERY_UPCOUNTRY)
+                    <p class="text-xs text-muted-foreground">
+                        Delivery fee charges apply. The amount is confirmed when you collect or when the item is delivered.
+                    </p>
+                @endif
                 <div class="flex justify-between text-base font-bold">
                     <span>Total</span>
                     <span class="text-navy">{{ Money::kes($order->total) }}</span>
@@ -135,7 +148,7 @@ class extends Component {
         @elseif ($order->status === 'delivered')
             <p class="text-sm text-muted-foreground">
                 Eligible unused items may be returned within 7 days of delivery with proof of purchase.
-                Contact <a href="mailto:support@uniqbid.co.ke" class="font-medium text-navy underline">support@uniqbid.co.ke</a>.
+                Contact <a href="mailto:{{ $supportEmail }}" class="font-medium text-navy underline">{{ $supportEmail }}</a>.
             </p>
         @endif
     </div>

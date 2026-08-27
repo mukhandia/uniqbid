@@ -14,7 +14,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.auth')]
-#[Title('Sign in with mobile — UniqBid')]
+#[Title('Sign in with mobile: UniqBid')]
 class extends Component {
     #[Url(as: 'redirect')]
     public string $redirectTo = '';
@@ -29,7 +29,7 @@ class extends Component {
 
     public bool $marketingConsent = false;
 
-    public bool $smsNotifications = true;
+    public bool $smsNotifications = false;
 
     public bool $whatsappNotifications = false;
 
@@ -42,6 +42,30 @@ class extends Component {
     public string $placeholderCode = '';
 
     public bool $phoneVerified = false;
+
+    public function updatedMarketingConsent(bool $enabled): void
+    {
+        if ($enabled) {
+            return;
+        }
+
+        $this->smsNotifications = false;
+        $this->whatsappNotifications = false;
+    }
+
+    public function updatedSmsNotifications(): void
+    {
+        if (! $this->marketingConsent) {
+            $this->smsNotifications = false;
+        }
+    }
+
+    public function updatedWhatsappNotifications(): void
+    {
+        if (! $this->marketingConsent) {
+            $this->whatsappNotifications = false;
+        }
+    }
 
     public function requestCode(): void
     {
@@ -107,8 +131,8 @@ class extends Component {
                 'phone_verified_at' => now(),
                 'marketing_consent' => $this->marketingConsent,
                 'marketing_consented_at' => $this->marketingConsent ? now() : null,
-                'sms_notifications' => $this->smsNotifications,
-                'whatsapp_notifications' => $this->whatsappNotifications,
+                'sms_notifications' => $this->marketingConsent && $this->smsNotifications,
+                'whatsapp_notifications' => $this->marketingConsent && $this->whatsappNotifications,
             ],
         );
 
@@ -149,7 +173,7 @@ class extends Component {
 
     @if ($step === 'phone')
         <form wire:submit="requestCode" class="flex flex-col gap-6">
-            <flux:input wire:model="phone" :label="__('Kenyan mobile number')" type="tel" placeholder="0712 345 678" autofocus autocomplete="tel" />
+            <flux:input wire:model="phone" :label="__('Kenyan mobile number')" type="tel" placeholder="0712 345 678 or 0112 345 678" autofocus autocomplete="tel" />
             <flux:button type="submit" variant="primary" class="w-full">
                 Send code
             </flux:button>
@@ -177,9 +201,12 @@ class extends Component {
             </div>
             <flux:input wire:model="name" :label="__('Full name')" autocomplete="name" autofocus />
             <flux:input wire:model="email" :label="__('Email address')" type="email" autocomplete="email" />
-            <flux:checkbox wire:model="marketingConsent" :label="__('I agree to receive UniqBid updates and offers')" />
-            <flux:checkbox wire:model="smsNotifications" :label="__('Send me sale and account updates by SMS')" />
-            <flux:checkbox wire:model="whatsappNotifications" :label="__('Send me sale and account updates by WhatsApp')" />
+            <flux:checkbox wire:model.live="marketingConsent" :label="__('I agree to receive UniqBid updates and offers')" />
+            <flux:checkbox wire:model="smsNotifications" :disabled="! $marketingConsent" :label="__('Send me sale and account updates by SMS')" />
+            <flux:checkbox wire:model="whatsappNotifications" :disabled="! $marketingConsent" :label="__('Send me sale and account updates by WhatsApp')" />
+            @unless ($marketingConsent)
+                <p class="text-xs text-muted-foreground">{{ __('Tick updates and offers first to choose SMS or WhatsApp.') }}</p>
+            @endunless
             <flux:button type="submit" variant="primary" class="w-full">
                 Create account
             </flux:button>

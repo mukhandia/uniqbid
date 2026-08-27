@@ -1,4 +1,7 @@
 <footer class="mt-16 border-t border-border bg-navy text-navy-foreground">
+    @php
+        $settings = \App\Models\SiteSetting::current();
+    @endphp
     <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div>
             <div class="flex items-center gap-3">
@@ -40,15 +43,19 @@
 
         <div>
             <div class="mb-3 text-xs font-semibold uppercase tracking-wider opacity-70">Get in touch</div>
-            <a href="tel:+254700000000" class="flex items-center gap-2 text-sm opacity-90 hover:text-gold">
+            <a href="{{ $settings->phoneTel() }}" class="flex items-center gap-2 text-sm opacity-90 hover:text-gold">
                 <flux:icon.phone class="size-4" />
-                +254 700 000 000
+                {{ $settings->phone }}
             </a>
-            <a href="https://wa.me/254700000000" class="mt-2 flex items-center gap-2 text-sm opacity-90 hover:text-gold">
+            <a href="{{ $settings->whatsappUrl() }}" class="mt-2 flex items-center gap-2 text-sm opacity-90 hover:text-gold" target="_blank" rel="noopener noreferrer">
                 <flux:icon.chat-bubble-left-right class="size-4" />
                 WhatsApp Support
             </a>
-            <p class="mt-3 text-xs opacity-70">Mon–Sat, 8:00 – 18:00 EAT</p>
+            <a href="mailto:{{ $settings->email }}" class="mt-2 flex items-center gap-2 break-all text-sm opacity-90 hover:text-gold">
+                <flux:icon.envelope class="size-4 shrink-0" />
+                {{ $settings->email }}
+            </a>
+            <p class="mt-3 text-xs opacity-70">{{ $settings->hours }}</p>
         </div>
     </div>
 

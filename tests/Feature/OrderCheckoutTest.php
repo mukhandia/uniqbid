@@ -38,7 +38,7 @@ test('checkout places a persisted order, decrements stock, and clears the cart',
         ->and($product->fresh()->stock)->toBe(3);
 });
 
-test('checkout adds upcountry delivery fee', function () {
+test('checkout does not add an upcountry delivery fee to the paid total', function () {
     $product = Product::factory()->create(['price' => 2000, 'stock' => 4]);
     app(CartService::class)->add($product->id, 1);
 
@@ -53,8 +53,15 @@ test('checkout adds upcountry delivery fee', function () {
 
     $order = Order::query()->latest('id')->first();
 
-    expect($order->delivery_fee)->toBe(OrderService::UPCOUNTRY_DELIVERY_FEE)
-        ->and($order->total)->toBe(2000 + OrderService::UPCOUNTRY_DELIVERY_FEE);
+    expect($order->delivery_fee)->toBe(0)
+        ->and($order->total)->toBe(2000)
+        ->and($order->deliveryChargeLabel())->toBe('Charges apply');
+
+    Livewire::test('pages::orders.show', ['order' => $order])
+        ->assertSee('Charges apply')
+        ->assertSee('Delivery fee charges apply')
+        ->assertSee('confirmed when you collect or when the item is delivered')
+        ->assertDontSee('KES 350');
 });
 
 test('order receipt allows cancel before dispatch and restores stock', function () {

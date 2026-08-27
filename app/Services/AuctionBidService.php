@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class AuctionBidService
 {
+    public const KENYAN_MOBILE_INPUT_REGEX = '/^(\+?254|0)[17]\d{8}$/';
+
     public function __construct(
         private readonly NotificationPlaceholderService $notifications,
     ) {}
@@ -139,7 +141,11 @@ class AuctionBidService
             $digits = '254'.substr($digits, 1);
         }
 
-        if (! preg_match('/^2547\d{8}$/', $digits)) {
+        if (strlen($digits) === 13 && str_starts_with($digits, '2540')) {
+            $digits = '254'.substr($digits, 4);
+        }
+
+        if (! preg_match('/^254[17]\d{8}$/', $digits)) {
             throw ValidationException::withMessages([
                 'phone' => 'Enter a valid Kenyan mobile number.',
             ]);

@@ -35,6 +35,25 @@ test('featured scope filters featured auctions', function () {
         ->toBe(['Featured One']);
 });
 
+test('making a sale the homepage hero unfeatures other sales', function () {
+    $previous = Auction::factory()->create(['name' => 'Previous Hero', 'is_featured' => true]);
+    $next = Auction::factory()->create(['name' => 'New Hero', 'is_featured' => false]);
+
+    $next->makeHomepageHero();
+
+    expect($next->fresh()->is_featured)->toBeTrue()
+        ->and($previous->fresh()->is_featured)->toBeFalse()
+        ->and(Auction::query()->featured()->count())->toBe(1);
+});
+
+test('removing a sale from the homepage hero clears its featured flag', function () {
+    $auction = Auction::factory()->create(['is_featured' => true]);
+
+    $auction->removeFromHomepageHero();
+
+    expect($auction->fresh()->is_featured)->toBeFalse();
+});
+
 test('auction helpers expose primary image and end timestamp', function () {
     $auction = Auction::factory()->create([
         'ends_at' => now()->addHours(2),

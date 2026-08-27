@@ -17,7 +17,6 @@ class OrderFactory extends Factory
     public function definition(): array
     {
         $subtotal = fake()->numberBetween(1500, 12000);
-        $deliveryFee = fake()->randomElement([0, 350]);
 
         return [
             'reference' => 'ORD'.fake()->unique()->numerify('######'),
@@ -25,11 +24,15 @@ class OrderFactory extends Factory
             'customer_name' => fake()->name(),
             'customer_phone' => '2547'.fake()->numerify('########'),
             'customer_email' => fake()->optional()->safeEmail(),
-            'delivery_method' => $deliveryFee > 0 ? Order::DELIVERY_UPCOUNTRY : Order::DELIVERY_NAIROBI,
+            'delivery_method' => fake()->randomElement([
+                Order::DELIVERY_NAIROBI,
+                Order::DELIVERY_COLLECTION,
+                Order::DELIVERY_UPCOUNTRY,
+            ]),
             'delivery_address' => fake()->address(),
             'subtotal' => $subtotal,
-            'delivery_fee' => $deliveryFee,
-            'total' => $subtotal + $deliveryFee,
+            'delivery_fee' => 0,
+            'total' => $subtotal,
             'status' => Order::STATUS_PAID,
             'payment_provider' => 'mpesa_demo',
             'payment_reference' => 'MPESA'.fake()->numerify('######'),
@@ -52,6 +55,22 @@ class OrderFactory extends Factory
         return $this->state(fn (): array => [
             'status' => Order::STATUS_DISPATCHED,
             'dispatched_at' => now(),
+        ]);
+    }
+
+    public function processing(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => Order::STATUS_PROCESSING,
+        ]);
+    }
+
+    public function delivered(): static
+    {
+        return $this->state(fn (): array => [
+            'status' => Order::STATUS_DELIVERED,
+            'dispatched_at' => now()->subDay(),
+            'delivered_at' => now(),
         ]);
     }
 

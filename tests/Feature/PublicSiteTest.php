@@ -15,7 +15,52 @@ test('home page renders featured auctions and shop highlights', function () {
         ->assertOk()
         ->assertSee('The lowest')
         ->assertSee('unique bid')
-        ->assertSee('iPhone 15 Pro');
+        ->assertSee('iPhone 15 Pro')
+        ->assertSee('Featured in the shop')
+        ->assertSee('Classic leather-strap dress watch')
+        ->assertDontSee('Accessories, hampers & gifts');
+});
+
+test('home hero prefers the featured live sale over the soonest closing sale', function () {
+    Auction::query()->update(['is_featured' => false]);
+
+    Auction::factory()->create([
+        'name' => 'Soonest Closing Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'is_featured' => false,
+    ]);
+    Auction::factory()->create([
+        'name' => 'Chosen Homepage Hero',
+        'status' => 'live',
+        'ends_at' => now()->addDays(3),
+        'is_featured' => true,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Chosen Homepage Hero')
+        ->assertSee('View Chosen Homepage Hero')
+        ->assertDontSee('View Soonest Closing Sale');
+});
+
+test('home shop strip only lists featured products', function () {
+    Product::query()->update(['is_featured' => false]);
+
+    Product::factory()->create([
+        'name' => 'Homepage Shop Star',
+        'is_featured' => true,
+    ]);
+    Product::factory()->create([
+        'name' => 'Hidden Shop Filler',
+        'is_featured' => false,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Homepage Shop Star')
+        ->assertSee('Featured in the shop')
+        ->assertDontSee('Hidden Shop Filler');
 });
 
 test('auctions index lists live auctions', function () {
@@ -58,13 +103,18 @@ test('shop index and product detail work', function () {
     $this->get(route('shop.show', $product))
         ->assertOk()
         ->assertSee($product->name)
-        ->assertSee('Add to cart');
+        ->assertSee('Add to cart')
+        ->assertSee('Delivery fee charges apply outside Nairobi');
 });
 
 test('static public pages are reachable', function () {
     foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart', 'orders.track'] as $route) {
         $this->get(route($route))->assertOk();
     }
+
+    $this->get(route('legal'))
+        ->assertSee('Delivery fee charges apply outside Nairobi')
+        ->assertDontSee('KES 350');
 });
 
 test('past sales page uses sale language without win tone', function () {

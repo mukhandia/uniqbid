@@ -7,7 +7,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('How UniqBid Works — Lowest Unique Bid Auctions in Kenya')]
+#[Title('How UniqBid Works: Lowest Unique Bid Auctions in Kenya')]
 class extends Component {
     public string $lang = 'en';
 }; ?>
@@ -62,7 +62,7 @@ class extends Component {
                             <div class="grid h-8 w-8 place-items-center rounded-full bg-navy text-xs font-bold text-navy-foreground">{{ substr($bidder['name'], -1) }}</div>
                             <span class="text-sm font-medium">{{ $bidder['name'] }}</span>
                             @unless ($bidder['unique'])
-                                <span class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">tied — not unique</span>
+                                <span class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">tied; not unique</span>
                             @endunless
                         </div>
                         <div class="flex items-center gap-2">
@@ -77,7 +77,7 @@ class extends Component {
                 @endforeach
             </div>
             <p class="mt-4 text-sm text-zinc-800">
-                Each bidder also paid a separate participation fee when placing their bid. Bidder C then pays <strong>{{ Money::kes(22) }}</strong> on collection or delivery — not the product’s retail value. A and B tied at KES 15, so those bids were not unique.
+                Each bidder also paid a separate participation fee when placing their bid. Bidder C then pays <strong>{{ Money::kes(22) }}</strong> on collection or delivery, not the product’s retail value. A and B tied at KES 15, so those bids were not unique.
             </p>
         </div>
 
@@ -85,15 +85,15 @@ class extends Component {
             <div class="rounded-2xl border border-border bg-white p-6 shadow-sm">
                 <h3 class="text-lg font-semibold text-navy">What you pay</h3>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    <strong>Participation fee</strong> — paid now for each bid you place.<br>
-                    <strong>Bid amount</strong> — the number you enter in the range; paid later only if it is the successful bid.<br>
-                    <strong>Product value</strong> — shown for comparison only; never charged as a bid payment.
+                    <strong>Participation fee:</strong> paid now for each bid you place.<br>
+                    <strong>Bid amount:</strong> the number you enter in the range; paid later only if it is the successful bid.<br>
+                    <strong>Product value:</strong> shown for comparison only; never charged as a bid payment.
                 </p>
             </div>
             <div class="rounded-2xl border border-border bg-white p-6 shadow-sm">
                 <h3 class="text-lg font-semibold text-navy">Transparency</h3>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    Live bid counts and sale activity appear on auction pages. Past sales are published publicly. This is a products-selling platform — not gambling.
+                    Live bid counts and sale activity appear on auction pages. Past sales are published publicly. This is a products-selling platform, not gambling.
                 </p>
             </div>
         </div>

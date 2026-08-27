@@ -9,7 +9,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('UniqBid — Live Auctions in Kenya | Licensed Auctioneer')]
+#[Title('UniqBid: Live Auctions in Kenya | Licensed Auctioneer')]
 class extends Component {
     //
 }; ?>
@@ -22,7 +22,7 @@ class extends Component {
 
     $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(10)->get();
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
-    $featuredProducts = Product::query()->orderByDesc('is_featured')->orderBy('name')->limit(10)->get();
+    $featuredProducts = Product::query()->featured()->orderBy('name')->limit(10)->get();
 @endphp
 
 <div>
@@ -52,7 +52,7 @@ class extends Component {
                     The lowest <span class="text-gold">unique bid</span> secures the item.
                 </h1>
                 <p class="mt-4 max-w-md text-base opacity-90">
-                    Bid transparently on real items — phones, TVs, motorbikes — from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
+                    Bid transparently on real items: phones, TVs, motorbikes, from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
                 </p>
                 <div class="mt-6 flex flex-wrap gap-3">
                     @if ($featured)
@@ -174,33 +174,35 @@ class extends Component {
         </x-scroll-row>
     </section>
 
-    <section class="bg-surface">
-        <div class="mx-auto max-w-7xl px-4 py-14">
-            <div class="flex items-end justify-between">
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Also from UniqBid</div>
-                    <h2 class="mt-1 text-2xl font-bold text-navy sm:text-3xl">Accessories, hampers & gifts</h2>
+    @if ($featuredProducts->isNotEmpty())
+        <section class="bg-surface">
+            <div class="mx-auto max-w-7xl px-4 py-14">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Also from UniqBid</div>
+                        <h2 class="mt-1 text-2xl font-bold text-navy sm:text-3xl">Featured in the shop</h2>
+                    </div>
+                    <a href="{{ route('shop.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">Visit shop →</a>
                 </div>
-                <a href="{{ route('shop.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">Visit shop →</a>
+                <x-scroll-row class="mt-6">
+                    @foreach ($featuredProducts as $product)
+                        <x-scroll-row-item>
+                            <a href="{{ route('shop.show', $product) }}" class="group block overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">
+                                <div class="aspect-square overflow-hidden bg-card-home">
+                                    <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
+                                </div>
+                                <div class="p-3">
+                                    <div class="text-[11px] text-muted-foreground">{{ $product->category }}</div>
+                                    <div class="line-clamp-1 text-sm font-semibold">{{ $product->name }}</div>
+                                    <div class="mt-1 text-sm font-bold text-navy">{{ Money::kes($product->price) }}</div>
+                                </div>
+                            </a>
+                        </x-scroll-row-item>
+                    @endforeach
+                </x-scroll-row>
             </div>
-            <x-scroll-row class="mt-6">
-                @foreach ($featuredProducts as $product)
-                    <x-scroll-row-item>
-                        <a href="{{ route('shop.show', $product) }}" class="group block overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">
-                            <div class="aspect-square overflow-hidden bg-card-home">
-                                <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
-                            </div>
-                            <div class="p-3">
-                                <div class="text-[11px] text-muted-foreground">{{ $product->category }}</div>
-                                <div class="line-clamp-1 text-sm font-semibold">{{ $product->name }}</div>
-                                <div class="mt-1 text-sm font-bold text-navy">{{ Money::kes($product->price) }}</div>
-                            </div>
-                        </a>
-                    </x-scroll-row-item>
-                @endforeach
-            </x-scroll-row>
-        </div>
-    </section>
+        </section>
+    @endif
 
     <section class="mx-auto max-w-7xl px-4 py-14">
         <div class="rounded-2xl bg-navy p-8 text-navy-foreground sm:p-12">
@@ -212,7 +214,7 @@ class extends Component {
                     </div>
                     <h2 class="mt-3 text-2xl font-bold sm:text-3xl">A real auctioneer. Real items. Real sales.</h2>
                     <p class="mt-3 max-w-md text-sm opacity-85">
-                        UniqBid is registered under the Auctioneers Act with published rules, a versioned privacy policy, and public past sales — because trust is earned.
+                        UniqBid is registered under the Auctioneers Act with published rules, a versioned privacy policy, and public past sales, because trust is earned.
                     </p>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">

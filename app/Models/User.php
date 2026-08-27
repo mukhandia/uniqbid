@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -88,8 +89,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the user's initials
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
+    public function scopeMarketingConsent(Builder $query): Builder
+    {
+        return $query->where('marketing_consent', true)->where('is_admin', false);
+    }
+
+    public function homePath(): string
+    {
+        return $this->is_admin
+            ? route('dashboard', absolute: false)
+            : route('account', absolute: false);
+    }
+
     public function initials(): string
     {
         $initials = Str::initials($this->name, true);

@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Customer verification')]
+#[Title('Admin: Customer verification')]
 class extends Component {
     public function updateStatus(int $userId, string $status): void
     {

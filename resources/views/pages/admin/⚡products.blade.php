@@ -12,12 +12,13 @@ use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Products')]
+#[Title('Admin: Products')]
 class extends Component {
     use WithFileUploads;
     use WithPagination;
@@ -65,6 +66,8 @@ class extends Component {
     public int $saleEndsInHours = 24;
 
     public bool $saleReserveStock = true;
+
+    public bool $saleFeatureOnHomepage = false;
 
     public function updatedSearch(): void
     {
@@ -123,7 +126,7 @@ class extends Component {
             'stock' => ['required', 'integer', 'min:0'],
             'isFeatured' => ['boolean'],
             'isReturnable' => ['boolean'],
-            'imageUpload' => ['nullable', 'image', 'max:4096'],
+            'imageUpload' => $this->imageUploadRules(),
         ]);
 
         $subcategory = Subcategory::query()->with('category')->findOrFail((int) $validated['subcategoryId']);
@@ -207,6 +210,7 @@ class extends Component {
         $this->saleMaxBid = max(100, (int) round($product->price * 0.5));
         $this->saleEndsInHours = 24;
         $this->saleReserveStock = true;
+        $this->saleFeatureOnHomepage = false;
         $this->showForm = false;
     }
 
@@ -219,6 +223,7 @@ class extends Component {
             'saleMaxBid' => ['required', 'integer', 'gte:saleMinBid'],
             'saleEndsInHours' => ['required', 'integer', 'min:1', 'max:168'],
             'saleReserveStock' => ['boolean'],
+            'saleFeatureOnHomepage' => ['boolean'],
         ]);
 
         $product = Product::query()->findOrFail($this->saleProductId);
@@ -230,6 +235,7 @@ class extends Component {
                 'max_bid' => $this->saleMaxBid,
                 'ends_in_hours' => $this->saleEndsInHours,
                 'reserve_stock' => $this->saleReserveStock,
+                'is_featured' => $this->saleFeatureOnHomepage,
             ]);
         } catch (ValidationException $exception) {
             Flux::toast(variant: 'danger', text: collect($exception->errors())->flatten()->first() ?? 'Unable to create sale.');
@@ -263,6 +269,40 @@ class extends Component {
         $this->imageUpload = null;
         $this->existingImage = '';
         $this->resetValidation();
+    }
+
+    public function updatedImageUpload(): void
+    {
+        $this->validateOnly('imageUpload', [
+            'imageUpload' => $this->imageUploadRules(),
+        ]);
+    }
+
+    public function clearImageUpload(): void
+    {
+        $this->imageUpload = null;
+        $this->resetValidation('imageUpload');
+    }
+
+    public function imagePreviewUrl(): ?string
+    {
+        if ($this->imageUpload instanceof TemporaryUploadedFile) {
+            try {
+                return $this->imageUpload->temporaryUrl();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return $this->existingImage !== '' ? $this->existingImage : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function imageUploadRules(): array
+    {
+        return ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'max:4096'];
     }
 
     public function with(): array
@@ -371,15 +411,49 @@ class extends Component {
                 </flux:field>
                 <flux:field class="md:col-span-2">
                     <flux:label>Product image</flux:label>
-                    <input type="file" wire:model="imageUpload" accept="image/*" class="block w-full text-sm" />
-                    <flux:error name="imageUpload" />
-                    @if ($existingImage)
-                        <p class="mt-1 text-xs text-zinc-500">Current: {{ $existingImage }}</p>
-                    @endif
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <div class="aspect-square w-32 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
+                            @if ($this->imagePreviewUrl())
+                                <img src="{{ $this->imagePreviewUrl() }}" alt="Product image preview" class="h-full w-full object-cover" />
+                            @else
+                                <div class="grid h-full place-items-center text-zinc-400">
+                                    <flux:icon.photo class="size-8" />
+                                </div>
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1 space-y-2">
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
+                                <flux:icon.arrow-up-tray class="size-4" />
+                                <span>{{ $imageUpload ? 'Replace image' : 'Choose image' }}</span>
+                                <input type="file" wire:model="imageUpload" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sr-only" />
+                            </label>
+                            @if ($imageUpload)
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+                                    <span class="truncate">{{ $imageUpload->getClientOriginalName() }}</span>
+                                    <button type="button" class="font-medium text-navy underline hover:no-underline dark:text-zinc-100" wire:click="clearImageUpload">
+                                        Remove
+                                    </button>
+                                </div>
+                            @endif
+                            <p wire:loading wire:target="imageUpload" class="text-xs text-zinc-500">Uploading preview…</p>
+                            <p class="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                Square 1:1 photos display best. Use JPG, PNG, or WebP, 1024×1024px recommended (minimum 800×800px), max 4 MB. Shop tiles, product pages, and the homepage all show a square crop; wide or tall photos will lose the edges.
+                            </p>
+                            @if ($existingImage && ! $imageUpload)
+                                <p class="text-xs text-zinc-500">Current image is in use until you choose a replacement.</p>
+                            @endif
+                            <flux:error name="imageUpload" />
+                        </div>
+                    </div>
                 </flux:field>
-                <div class="flex flex-wrap gap-4 md:col-span-2">
-                    <flux:checkbox wire:model="isFeatured" label="Featured" />
-                    <flux:checkbox wire:model="isReturnable" label="Returnable" />
+                <div class="flex flex-col gap-2 md:col-span-2">
+                    <div class="flex flex-wrap gap-4">
+                        <flux:checkbox wire:model="isFeatured" label="Show in homepage shop" />
+                        <flux:checkbox wire:model="isReturnable" label="Allow shop returns" />
+                    </div>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                        Leave returns on for normal shop items (7 days if unused). Turn it off for hygiene, personalised, or perishable goods. Customers then see a non-returnable notice on the product page, at checkout, and on the order.
+                    </p>
                 </div>
             </div>
             <flux:button type="submit">{{ $editingId ? 'Save changes' : 'Create product' }}</flux:button>
@@ -416,6 +490,7 @@ class extends Component {
                 </flux:field>
             </div>
             <flux:checkbox wire:model="saleReserveStock" label="Reserve 1 unit of shop stock while the sale is live" />
+            <flux:checkbox wire:model="saleFeatureOnHomepage" label="Show as homepage hero (replaces any current homepage sale)" />
             <flux:button type="submit" class="bg-accent! text-accent-foreground!">Create live sale</flux:button>
         </form>
     @endif
@@ -440,6 +515,12 @@ class extends Component {
                                 <div>
                                     <div class="font-medium">{{ $product->name }}</div>
                                     <div class="text-xs text-zinc-500">{{ $product->subcategory }}</div>
+                                    @if ($product->is_featured)
+                                        <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">Homepage shop</span>
+                                    @endif
+                                    @unless ($product->is_returnable)
+                                        <span class="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">Non-returnable</span>
+                                    @endunless
                                 </div>
                             </div>
                         </td>

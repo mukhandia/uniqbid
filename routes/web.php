@@ -24,17 +24,23 @@ Route::livewire('legal', 'pages::legal')->name('legal');
 Route::livewire('account', 'pages::account')->name('account');
 Route::livewire('mobile-login', 'pages::auth.mobile-login')->name('mobile-login');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+Route::middleware(['auth', 'verified', 'redirect-non-admin'])->group(function () {
+    Route::livewire('dashboard', 'pages::admin.dashboard')->name('dashboard');
 });
 
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::livewire('auctions', 'pages::admin.auctions')->name('auctions');
     Route::livewire('auctions/{auction}/bids', 'pages::admin.auction-bids')->name('auction-bids');
+    Route::livewire('orders', 'pages::admin.orders')->name('orders');
+    Route::livewire('orders/{order}', 'pages::admin.order')->name('orders.show');
     Route::livewire('categories', 'pages::admin.categories')->name('categories');
     Route::livewire('products', 'pages::admin.products')->name('products');
     Route::livewire('customers', 'pages::admin.customers')->name('customers');
     Route::livewire('customer-verifications', 'pages::admin.customer-verifications')->name('customer-verifications');
+    Route::livewire('subscribers', 'pages::admin.subscribers')->name('subscribers');
+    Route::livewire('tickets', 'pages::admin.tickets')->name('tickets');
+    Route::livewire('tickets/{ticket}', 'pages::admin.ticket')->name('tickets.show');
+    Route::livewire('settings', 'pages::admin.settings')->name('settings');
 });
 
 require __DIR__.'/settings.php';

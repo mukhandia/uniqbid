@@ -9,7 +9,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Your Cart — UniqBid Shop')]
+#[Title('Your Cart: UniqBid Shop')]
 class extends Component {
     public function increment(int $productId, CartService $cart): void
     {
@@ -62,8 +62,8 @@ class extends Component {
     @else
         <div class="mx-auto max-w-5xl px-4 py-10">
             <h1 class="text-3xl font-bold text-navy">Your cart</h1>
-            <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-                <div class="rounded-2xl border border-border bg-white">
+            <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(17.5rem,22rem)]">
+                <div class="min-w-0 rounded-2xl border border-border bg-white">
                     @foreach ($lines as $index => $line)
                         @php
                             $product = $line['product'];
@@ -116,23 +116,39 @@ class extends Component {
                     @endforeach
                 </div>
 
-                <aside class="h-fit rounded-2xl border border-border bg-white p-5">
-                    <h2 class="text-base font-semibold">Order summary</h2>
-                    <div class="mt-3 space-y-2 text-sm">
-                        <div class="flex justify-between text-muted-foreground">
-                            <span>Subtotal</span>
-                            <span>{{ Money::kes($subtotal) }}</span>
+                <aside class="h-fit min-w-0 rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-6 lg:sticky lg:top-32">
+                    <h2 class="text-lg font-semibold text-navy">Order summary</h2>
+
+                    <dl class="mt-5 space-y-4">
+                        <div class="flex items-baseline justify-between gap-4">
+                            <dt class="text-sm text-muted-foreground">Subtotal</dt>
+                            <dd class="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">{{ Money::kes($subtotal) }}</dd>
                         </div>
-                        <div class="flex justify-between text-muted-foreground">
-                            <span>Delivery</span>
-                            <span>Free in Nairobi / collection · KES 350 upcountry</span>
+
+                        <div>
+                            <dt class="text-sm font-medium text-zinc-900">Delivery</dt>
+                            <dd class="mt-2 space-y-2 rounded-xl bg-surface px-3 py-3">
+                                <div class="flex items-start justify-between gap-3 text-sm">
+                                    <span class="min-w-0 leading-snug text-muted-foreground">Nairobi delivery and Westlands collection</span>
+                                    <span class="shrink-0 font-medium text-zinc-900">Free</span>
+                                </div>
+                                <div class="flex items-start justify-between gap-3 text-sm">
+                                    <span class="min-w-0 leading-snug text-muted-foreground">Outside Nairobi</span>
+                                    <span class="shrink-0 font-medium text-zinc-900">Charges apply</span>
+                                </div>
+                                <p class="border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+                                    Delivery charges apply outside Nairobi. The amount is confirmed when you collect or when the item is delivered.
+                                </p>
+                            </dd>
                         </div>
+                    </dl>
+
+                    <div class="mt-5 flex items-baseline justify-between gap-4 border-t border-border pt-4">
+                        <span class="text-sm font-medium text-muted-foreground">Total</span>
+                        <span class="text-xl font-bold tabular-nums text-navy">{{ Money::kes($subtotal) }}</span>
                     </div>
-                    <div class="mt-3 flex justify-between border-t border-border pt-3 text-base font-bold">
-                        <span>Total</span>
-                        <span class="text-navy">{{ Money::kes($subtotal) }}</span>
-                    </div>
-                    <flux:button href="{{ route('checkout') }}" class="mt-4 w-full bg-accent! text-accent-foreground!">
+
+                    <flux:button href="{{ route('checkout') }}" class="mt-5 w-full bg-accent! text-accent-foreground!">
                         Proceed to checkout
                     </flux:button>
                 </aside>

@@ -11,7 +11,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Categories')]
+#[Title('Admin: Categories')]
 class extends Component {
     public string $categoryName = '';
 
@@ -270,7 +270,7 @@ class extends Component {
             <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-500">
                 Sub-categories
                 @if ($selected)
-                    <span class="font-normal normal-case text-zinc-400">— {{ $selected->name }}</span>
+                    <span class="font-normal normal-case text-zinc-400">: {{ $selected->name }}</span>
                 @endif
             </h2>
 

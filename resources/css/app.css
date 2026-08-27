@@ -99,6 +99,10 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 @layer utilities {
     /*
      * Animated border "line" around the hero card.

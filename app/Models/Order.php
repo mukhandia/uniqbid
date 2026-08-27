@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,6 +76,20 @@ class Order extends Model
     public const DELIVERY_UPCOUNTRY = 'upcountry';
 
     /**
+     * @return array<string, string>
+     */
+    public static function statuses(): array
+    {
+        return [
+            self::STATUS_PAID => 'Paid: preparing',
+            self::STATUS_PROCESSING => 'Processing',
+            self::STATUS_DISPATCHED => 'Dispatched',
+            self::STATUS_DELIVERED => 'Delivered',
+            self::STATUS_CANCELLED => 'Cancelled',
+        ];
+    }
+
+    /**
      * @var array<string, mixed>
      */
     protected $attributes = [
@@ -126,6 +141,53 @@ class Order extends Model
             && $this->dispatched_at === null;
     }
 
+    public function canMarkProcessing(): bool
+    {
+        return $this->status === self::STATUS_PAID;
+    }
+
+    public function canMarkDispatched(): bool
+    {
+        return in_array($this->status, [self::STATUS_PAID, self::STATUS_PROCESSING], true);
+    }
+
+    public function canMarkDelivered(): bool
+    {
+        return $this->status === self::STATUS_DISPATCHED;
+    }
+
+    public function dispatchButtonLabel(): string
+    {
+        return $this->delivery_method === self::DELIVERY_COLLECTION
+            ? 'Mark ready for collection'
+            : 'Mark dispatched';
+    }
+
+    public function deliverButtonLabel(): string
+    {
+        return $this->delivery_method === self::DELIVERY_COLLECTION
+            ? 'Mark collected'
+            : 'Mark delivered';
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeAwaitingFulfilment(Builder $query): Builder
+    {
+        return $query->whereIn('status', [self::STATUS_PAID, self::STATUS_PROCESSING]);
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopePaidNotCancelled(Builder $query): Builder
+    {
+        return $query->where('status', '!=', self::STATUS_CANCELLED);
+    }
+
     public function deliveryMethodLabel(): string
     {
         return match ($this->delivery_method) {
@@ -136,10 +198,22 @@ class Order extends Model
         };
     }
 
+    public function deliveryChargeLabel(): string
+    {
+        return self::deliveryChargeLabelFor($this->delivery_method);
+    }
+
+    public static function deliveryChargeLabelFor(string $method): string
+    {
+        return $method === self::DELIVERY_UPCOUNTRY
+            ? 'Charges apply'
+            : 'Free';
+    }
+
     public function statusLabel(): string
     {
         return match ($this->status) {
-            self::STATUS_PAID => 'Paid — preparing',
+            self::STATUS_PAID => 'Paid: preparing',
             self::STATUS_PROCESSING => 'Processing',
             self::STATUS_DISPATCHED => 'Dispatched',
             self::STATUS_DELIVERED => 'Delivered',

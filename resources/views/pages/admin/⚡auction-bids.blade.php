@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Sale bids')]
+#[Title('Admin: Sale bids')]
 class extends Component {
     public Auction $auction;
 
@@ -126,7 +126,7 @@ class extends Component {
                                     <div class="text-red-600">{{ $latestPayment->failure_reason }}</div>
                                 @endif
                             @else
-                                —
+                                None
                             @endif
                         </td>
                         <td class="px-4 py-3 text-xs">

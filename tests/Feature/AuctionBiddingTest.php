@@ -86,6 +86,20 @@ test('new mobile numbers continue to the guest details form', function () {
         ->assertSet('bidStep', 'details');
 });
 
+test('new 01 mobile numbers continue to the guest details form', function () {
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('phone', '0112345678')
+        ->call('continueWithPhone')
+        ->assertHasNoErrors()
+        ->assertSet('phone', '0112345678')
+        ->assertSet('bidStep', 'details');
+});
+
 test('existing customer numbers require mobile OTP sign in before bidding', function () {
     $user = User::factory()->create([
         'phone' => '254712345678',

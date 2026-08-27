@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -135,9 +136,41 @@ class Auction extends Model
      * @param  Builder<Auction>  $query
      * @return Builder<Auction>
      */
+    public function scopeEndedUnsettled(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('settled_at')
+            ->where('ends_at', '<=', now())
+            ->whereNotIn('status', ['voided', 'draft']);
+    }
+
+    /**
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
     public function scopeFeatured(Builder $query): Builder
     {
         return $query->where('is_featured', true);
+    }
+
+    /**
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($term): void {
+            $builder
+                ->where('name', 'like', '%'.$term.'%')
+                ->orWhere('category', 'like', '%'.$term.'%')
+                ->orWhere('description', 'like', '%'.$term.'%');
+        });
     }
 
     public function getRouteKeyName(): string
@@ -153,5 +186,28 @@ class Auction extends Model
     public function endsAtMs(): int
     {
         return (int) $this->ends_at->getTimestampMs();
+    }
+
+    public function makeHomepageHero(): void
+    {
+        DB::transaction(function (): void {
+            static::query()
+                ->whereKeyNot($this->id)
+                ->where('is_featured', true)
+                ->update(['is_featured' => false]);
+
+            if (! $this->is_featured) {
+                $this->forceFill(['is_featured' => true])->save();
+            }
+        });
+    }
+
+    public function removeFromHomepageHero(): void
+    {
+        if (! $this->is_featured) {
+            return;
+        }
+
+        $this->forceFill(['is_featured' => false])->save();
     }
 }

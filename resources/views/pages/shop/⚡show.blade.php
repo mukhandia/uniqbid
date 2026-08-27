@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Product — UniqBid Shop')]
+#[Title('Product: UniqBid Shop')]
 class extends Component {
     public Product $product;
 
@@ -111,7 +111,7 @@ class extends Component {
 
             @if ($product->availableStock() > 0)
                 <span class="mt-3 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-                    In stock — {{ $product->availableStock() }} available
+                    In stock: {{ $product->availableStock() }} available
                     @if ($inCart > 0)
                         · {{ $inCart }} in cart
                     @endif
@@ -153,7 +153,7 @@ class extends Component {
             <div class="mt-6 space-y-2 rounded-lg border border-border bg-surface p-4 text-sm">
                 <div class="flex items-center gap-2">
                     <flux:icon.truck class="size-4 text-navy" />
-                    Free delivery within Nairobi, or free pick-up from our Westlands office
+                    Free delivery within Nairobi, or free pick-up from our Westlands office. Delivery fee charges apply outside Nairobi.
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:icon.shield-check class="size-4 text-navy" />

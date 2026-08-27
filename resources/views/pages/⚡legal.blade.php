@@ -6,7 +6,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Legal & Compliance — UniqBid')]
+#[Title('Legal & Compliance: UniqBid')]
 class extends Component {
     //
 }; ?>
@@ -31,7 +31,7 @@ class extends Component {
                 ['2.2–2.3 Placing a bid and bid fees', 'Each bid costs the displayed bid fee and is counted only after payment and a reference are confirmed. Bids cannot be edited or cancelled after confirmation. Bid fees are separate from the sale price and are not credited against it.'],
                 ['2.4–2.5 Sale close, results and odds', 'Sales close according to the displayed East Africa Time server clock. Results, including the successful bid and a masked identifier, are published within 24 hours. The successful buyer has seven days to pay the sale amount and confirm delivery. Bid count, distinct unique amounts, and an indicative probability statement are displayed for transparency.'],
                 ['2.6–2.8 Ties, void sales and prohibited conduct', 'The sale listing states whether no-unique-bid sales are extended, awarded by the fewest duplicates, or voided. We may void, extend, or re-run a sale for errors, manipulation, unavailable items, or regulatory requirements. Bots, multiple accounts, collusion, and attempts to manipulate the mechanism are prohibited.'],
-                ['2.9 Item condition and delivery', 'Items are new unless stated otherwise and must be accurately described. Delivery timelines, costs, and collection options are shown after a sale is confirmed or during shop checkout.'],
+                ['2.9 Item condition and delivery', 'Items are new unless stated otherwise and must be accurately described. Delivery within Nairobi and Westlands collection are available. Delivery fee charges apply outside Nairobi and are confirmed at collection or delivery.'],
             ],
         ],
         [
@@ -39,7 +39,7 @@ class extends Component {
             'title' => 'Privacy Policy',
             'clauses' => [
                 ['3.1–3.2 Controller and data collected', 'UniqBid Auction Limited is the data controller under the Data Protection Act, 2019. We collect identity, contact, transaction, technical, and support-communication data needed to operate the platform. We do not knowingly collect data from people under 18.'],
-                ['3.3–3.6 Purpose, payments and sharing', 'We process data to record bids, process payments, fulfil orders, prevent fraud, meet legal duties, and—only with consent—send marketing. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.'],
+                ['3.3–3.6 Purpose, payments and sharing', 'We process data to record bids, process payments, fulfil orders, prevent fraud, meet legal duties, and, only with consent, send marketing. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.'],
                 ['3.7–3.11 Retention, rights, automation and cookies', 'Transaction records are retained for seven years; inactive account data for three years unless a longer period is required. You may request access, correction, erasure where permitted, restriction, objection, portability, or human review of a sale result. Essential cookies operate the site; analytics and marketing cookies require consent. Contact dpo@uniqbid.co.ke or support@uniqbid.co.ke.'],
             ],
         ],

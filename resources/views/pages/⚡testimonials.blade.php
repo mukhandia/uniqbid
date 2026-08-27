@@ -6,7 +6,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Testimonials — What UniqBid Customers Say')]
+#[Title('Testimonials: What UniqBid Customers Say')]
 class extends Component {
     public function with(): array
     {
@@ -33,7 +33,7 @@ class extends Component {
                     'location' => 'Eldoret',
                     'role' => 'Shop customer',
                     'item' => 'Leather Cardholder',
-                    'quote' => 'Came for the auctions, stayed for the shop. Ordered a gift hamper for my sister — quality packaging and it arrived in Eldoret in two days.',
+                    'quote' => 'Came for the auctions, stayed for the shop. Ordered a gift hamper for my sister: quality packaging and it arrived in Eldoret in two days.',
                     'rating' => 5,
                 ],
                 [

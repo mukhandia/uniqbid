@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin — Sales')]
+#[Title('Admin: Sales')]
 class extends Component {
     public function settle(int $auctionId): void
     {
@@ -72,6 +72,27 @@ class extends Component {
                 : 'No next unique bid is available. Re-run the sale instead.',
         );
     }
+
+    public function toggleHomepageHero(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+
+        if ($auction->is_featured) {
+            $auction->removeFromHomepageHero();
+            Flux::toast(variant: 'success', text: 'This sale is no longer the homepage hero.');
+
+            return;
+        }
+
+        if ($auction->status !== 'live' || $auction->ends_at->isPast()) {
+            Flux::toast(variant: 'danger', text: 'Only a live sale can be shown on the homepage hero.');
+
+            return;
+        }
+
+        $auction->makeHomepageHero();
+        Flux::toast(variant: 'success', text: 'This sale is now the homepage hero.');
+    }
 }; ?>
 
 @php
@@ -90,7 +111,7 @@ class extends Component {
     <div class="flex items-start justify-between gap-4">
         <div>
             <flux:heading size="xl">Sales & bidding</flux:heading>
-            <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity.</flux:text>
+            <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity. One live sale can be the homepage hero at a time.</flux:text>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
             <flux:button href="{{ route('admin.products') }}" variant="outline">
@@ -126,6 +147,9 @@ class extends Component {
                         <td class="px-4 py-3">
                             <div class="font-medium">{{ $auction->name }}</div>
                             <div class="text-xs text-zinc-500">{{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)</div>
+                            @if ($auction->is_featured)
+                                <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">Homepage hero</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3">
                             <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
@@ -144,11 +168,20 @@ class extends Component {
                             @if ($auction->result)
                                 {{ Money::kes($auction->result->sale_price) }} · {{ $auction->result->buyer_display }}
                             @else
-                                —
+                                None
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="flex justify-end gap-2">
+                            <div class="flex flex-wrap justify-end gap-2">
+                                @if ($auction->is_featured)
+                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Remove this sale from the homepage hero?">
+                                        Remove from homepage
+                                    </flux:button>
+                                @elseif ($auction->status === 'live' && $auction->ends_at->isFuture())
+                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Show this sale on the homepage hero? This replaces any current homepage sale.">
+                                        Set as homepage
+                                    </flux:button>
+                                @endif
                                 <flux:button size="sm" variant="outline" href="{{ route('admin.auction-bids', $auction) }}">
                                     Bids
                                 </flux:button>

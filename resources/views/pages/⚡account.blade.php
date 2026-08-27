@@ -17,7 +17,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('My Account — UniqBid')]
+#[Title('My Account: UniqBid')]
 class extends Component {
     public string $name = '';
 
@@ -49,10 +49,34 @@ class extends Component {
         $this->email = $user->email ?? '';
         $this->whatsappNumber = $this->displayPhone($user->bidder?->whatsapp_number);
         $this->marketingConsent = (bool) $user->marketing_consent;
-        $this->smsNotifications = (bool) $user->sms_notifications;
-        $this->whatsappNotifications = (bool) $user->whatsapp_notifications;
+        $this->smsNotifications = $this->marketingConsent && (bool) $user->sms_notifications;
+        $this->whatsappNotifications = $this->marketingConsent && (bool) $user->whatsapp_notifications;
         $this->participationFeeLimit = $user->customerControl?->participation_fee_limit;
         $this->limitPeriod = $user->customerControl?->limit_period;
+    }
+
+    public function updatedMarketingConsent(bool $enabled): void
+    {
+        if ($enabled) {
+            return;
+        }
+
+        $this->smsNotifications = false;
+        $this->whatsappNotifications = false;
+    }
+
+    public function updatedSmsNotifications(): void
+    {
+        if (! $this->marketingConsent) {
+            $this->smsNotifications = false;
+        }
+    }
+
+    public function updatedWhatsappNotifications(): void
+    {
+        if (! $this->marketingConsent) {
+            $this->whatsappNotifications = false;
+        }
     }
 
     #[Computed]
@@ -131,8 +155,8 @@ class extends Component {
             'email' => $validated['email'],
             'marketing_consent' => $validated['marketingConsent'],
             'marketing_consented_at' => $validated['marketingConsent'] ? now() : null,
-            'sms_notifications' => $validated['smsNotifications'],
-            'whatsapp_notifications' => $validated['whatsappNotifications'],
+            'sms_notifications' => $validated['marketingConsent'] && $validated['smsNotifications'],
+            'whatsapp_notifications' => $validated['marketingConsent'] && $validated['whatsappNotifications'],
         ]);
 
         if ($bidder = $user->bidder) {
@@ -233,7 +257,7 @@ class extends Component {
         @else
             @if (Auth::user()->is_admin)
                 <p class="mt-2 text-center text-sm text-muted-foreground">
-                    Admin account — use the dashboard for sale management.
+                    Admin account: use the dashboard for sale management.
                 </p>
                 <div class="mt-6 flex flex-wrap justify-center gap-2">
                     <flux:button href="{{ route('dashboard') }}" class="bg-accent! text-accent-foreground!">
@@ -267,11 +291,14 @@ class extends Component {
                         <form wire:submit="saveProfile" class="mt-4 space-y-4">
                             <flux:input wire:model="name" label="Full name" required />
                             <flux:input wire:model="email" type="email" label="Email" required />
-                            <flux:input wire:model="whatsappNumber" label="WhatsApp number (optional)" placeholder="0712345678" />
+                            <flux:input wire:model="whatsappNumber" label="WhatsApp number (optional)" placeholder="07XX or 01XX XXX XXX" />
                             <div class="space-y-2">
-                                <flux:checkbox wire:model="marketingConsent" label="Receive UniqBid updates and offers" />
-                                <flux:checkbox wire:model="smsNotifications" label="Send sale and account updates by SMS" />
-                                <flux:checkbox wire:model="whatsappNotifications" label="Send sale and account updates by WhatsApp" />
+                                <flux:checkbox wire:model.live="marketingConsent" label="Receive UniqBid updates and offers" />
+                                <flux:checkbox wire:model="smsNotifications" :disabled="! $marketingConsent" label="Send sale and account updates by SMS" />
+                                <flux:checkbox wire:model="whatsappNotifications" :disabled="! $marketingConsent" label="Send sale and account updates by WhatsApp" />
+                                @unless ($marketingConsent)
+                                    <p class="text-xs text-muted-foreground">Tick Receive UniqBid updates and offers first to choose SMS or WhatsApp.</p>
+                                @endunless
                             </div>
                             <flux:button type="submit" class="bg-accent! text-accent-foreground!">Save profile</flux:button>
                         </form>
@@ -280,7 +307,7 @@ class extends Component {
                     <section>
                         <h2 class="text-lg font-semibold text-navy">Participation fee limit</h2>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Optional. Leave blank for no limit — you choose whether to set one.
+                            Optional. Leave blank for no limit; you choose whether to set one.
                         </p>
                         <form wire:submit="saveSpendLimit" class="mt-4 grid gap-4 sm:grid-cols-2">
                             <flux:input wire:model="participationFeeLimit" type="number" min="1" label="Limit (KES)" placeholder="No limit" />

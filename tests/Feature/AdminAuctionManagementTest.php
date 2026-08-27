@@ -158,3 +158,43 @@ test('admins can track a successful buy payment and fulfilment', function () {
         ->and($result->fulfilment_status)->toBe('collection_ready')
         ->and($result->fulfilment_due_at)->not->toBeNull();
 });
+
+test('admins can set one live sale as the homepage hero', function () {
+    $admin = User::factory()->admin()->create();
+    $previous = Auction::factory()->create([
+        'name' => 'Previous Homepage Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHours(2),
+        'is_featured' => true,
+    ]);
+    $next = Auction::factory()->create([
+        'name' => 'New Homepage Sale',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+        'is_featured' => false,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->assertSee('Set as homepage')
+        ->assertSee('Remove from homepage')
+        ->call('toggleHomepageHero', $next->id);
+
+    expect($next->fresh()->is_featured)->toBeTrue()
+        ->and($previous->fresh()->is_featured)->toBeFalse();
+});
+
+test('admins can remove a sale from the homepage hero', function () {
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'is_featured' => true,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('toggleHomepageHero', $auction->id);
+
+    expect($auction->fresh()->is_featured)->toBeFalse();
+});

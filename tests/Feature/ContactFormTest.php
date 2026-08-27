@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\SiteSetting;
 use App\Models\SupportTicket;
 use Livewire\Livewire;
 
@@ -28,7 +29,9 @@ test('contact form stores email contacts on the email column', function () {
         ->and($ticket->email)->toBe('amina@example.com')
         ->and($ticket->phone)->toBeNull()
         ->and($ticket->subject)->toBe('General enquiry')
-        ->and($ticket->status)->toBe('open');
+        ->and($ticket->status)->toBe('open')
+        ->and($ticket->isUnread())->toBeTrue()
+        ->and($ticket->reference())->toBe('TKT'.str_pad((string) $ticket->id, 5, '0', STR_PAD_LEFT));
 });
 
 test('contact form stores phone contacts on the phone column', function () {
@@ -61,4 +64,16 @@ test('contact form can be reset after submission', function () {
         ->assertSet('subject', '')
         ->assertSet('message', '')
         ->assertSet('ticketRef', null);
+});
+
+test('contact page shows office details and a map', function () {
+    $settings = SiteSetting::current();
+
+    $this->get(route('contact'))
+        ->assertOk()
+        ->assertSee($settings->phone)
+        ->assertSee($settings->email)
+        ->assertSee('google.com/maps', false)
+        ->assertSee('output=embed', false)
+        ->assertDontSee('Map placeholder');
 });
