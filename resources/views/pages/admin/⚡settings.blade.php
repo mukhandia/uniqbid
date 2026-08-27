@@ -72,13 +72,11 @@ class extends Component {
 }; ?>
 
 <div class="space-y-8">
-    <div>
-        <flux:heading size="xl">Settings</flux:heading>
-        <flux:text class="mt-1">Company contact details appear on the public Contact page and footer. Your login profile, password, and appearance are separate.</flux:text>
-    </div>
+    @include('partials.settings-heading')
 
     <form wire:submit="save" class="space-y-6 rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <flux:heading size="lg">Contact & location</flux:heading>
+        <flux:text>These details appear on the public Contact page and footer.</flux:text>
 
         <div class="grid gap-4 sm:grid-cols-2">
             <flux:field>
@@ -122,24 +120,4 @@ class extends Component {
 
         <flux:button type="submit" class="bg-accent! text-accent-foreground!">Save settings</flux:button>
     </form>
-
-    <div class="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
-        <flux:heading size="lg">Your account</flux:heading>
-        <flux:text class="mt-1">These pages update the signed-in admin user, not the public contact details above.</flux:text>
-
-        <div class="mt-4 grid gap-3 sm:grid-cols-3">
-            <a href="{{ route('profile.edit') }}" wire:navigate class="rounded-lg border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-700">
-                <div class="font-medium">Profile</div>
-                <div class="mt-1 text-sm text-zinc-500">Name and email</div>
-            </a>
-            <a href="{{ route('security.edit') }}" wire:navigate class="rounded-lg border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-700">
-                <div class="font-medium">Security</div>
-                <div class="mt-1 text-sm text-zinc-500">Password</div>
-            </a>
-            <a href="{{ route('appearance.edit') }}" wire:navigate class="rounded-lg border border-zinc-200 p-4 hover:border-zinc-400 dark:border-zinc-700">
-                <div class="font-medium">Appearance</div>
-                <div class="mt-1 text-sm text-zinc-500">Light or dark mode</div>
-            </a>
-        </div>
-    </div>
 </div>

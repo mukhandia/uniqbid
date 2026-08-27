@@ -40,6 +40,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('subscribers', 'pages::admin.subscribers')->name('subscribers');
     Route::livewire('tickets', 'pages::admin.tickets')->name('tickets');
     Route::livewire('tickets/{ticket}', 'pages::admin.ticket')->name('tickets.show');
+    Route::livewire('reports', 'pages::admin.reports')->name('reports');
     Route::livewire('settings', 'pages::admin.settings')->name('settings');
 });
 

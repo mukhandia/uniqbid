@@ -205,15 +205,9 @@ class extends Component {
 }; ?>
 
 <div class="space-y-6">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-            <flux:heading size="xl">Categories &amp; sub-categories</flux:heading>
-            <flux:text class="mt-1">Catalogue hierarchy from UniqBid Product Catalogue (letter prefixes removed).</flux:text>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <flux:button href="{{ route('admin.products') }}" variant="outline">Products</flux:button>
-            <flux:button href="{{ route('admin.auctions') }}" variant="outline">Sales</flux:button>
-        </div>
+    <div>
+        <flux:heading size="xl">Categories &amp; sub-categories</flux:heading>
+        <flux:text class="mt-1">Catalogue hierarchy from UniqBid Product Catalogue (letter prefixes removed).</flux:text>
     </div>
 
     <div class="grid gap-6 lg:grid-cols-2">

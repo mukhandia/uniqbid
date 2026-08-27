@@ -148,6 +148,29 @@ class Auction extends Model
      * @param  Builder<Auction>  $query
      * @return Builder<Auction>
      */
+    public function scopeBlockingNewSale(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('settled_at')
+            ->whereNotIn('status', ['voided', 'draft']);
+    }
+
+    public function isOpenLive(): bool
+    {
+        return $this->status === 'live' && $this->ends_at->isFuture();
+    }
+
+    public function needsSettle(): bool
+    {
+        return $this->settled_at === null
+            && $this->ends_at->isPast()
+            && ! in_array($this->status, ['voided', 'draft'], true);
+    }
+
+    /**
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
     public function scopeFeatured(Builder $query): Builder
     {
         return $query->where('is_featured', true);
@@ -184,6 +207,15 @@ class Auction extends Model
             'live' => $query->live(),
             'ending_soon' => $query->live()->where('ends_at', '<=', now()->addHours(6)),
             'needs_settle' => $query->endedUnsettled(),
+            'to_process' => $query->whereHas('result', function (Builder $result): void {
+                $result->where(function (Builder $inner): void {
+                    $inner->where('sale_payment_status', AuctionResult::PAYMENT_AWAITING)
+                        ->orWhereNotIn('fulfilment_status', [
+                            AuctionResult::FULFILMENT_COLLECTED,
+                            AuctionResult::FULFILMENT_DELIVERED,
+                        ]);
+                });
+            }),
             'settled' => $query->whereNotNull('settled_at'),
             'voided' => $query->where('status', 'voided'),
             'draft' => $query->where('status', 'draft'),

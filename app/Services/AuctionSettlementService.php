@@ -58,7 +58,7 @@ class AuctionSettlementService
                 ->orderBy('id')
                 ->get();
 
-            $successfulBid = $this->lowestUniqueBid($acceptedBids);
+            $successfulBid = $this->lowestUniqueAmong($acceptedBids);
 
             if (! $successfulBid && $auction->no_unique_bid_rule === 'extend') {
                 $auction->forceFill([
@@ -144,7 +144,7 @@ class AuctionSettlementService
                 ->orderBy('id')
                 ->get();
 
-            $nextBid = $this->lowestUniqueBid($acceptedBids);
+            $nextBid = $this->lowestUniqueAmong($acceptedBids);
 
             if (! $nextBid) {
                 return null;
@@ -168,9 +168,45 @@ class AuctionSettlementService
     }
 
     /**
+     * Live view of accepted unique bids for admin monitoring. Ties never lead.
+     *
+     * @return array{
+     *     accepted_count: int,
+     *     unique_count: int,
+     *     amount_counts: array<int, int>,
+     *     leading_bid: ?AuctionBid
+     * }
+     */
+    public function uniquenessSnapshot(Auction $auction): array
+    {
+        $acceptedBids = AuctionBid::query()
+            ->with('bidder')
+            ->where('auction_id', $auction->id)
+            ->where('status', 'accepted')
+            ->orderBy('amount')
+            ->orderBy('id')
+            ->get();
+
+        $amountCounts = [];
+
+        foreach ($acceptedBids->countBy(fn (AuctionBid $bid): int => $bid->amount) as $amount => $count) {
+            $amountCounts[(int) $amount] = (int) $count;
+        }
+
+        return [
+            'accepted_count' => $acceptedBids->count(),
+            'unique_count' => collect($amountCounts)
+                ->filter(fn (int $count): bool => $count === 1)
+                ->count(),
+            'amount_counts' => $amountCounts,
+            'leading_bid' => $this->lowestUniqueAmong($acceptedBids),
+        ];
+    }
+
+    /**
      * @param  Collection<int, AuctionBid>  $acceptedBids
      */
-    private function lowestUniqueBid($acceptedBids): ?AuctionBid
+    private function lowestUniqueAmong(Collection $acceptedBids): ?AuctionBid
     {
         $counts = $acceptedBids->countBy(fn (AuctionBid $bid): int => $bid->amount);
 

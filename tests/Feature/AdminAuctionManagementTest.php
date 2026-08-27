@@ -4,8 +4,10 @@ use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Bidder;
 use App\Models\PaymentAttempt;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\AuctionSettlementService;
+use App\Services\CreateSaleFromProductService;
 use Livewire\Livewire;
 
 test('guests cannot access admin sales pages', function () {
@@ -47,15 +49,22 @@ test('admins can view sales and bid payment records', function () {
         ->assertSee($auction->name)
         ->assertSee('Live')
         ->assertSee('fee paid')
-        ->assertSee('awaiting payment');
+        ->assertSee('awaiting payment')
+        ->assertSeeHtml('wire:poll.180s.visible')
+        ->assertSee('Open')
+        ->assertSee(route('admin.auction-bids', $auction), false);
 
     $this->actingAs($admin)
         ->get(route('admin.auction-bids', $auction))
         ->assertSuccessful()
+        ->assertSee('Incoming bids')
+        ->assertSee('Current lowest unique')
         ->assertSee('Grace Njeri')
         ->assertSee('254755555555')
         ->assertSee('grace@example.com')
-        ->assertSee('Yes');
+        ->assertSee('Lowest unique')
+        ->assertSee('Yes')
+        ->assertSeeHtml('wire:poll.180s.visible');
 });
 
 test('admins can view guest and verified customer profiles', function () {
@@ -146,11 +155,27 @@ test('admins can track a successful buy payment and fulfilment', function () {
 
     app(AuctionSettlementService::class)->settle($auction, $admin);
 
+    $this->actingAs($admin)
+        ->get(route('admin.auction-bids', $auction))
+        ->assertSuccessful()
+        ->assertSee('Successful bidder')
+        ->assertSee($bid->bidder->name)
+        ->assertSee('Mark sale paid')
+        ->assertSee('Mark picked up')
+        ->assertSee('Process');
+
     Livewire::actingAs($admin)
         ->test('pages::admin.auction-bids', ['auction' => $auction])
-        ->set('salePaymentStatus', 'paid')
-        ->set('fulfilmentStatus', 'collection_ready')
-        ->call('updateFulfilment')
+        ->call('markCollected')
+        ->assertHasNoErrors();
+
+    expect($auction->fresh()->result->fulfilment_status)->toBe('pending');
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auction-bids', ['auction' => $auction])
+        ->call('markSalePaid')
+        ->call('markCollectionReady')
+        ->call('markCollected')
         ->assertHasNoErrors();
 
     $result = $auction->fresh()->result;
@@ -158,8 +183,58 @@ test('admins can track a successful buy payment and fulfilment', function () {
     expect($result->auction_bid_id)->toBe($bid->id)
         ->and($result->sale_payment_status)->toBe('paid')
         ->and($result->sale_payment_paid_at)->not->toBeNull()
-        ->and($result->fulfilment_status)->toBe('collection_ready')
+        ->and($result->fulfilment_status)->toBe('collected')
         ->and($result->fulfilment_due_at)->not->toBeNull();
+});
+
+test('admins can filter sales that still need payment or pickup', function () {
+    $admin = User::factory()->admin()->create();
+    $openSale = Auction::factory()->create([
+        'name' => 'Still Live Speaker Sale',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+    $toProcess = Auction::factory()->create([
+        'name' => 'Paid Watch Waiting Collection',
+        'status' => 'closed',
+        'ends_at' => now()->subDay(),
+        'settled_at' => now()->subDay(),
+    ]);
+    $toProcess->result()->create([
+        'slug' => 'paid-watch-waiting-collection-result',
+        'name' => $toProcess->name,
+        'category' => $toProcess->category,
+        'image' => '/images/auctions/iphone-15-pro.png',
+        'sale_price' => 40,
+        'sale_payment_status' => 'paid',
+        'fulfilment_status' => 'collection_ready',
+        'buyer_display' => 'Amina 12.',
+        'sold_on' => now()->toDateString(),
+    ]);
+    $complete = Auction::factory()->create([
+        'name' => 'Collected Camera Sale',
+        'status' => 'closed',
+        'ends_at' => now()->subDays(2),
+        'settled_at' => now()->subDays(2),
+    ]);
+    $complete->result()->create([
+        'slug' => 'collected-camera-sale-result',
+        'name' => $complete->name,
+        'category' => $complete->category,
+        'image' => '/images/auctions/iphone-15-pro.png',
+        'sale_price' => 55,
+        'sale_payment_status' => 'paid',
+        'fulfilment_status' => 'collected',
+        'buyer_display' => 'James 90.',
+        'sold_on' => now()->toDateString(),
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->set('status', 'to_process')
+        ->assertSee('Paid Watch Waiting Collection')
+        ->assertDontSee('Still Live Speaker Sale')
+        ->assertDontSee('Collected Camera Sale');
 });
 
 test('admins can set one live sale as the homepage hero', function () {
@@ -263,4 +338,43 @@ test('admins can filter sales by search status and category', function () {
         ->assertSee($endedSale->name)
         ->assertDontSee($liveSale->name)
         ->assertDontSee($settledSale->name);
+});
+
+test('admins can delete a mistaken sale and return reserved stock', function () {
+    $admin = User::factory()->admin()->create();
+    $product = Product::factory()->create(['stock' => 4, 'reserved_stock' => 0]);
+    $auction = app(CreateSaleFromProductService::class)->handle($product, [
+        'bid_fee' => 30,
+        'reserve_stock' => true,
+    ]);
+    AuctionBid::factory()->create([
+        'auction_id' => $auction->id,
+        'status' => 'pending_payment',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->assertSee('Permanently delete this sale')
+        ->call('delete', $auction->id);
+
+    expect(Auction::query()->whereKey($auction->id)->exists())->toBeFalse()
+        ->and($product->fresh()->reserved_stock)->toBe(0);
+});
+
+test('admins cannot delete a sale after a participation fee has been paid', function () {
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+    ]);
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->assertDontSee('Permanently delete this sale')
+        ->call('delete', $auction->id);
+
+    expect(Auction::query()->whereKey($auction->id)->exists())->toBeTrue();
 });

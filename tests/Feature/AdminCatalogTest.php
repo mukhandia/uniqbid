@@ -156,6 +156,54 @@ test('admin can create a sale from a product as the homepage hero', function () 
         ->and($previous->fresh()->is_featured)->toBeFalse();
 });
 
+test('admin products page points to the live sale instead of creating another', function () {
+    $this->actingAs($this->admin);
+
+    $product = Product::factory()->create([
+        'name' => 'Single Live Watch',
+        'stock' => 4,
+        'reserved_stock' => 1,
+    ]);
+    $sale = Auction::factory()->create([
+        'product_id' => $product->id,
+        'name' => $product->name,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->assertSee('View sale')
+        ->assertDontSee('Create sale')
+        ->call('openSaleForm', $product->id)
+        ->assertRedirect(route('admin.auction-bids', $sale));
+});
+
+test('admin products page asks to settle an ended sale before creating another', function () {
+    $this->actingAs($this->admin);
+
+    $product = Product::factory()->create([
+        'name' => 'Ended Camera Sale Product',
+        'stock' => 4,
+        'reserved_stock' => 1,
+    ]);
+    Auction::factory()->create([
+        'product_id' => $product->id,
+        'name' => $product->name,
+        'status' => 'live',
+        'ends_at' => now()->subHour(),
+        'settled_at' => null,
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->assertSee('Settle first')
+        ->assertDontSee('Create sale')
+        ->call('openSaleForm', $product->id)
+        ->assertRedirect(route('admin.auctions', [
+            'status' => 'needs_settle',
+            'search' => $product->name,
+        ]));
+});
+
 test('non-admin cannot access catalog admin pages', function () {
     $user = User::factory()->create(['is_admin' => false]);
     $this->actingAs($user);

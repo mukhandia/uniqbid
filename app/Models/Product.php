@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -89,6 +90,20 @@ class Product extends Model
     public function auctions(): HasMany
     {
         return $this->hasMany(Auction::class);
+    }
+
+    /**
+     * @return HasOne<Auction, $this>
+     */
+    public function currentSale(): HasOne
+    {
+        return $this->hasOne(Auction::class)->ofMany(
+            ['id' => 'max'],
+            function (Builder $query): void {
+                $query->whereNull('settled_at')
+                    ->whereNotIn('status', ['voided', 'draft']);
+            },
+        );
     }
 
     public function availableStock(): int

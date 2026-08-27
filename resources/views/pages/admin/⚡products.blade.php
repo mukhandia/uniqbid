@@ -203,7 +203,26 @@ class extends Component {
 
     public function openSaleForm(int $productId): void
     {
-        $product = Product::query()->findOrFail($productId);
+        $product = Product::query()->with('currentSale')->findOrFail($productId);
+        $currentSale = $product->currentSale;
+
+        if ($currentSale !== null) {
+            if ($currentSale->isOpenLive()) {
+                Flux::toast(variant: 'warning', text: 'This product already has a live sale.');
+                $this->redirect(route('admin.auction-bids', $currentSale), navigate: true);
+
+                return;
+            }
+
+            Flux::toast(variant: 'warning', text: 'Settle the ended sale before creating a new one.');
+            $this->redirect(route('admin.auctions', [
+                'status' => 'needs_settle',
+                'search' => $product->name,
+            ]), navigate: true);
+
+            return;
+        }
+
         $this->saleProductId = $product->id;
         $this->saleBidFee = 50;
         $this->saleMinBid = 1;
@@ -308,7 +327,7 @@ class extends Component {
     public function with(): array
     {
         $query = Product::query()
-            ->with(['subcategoryRelation.category'])
+            ->with(['subcategoryRelation.category', 'currentSale'])
             ->search($this->search !== '' ? $this->search : null)
             ->latest();
 
@@ -335,13 +354,9 @@ class extends Component {
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
             <flux:heading size="xl">Products</flux:heading>
-            <flux:text class="mt-1">Manage shop inventory. Create a live sale from any product with available stock.</flux:text>
+            <flux:text class="mt-1">Manage shop inventory. Create a live sale from a product that is not already in a live or unsettled sale.</flux:text>
         </div>
-        <div class="flex flex-wrap gap-2">
-            <flux:button href="{{ route('admin.categories') }}" variant="outline">Categories</flux:button>
-            <flux:button href="{{ route('admin.auctions') }}" variant="outline">Sales</flux:button>
-            <flux:button wire:click="openCreate" class="bg-accent! text-accent-foreground!">Add product</flux:button>
-        </div>
+        <flux:button wire:click="openCreate" class="bg-accent! text-accent-foreground!">Add product</flux:button>
     </div>
 
     <div class="flex flex-col gap-3 sm:flex-row">
@@ -534,7 +549,19 @@ class extends Component {
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex justify-end gap-1">
-                                <flux:button size="sm" variant="outline" wire:click="openSaleForm({{ $product->id }})">Create sale</flux:button>
+                                @if ($product->currentSale?->isOpenLive())
+                                    <flux:button size="sm" variant="outline" href="{{ route('admin.auction-bids', $product->currentSale) }}">
+                                        View sale
+                                    </flux:button>
+                                @elseif ($product->currentSale?->needsSettle())
+                                    <flux:button size="sm" variant="outline" href="{{ route('admin.auctions', ['status' => 'needs_settle', 'search' => $product->name]) }}">
+                                        Settle first
+                                    </flux:button>
+                                @else
+                                    <flux:button size="sm" variant="outline" wire:click="openSaleForm({{ $product->id }})">
+                                        Create sale
+                                    </flux:button>
+                                @endif
                                 <flux:button size="sm" variant="ghost" wire:click="edit({{ $product->id }})">Edit</flux:button>
                                 <flux:button size="sm" variant="ghost" wire:click="delete({{ $product->id }})" wire:confirm="Delete this product?">Del</flux:button>
                             </div>

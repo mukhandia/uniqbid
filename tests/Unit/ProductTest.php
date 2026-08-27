@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Auction;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -41,6 +42,28 @@ test('product out of stock and reserved-for-sales scopes', function () {
         ->not->toContain('Zero stock', 'Plenty available');
 });
 
-test('product route key is slug', function () {
-    expect((new Product)->getRouteKeyName())->toBe('slug');
+test('product current sale ignores settled and voided listings', function () {
+    $product = Product::factory()->create();
+    Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'closed',
+        'ends_at' => now()->subDay(),
+        'settled_at' => now()->subDay(),
+    ]);
+    Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'voided',
+        'ends_at' => now()->subHours(2),
+        'settled_at' => now()->subHours(2),
+    ]);
+    $live = Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'settled_at' => null,
+    ]);
+
+    expect($product->fresh()->currentSale?->id)->toBe($live->id)
+        ->and($live->isOpenLive())->toBeTrue()
+        ->and($live->needsSettle())->toBeFalse();
 });

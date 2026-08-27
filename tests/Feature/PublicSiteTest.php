@@ -18,6 +18,9 @@ test('home page renders featured auctions and shop highlights', function () {
         ->assertSee('iPhone 15 Pro')
         ->assertSee('Featured in the shop')
         ->assertSee('Classic leather-strap dress watch')
+        ->assertSee('aria-label="Previous"', false)
+        ->assertSee('aria-label="Next"', false)
+        ->assertDontSee('scrollbar-width:thin', false)
         ->assertDontSee('Accessories, hampers & gifts');
 });
 

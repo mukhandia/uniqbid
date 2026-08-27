@@ -16,11 +16,13 @@
             </div>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
-                    @if (auth()->user()->is_admin)
+                <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                    {{ __('Dashboard') }}
+                </flux:sidebar.item>
+                @if (auth()->user()->is_admin)
+                    <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
+
+                    <flux:sidebar.group :heading="__('Sales & shop')" class="grid">
                         <flux:sidebar.item icon="scale" :href="route('admin.auctions')" :current="request()->routeIs('admin.auctions*')" wire:navigate>
                             {{ __('Sales') }}
                         </flux:sidebar.item>
@@ -33,20 +35,36 @@
                         <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate>
                             {{ __('Products') }}
                         </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
+
+                    <flux:sidebar.group :heading="__('People')" class="grid">
                         <flux:sidebar.item icon="users" :href="route('admin.customers')" :current="request()->routeIs('admin.customers') || request()->routeIs('admin.customer-verifications')" wire:navigate>
                             {{ __('Customers') }}
                         </flux:sidebar.item>
                         <flux:sidebar.item icon="megaphone" :href="route('admin.subscribers')" :current="request()->routeIs('admin.subscribers')" wire:navigate>
                             {{ __('Subscribers') }}
                         </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
+
+                    <flux:sidebar.group :heading="__('Support & reports')" class="grid">
                         <flux:sidebar.item icon="inbox" :href="route('admin.tickets')" :current="request()->routeIs('admin.tickets*')" wire:navigate>
                             {{ __('Support tickets') }}
                         </flux:sidebar.item>
-                        <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings')" wire:navigate>
-                            {{ __('Settings') }}
+                        <flux:sidebar.item icon="chart-bar" :href="route('admin.reports')" :current="request()->routeIs('admin.reports')" wire:navigate>
+                            {{ __('Reports') }}
                         </flux:sidebar.item>
-                    @endif
-                </flux:sidebar.group>
+                    </flux:sidebar.group>
+
+                    <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
+
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings', 'profile.edit', 'security.edit', 'appearance.edit')" wire:navigate>
+                        {{ __('Settings') }}
+                    </flux:sidebar.item>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />

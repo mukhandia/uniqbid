@@ -2,117 +2,343 @@
 
 use App\Models\Auction;
 use App\Models\AuctionResult;
+use App\Services\AuctionSettlementService;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin: Sale bids')]
+#[Title('Admin: Sale activity')]
 class extends Component {
+    use WithPagination;
+
     public Auction $auction;
-
-    public string $salePaymentStatus = 'awaiting_payment';
-
-    public string $fulfilmentStatus = 'pending';
 
     public function mount(Auction $auction): void
     {
-        $this->auction = $auction->load('result');
-        $this->salePaymentStatus = $this->auction->result?->sale_payment_status ?? 'awaiting_payment';
-        $this->fulfilmentStatus = $this->auction->result?->fulfilment_status ?? 'pending';
+        $this->auction = $auction;
     }
 
-    public function updateFulfilment(): void
+    public function with(): array
     {
-        $validated = $this->validate([
-            'salePaymentStatus' => ['required', 'in:awaiting_payment,paid'],
-            'fulfilmentStatus' => ['required', 'in:pending,collection_ready,dispatched,collected,delivered'],
-        ]);
+        $this->auction->refresh();
+        $this->auction->load(['result.auctionBid.bidder']);
 
-        $result = AuctionResult::query()->where('auction_id', $this->auction->id)->firstOrFail();
-        $result->update([
-            'sale_payment_status' => $validated['salePaymentStatus'],
-            'sale_payment_paid_at' => $validated['salePaymentStatus'] === 'paid'
-                ? ($result->sale_payment_paid_at ?? now())
-                : null,
-            'fulfilment_status' => $validated['fulfilmentStatus'],
-        ]);
+        $snapshot = app(AuctionSettlementService::class)->uniquenessSnapshot($this->auction);
 
-        Flux::toast(variant: 'success', text: 'Successful-buy settlement updated.');
+        return [
+            'bids' => $this->auction->bids()
+                ->with(['bidder', 'paymentAttempts'])
+                ->latest('id')
+                ->paginate(30),
+            'snapshot' => $snapshot,
+            'leadingBid' => $snapshot['leading_bid'],
+            'amountCounts' => $snapshot['amount_counts'],
+            'successfulBid' => $this->auction->result?->auctionBid,
+        ];
+    }
+
+    public function settle(AuctionSettlementService $settlement): void
+    {
+        try {
+            $result = $settlement->settle($this->auction, auth()->user());
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: $exception->errors()['auction'][0] ?? 'This sale cannot be settled yet.',
+            );
+
+            return;
+        }
+
+        $this->auction = $result['auction']->load(['result.auctionBid.bidder']);
+
+        $message = $result['successful_bid']
+            ? 'Sale settled. Successful bid: '.Money::kes($result['successful_bid']->amount)
+            : 'Sale settled with no unique accepted bid.';
+
+        Flux::toast(variant: 'success', text: $message);
+    }
+
+    public function markSalePaid(): void
+    {
+        $this->updateSettlement([
+            'sale_payment_status' => AuctionResult::PAYMENT_PAID,
+            'sale_payment_paid_at' => $this->auction->result?->sale_payment_paid_at ?? now(),
+        ], 'Successful-buy payment recorded.');
+    }
+
+    public function markCollectionReady(): void
+    {
+        $this->updateSettlement([
+            'fulfilment_status' => AuctionResult::FULFILMENT_COLLECTION_READY,
+        ], 'Item is ready for collection.');
+    }
+
+    public function markCollected(): void
+    {
+        if (! $this->auction->result?->isSalePaid()) {
+            Flux::toast(variant: 'danger', text: 'Record the successful-buy payment before marking the item picked up.');
+
+            return;
+        }
+
+        $this->updateSettlement([
+            'fulfilment_status' => AuctionResult::FULFILMENT_COLLECTED,
+        ], 'Item marked as picked up.');
+    }
+
+    public function markDispatched(): void
+    {
+        if (! $this->auction->result?->isSalePaid()) {
+            Flux::toast(variant: 'danger', text: 'Record the successful-buy payment before dispatching.');
+
+            return;
+        }
+
+        $this->updateSettlement([
+            'fulfilment_status' => AuctionResult::FULFILMENT_DISPATCHED,
+        ], 'Item marked as dispatched.');
+    }
+
+    public function markDelivered(): void
+    {
+        if (! $this->auction->result?->isSalePaid()) {
+            Flux::toast(variant: 'danger', text: 'Record the successful-buy payment before marking delivery.');
+
+            return;
+        }
+
+        $this->updateSettlement([
+            'fulfilment_status' => AuctionResult::FULFILMENT_DELIVERED,
+        ], 'Item marked as delivered.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function updateSettlement(array $attributes, string $success): void
+    {
+        $result = AuctionResult::query()->where('auction_id', $this->auction->id)->first();
+
+        if (! $result) {
+            Flux::toast(variant: 'danger', text: 'Settle this sale before updating pickup or payment.');
+
+            return;
+        }
+
+        $result->update($attributes);
+        $this->auction->load(['result.auctionBid.bidder']);
+
+        Flux::toast(variant: 'success', text: $success);
     }
 }; ?>
 
 @php
-    $bids = $auction->bids()
-        ->with(['bidder', 'paymentAttempts'])
-        ->latest()
-        ->paginate(30);
+    $result = $auction->result;
+    $isLiveOpen = $auction->isOpenLive();
+    $needsSettle = $auction->needsSettle();
+    $leadingBidder = $leadingBid?->bidder;
+    $successfulBidder = $successfulBid?->bidder;
 @endphp
 
-<div class="space-y-6">
-    <div class="flex items-start justify-between gap-4">
+<div class="space-y-6" wire:poll.180s.visible>
+    <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-            <a href="{{ route('admin.auctions') }}" class="text-sm text-zinc-500 hover:underline">← All sales</a>
+            <a href="{{ route('admin.auctions') }}" class="text-sm text-zinc-500 hover:underline" wire:navigate>← All sales</a>
             <flux:heading size="xl" class="mt-2">{{ $auction->name }}</flux:heading>
             <flux:text class="mt-1">
-                Bid and payment records for this sale.
-                @if ($auction->result)
-                    Successful buy: {{ Money::kes($auction->result->sale_price) }} ({{ $auction->result->buyer_display }})
+                Incoming bids refresh every 3 minutes while this page is open.
+                @if ($isLiveOpen)
+                    Closes {{ $auction->ends_at->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                    ({{ $auction->ends_at->diffForHumans() }}).
+                @elseif ($needsSettle)
+                    Ended {{ $auction->ends_at->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT. Settle to lock the successful bid.
+                @elseif ($result)
+                    Successful buy {{ Money::kes($result->sale_price) }} · public listing {{ $result->buyer_display }}.
                 @endif
             </flux:text>
         </div>
+        <div class="flex flex-wrap items-center gap-2">
+            @if ($isLiveOpen)
+                <flux:badge color="green">Live</flux:badge>
+            @elseif ($needsSettle)
+                <flux:badge color="amber">Needs settle</flux:badge>
+            @elseif ($auction->status === 'voided')
+                <flux:badge color="red">Voided</flux:badge>
+            @elseif ($auction->settled_at)
+                <flux:badge color="sky">Settled</flux:badge>
+            @endif
+            <flux:badge color="zinc">{{ $snapshot['accepted_count'] }} fee paid</flux:badge>
+            <flux:badge color="zinc">{{ $snapshot['unique_count'] }} unique amounts</flux:badge>
+        </div>
     </div>
 
-    @if ($auction->result)
-        <section class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:heading size="lg">Successful-buy settlement</flux:heading>
-            <flux:text class="mt-1">
-                {{ Money::kes($auction->result->sale_price) }} due by
-                {{ $auction->result->fulfilment_due_at?->timezone('Africa/Nairobi')->format('d M Y H:i') ?? 'the agreed deadline' }} EAT.
-            </flux:text>
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                <flux:select wire:model="salePaymentStatus" label="Sale payment">
-                    <flux:select.option value="awaiting_payment">Awaiting payment</flux:select.option>
-                    <flux:select.option value="paid">Paid</flux:select.option>
-                </flux:select>
-                <flux:select wire:model="fulfilmentStatus" label="Collection / delivery">
-                    <flux:select.option value="pending">Pending</flux:select.option>
-                    <flux:select.option value="collection_ready">Collection ready</flux:select.option>
-                    <flux:select.option value="dispatched">Dispatched</flux:select.option>
-                    <flux:select.option value="collected">Collected</flux:select.option>
-                    <flux:select.option value="delivered">Delivered</flux:select.option>
-                </flux:select>
+    @if ($needsSettle)
+        <flux:callout icon="clock" color="amber">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <div class="font-medium">This sale has ended and still needs settling.</div>
+                    <p class="mt-1 text-sm">
+                        @if ($leadingBid && $leadingBidder)
+                            Lowest unique accepted bid is {{ Money::kes($leadingBid->amount) }} from {{ $leadingBidder->name }}.
+                        @else
+                            There is no unique accepted bid yet. Settling will close the sale without a successful buyer.
+                        @endif
+                    </p>
+                </div>
+                <flux:button wire:click="settle" wire:confirm="Settle this sale now?">Settle sale</flux:button>
             </div>
-            <flux:button class="mt-4" wire:click="updateFulfilment">
-                Save settlement status
-            </flux:button>
+        </flux:callout>
+    @endif
+
+    @if ($result && $successfulBid)
+        <section class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <flux:heading size="lg">Successful bidder</flux:heading>
+                    <flux:text class="mt-1">
+                        Pay the sale price by
+                        {{ $result->fulfilment_due_at?->timezone('Africa/Nairobi')->format('d M Y H:i') ?? 'the agreed deadline' }}
+                        EAT, then mark whether the product was picked up.
+                    </flux:text>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <flux:badge :color="$result->isSalePaid() ? 'green' : 'amber'">{{ $result->salePaymentLabel() }}</flux:badge>
+                    <flux:badge :color="$result->isPickedUp() ? 'green' : 'zinc'">{{ $result->fulfilmentLabel() }}</flux:badge>
+                </div>
+            </div>
+
+            <div class="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+                <div class="grid gap-4 sm:grid-cols-2 text-sm">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Bidder</div>
+                        <div class="mt-1 font-medium">{{ $successfulBidder?->name ?? $result->buyer_display }}</div>
+                        @if ($successfulBidder)
+                            <div class="text-zinc-500">{{ $successfulBidder->phone }}</div>
+                            <div class="text-zinc-500">{{ $successfulBidder->email }}</div>
+                        @endif
+                        <div class="mt-2 text-xs text-zinc-500">Public result listing: {{ $result->buyer_display }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Successful bid</div>
+                        <div class="mt-1 text-lg font-semibold tabular-nums">{{ Money::kes($result->sale_price) }}</div>
+                        <div class="text-xs text-zinc-500">Ref {{ $successfulBid->reference }}</div>
+                    </div>
+                </div>
+
+                <aside class="space-y-2">
+                    <h2 class="text-sm font-semibold">Process this sale</h2>
+                    @if ($result->canMarkPaid())
+                        <flux:button class="w-full" wire:click="markSalePaid" wire:confirm="Record that the successful buyer has paid the sale price?">
+                            Mark sale paid
+                        </flux:button>
+                    @endif
+                    @if ($result->canMarkCollectionReady())
+                        <flux:button class="w-full" variant="outline" wire:click="markCollectionReady">
+                            Ready for collection
+                        </flux:button>
+                    @endif
+                    @if ($result->canMarkCollected())
+                        <flux:button class="w-full" wire:click="markCollected" wire:confirm="Mark this product as picked up?">
+                            Mark picked up
+                        </flux:button>
+                    @endif
+                    @if ($result->canMarkDispatched())
+                        <flux:button class="w-full" variant="outline" wire:click="markDispatched" wire:confirm="Mark this product as dispatched for delivery?">
+                            Mark dispatched
+                        </flux:button>
+                    @endif
+                    @if ($result->canMarkDelivered())
+                        <flux:button class="w-full" wire:click="markDelivered" wire:confirm="Mark this product as delivered?">
+                            Mark delivered
+                        </flux:button>
+                    @endif
+                    @unless ($result->canMarkPaid() || $result->canMarkCollectionReady() || $result->canMarkCollected() || $result->canMarkDispatched() || $result->canMarkDelivered())
+                        <p class="text-sm text-zinc-500">This successful buy is complete.</p>
+                    @endunless
+                </aside>
+            </div>
+        </section>
+    @elseif ($result)
+        <flux:callout icon="information-circle">
+            This sale was settled without a unique accepted bid. Re-offer or re-run it from the sales list if you still want to sell the item.
+        </flux:callout>
+    @elseif ($isLiveOpen)
+        <section class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <flux:heading size="lg">Current lowest unique</flux:heading>
+            @if ($leadingBid && $leadingBidder)
+                <p class="mt-2 text-sm">
+                    <span class="font-semibold">{{ $leadingBidder->name }}</span>
+                    holds {{ Money::kes($leadingBid->amount) }}.
+                    This can still change until the sale is settled.
+                </p>
+                <p class="mt-1 text-xs text-zinc-500">{{ $leadingBidder->phone }} · {{ $leadingBidder->email }}</p>
+            @else
+                <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                    No unique accepted bid yet. Tied amounts will not win at close.
+                </p>
+            @endif
         </section>
     @endif
 
     <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+            <h2 class="font-medium">Incoming bids</h2>
+            <div class="text-xs text-zinc-500">Newest first · poll every 3 minutes</div>
+        </div>
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
                 <tr>
+                    <th class="px-4 py-3 font-medium">When</th>
                     <th class="px-4 py-3 font-medium">Bidder</th>
                     <th class="px-4 py-3 font-medium">Bid</th>
+                    <th class="px-4 py-3 font-medium">Uniqueness</th>
                     <th class="px-4 py-3 font-medium">Status</th>
                     <th class="px-4 py-3 font-medium">Payment</th>
-                    <th class="px-4 py-3 font-medium">Marketing</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @forelse ($bids as $bid)
-                    @php $latestPayment = $bid->paymentAttempts->sortByDesc('id')->first(); @endphp
-                    <tr wire:key="admin-bid-{{ $bid->id }}">
+                    @php
+                        $latestPayment = $bid->paymentAttempts->sortByDesc('id')->first();
+                        $isLeading = $leadingBid && $bid->id === $leadingBid->id;
+                        $isSuccessful = $successfulBid && $bid->id === $successfulBid->id;
+                        $acceptedCount = $amountCounts[$bid->amount] ?? 0;
+                        $uniquenessLabel = match (true) {
+                            $bid->status !== 'accepted' => 'Fee not paid',
+                            $acceptedCount > 1 => 'Tied ×'.$acceptedCount,
+                            $isLeading && ! $result => 'Lowest unique',
+                            $isSuccessful => 'Successful bid',
+                            $acceptedCount === 1 => 'Unique',
+                            default => '—',
+                        };
+                    @endphp
+                    <tr
+                        wire:key="admin-bid-{{ $bid->id }}"
+                        @class([
+                            'bg-emerald-50 dark:bg-emerald-500/10' => $isSuccessful || ($isLeading && ! $result),
+                        ])
+                    >
+                        <td class="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
+                            {{ $bid->created_at?->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                        </td>
                         <td class="px-4 py-3">
                             <div class="font-medium">{{ $bid->bidder->name }}</div>
                             <div class="text-xs text-zinc-500">{{ $bid->bidder->phone }} · {{ $bid->bidder->email }}</div>
-                            <div class="text-xs text-zinc-500">Ref {{ $bid->reference }}</div>
+                            <div class="text-xs text-zinc-500">Ref {{ $bid->reference }} · Marketing {{ $bid->bidder->marketing_consent ? 'Yes' : 'No' }}</div>
                         </td>
-                        <td class="px-4 py-3 font-semibold">{{ Money::kes($bid->amount) }}</td>
+                        <td class="px-4 py-3 font-semibold tabular-nums">{{ Money::kes($bid->amount) }}</td>
+                        <td class="px-4 py-3">
+                            <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
+                                {{ $uniquenessLabel }}
+                            </span>
+                        </td>
                         <td class="px-4 py-3">
                             <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium dark:bg-zinc-800">
                                 {{ $bid->status }}
@@ -129,13 +355,10 @@ class extends Component {
                                 None
                             @endif
                         </td>
-                        <td class="px-4 py-3 text-xs">
-                            {{ $bid->bidder->marketing_consent ? 'Yes' : 'No' }}
-                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-zinc-500">No bids recorded yet.</td>
+                        <td colspan="6" class="px-4 py-8 text-center text-zinc-500">No bids recorded yet.</td>
                     </tr>
                 @endforelse
             </tbody>

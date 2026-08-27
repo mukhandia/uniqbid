@@ -6,7 +6,20 @@ use Livewire\Livewire;
 test('profile page is displayed', function () {
     $this->actingAs($user = User::factory()->create());
 
-    $this->get(route('profile.edit'))->assertOk();
+    $this->get(route('profile.edit'))
+        ->assertOk()
+        ->assertSee('Profile')
+        ->assertDontSee('Company Info');
+});
+
+test('admin profile settings include company info tab', function () {
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('profile.edit'))
+        ->assertOk()
+        ->assertSee('Company Info')
+        ->assertSee(route('admin.settings'), false)
+        ->assertSee('Security')
+        ->assertSee('Appearance');
 });
 
 test('profile information can be updated', function () {

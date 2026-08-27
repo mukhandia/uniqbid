@@ -153,7 +153,7 @@ class extends Component {
             <h2 class="text-2xl font-bold text-navy sm:text-3xl">Recent sales</h2>
             <a href="{{ route('past-sales') }}" class="text-sm font-medium text-navy hover:underline">All past sales →</a>
         </div>
-        <x-scroll-row class="mt-6">
+        <x-scroll-row class="mt-6" loop autoplay>
             @foreach ($recentSales as $sale)
                 <x-scroll-row-item>
                     <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
@@ -184,7 +184,7 @@ class extends Component {
                     </div>
                     <a href="{{ route('shop.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">Visit shop →</a>
                 </div>
-                <x-scroll-row class="mt-6">
+                <x-scroll-row class="mt-6" loop autoplay>
                     @foreach ($featuredProducts as $product)
                         <x-scroll-row-item>
                             <a href="{{ route('shop.show', $product) }}" class="group block overflow-hidden rounded-xl border border-border bg-card-home shadow-sm transition hover:shadow-md">

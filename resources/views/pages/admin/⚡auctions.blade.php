@@ -2,8 +2,10 @@
 
 use App\Models\Auction;
 use App\Services\AuctionSettlementService;
+use App\Services\DestroySaleService;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -151,28 +153,30 @@ class extends Component {
         $auction->makeHomepageHero();
         Flux::toast(variant: 'success', text: 'This sale is now the homepage hero.');
     }
+
+    public function delete(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+
+        try {
+            app(DestroySaleService::class)->handle($auction);
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: $exception->errors()['auction'][0] ?? 'This sale cannot be deleted.',
+            );
+
+            return;
+        }
+
+        Flux::toast(variant: 'success', text: 'Sale deleted. Reserved stock has been returned.');
+    }
 }; ?>
 
 <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4">
-        <div>
-            <flux:heading size="xl">Sales & bidding</flux:heading>
-            <flux:text class="mt-1">Review live and ended sales, settlement status, and bid activity. One live sale can be the homepage hero at a time.</flux:text>
-        </div>
-        <div class="flex flex-wrap justify-end gap-2">
-            <flux:button href="{{ route('admin.products') }}" variant="outline">
-                Products
-            </flux:button>
-            <flux:button href="{{ route('admin.categories') }}" variant="outline">
-                Categories
-            </flux:button>
-            <flux:button href="{{ route('admin.customers') }}" variant="outline">
-                Customers
-            </flux:button>
-            <flux:button href="{{ route('admin.customer-verifications') }}" variant="outline">
-                Customer verification
-            </flux:button>
-        </div>
+    <div>
+        <flux:heading size="xl">Sales & bidding</flux:heading>
+        <flux:text class="mt-1">Click a sale name to open incoming bids and processing. That page refreshes every 3 minutes. Delete a mistaken sale only when no participation fee has been paid — that returns stock and removes the sale. Use Void when bidders have already paid, so bid history remains for refunds.</flux:text>
     </div>
 
     <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
@@ -190,6 +194,7 @@ class extends Component {
                     <flux:select.option value="live">Live</flux:select.option>
                     <flux:select.option value="ending_soon">Ending within 6 hours</flux:select.option>
                     <flux:select.option value="needs_settle">Needs settle</flux:select.option>
+                    <flux:select.option value="to_process">To process</flux:select.option>
                     <flux:select.option value="settled">Settled</flux:select.option>
                     <flux:select.option value="voided">Voided</flux:select.option>
                     <flux:select.option value="draft">Draft</flux:select.option>
@@ -216,7 +221,7 @@ class extends Component {
         </flux:text>
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+    <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" wire:poll.180s.visible>
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
                 <tr>
@@ -253,7 +258,9 @@ class extends Component {
                     @endphp
                     <tr wire:key="admin-auction-{{ $auction->id }}">
                         <td class="px-4 py-3">
-                            <div class="text-base font-semibold">{{ $auction->name }}</div>
+                            <a href="{{ route('admin.auction-bids', $auction) }}" class="text-base font-semibold text-navy hover:underline dark:text-white" wire:navigate>
+                                {{ $auction->name }}
+                            </a>
                             <div class="mt-0.5 text-xs text-zinc-500">
                                 {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)
                             </div>
@@ -285,12 +292,23 @@ class extends Component {
                             @if ($auction->result)
                                 <div class="text-sm font-semibold tabular-nums">{{ Money::kes($auction->result->sale_price) }}</div>
                                 <div class="mt-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-300">{{ $auction->result->buyer_display }}</div>
+                                <div class="mt-1.5 flex flex-col items-start gap-1">
+                                    <flux:badge size="sm" :color="$auction->result->isSalePaid() ? 'green' : 'amber'">
+                                        {{ $auction->result->salePaymentLabel() }}
+                                    </flux:badge>
+                                    <flux:badge size="sm" :color="$auction->result->isPickedUp() ? 'green' : 'zinc'">
+                                        {{ $auction->result->fulfilmentLabel() }}
+                                    </flux:badge>
+                                </div>
                             @else
                                 <div class="text-sm font-medium text-zinc-500">No successful bid yet</div>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex flex-wrap justify-end gap-2">
+                                <flux:button size="sm" href="{{ route('admin.auction-bids', $auction) }}" wire:navigate>
+                                    Open
+                                </flux:button>
                                 @if ($auction->is_featured)
                                     <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Remove this sale from the homepage hero?">
                                         Remove from homepage
@@ -300,9 +318,6 @@ class extends Component {
                                         Set as homepage
                                     </flux:button>
                                 @endif
-                                <flux:button size="sm" variant="outline" href="{{ route('admin.auction-bids', $auction) }}">
-                                    Bids
-                                </flux:button>
                                 @if (! $auction->settled_at && $auction->ends_at->isPast())
                                     <flux:button size="sm" wire:click="settle({{ $auction->id }})" wire:confirm="Settle this sale now?">
                                         Settle
@@ -323,6 +338,11 @@ class extends Component {
                                     @endif
                                     <flux:button size="sm" variant="outline" wire:click="rerun({{ $auction->id }})" wire:confirm="Re-run this sale for 24 hours?">
                                         Re-run
+                                    </flux:button>
+                                @endif
+                                @if ($auction->accepted_bids_count === 0)
+                                    <flux:button size="sm" variant="danger" wire:click="delete({{ $auction->id }})" wire:confirm="Permanently delete this sale? Images and unpaid bid attempts will be removed, and reserved stock will be returned. This cannot be undone.">
+                                        Delete
                                     </flux:button>
                                 @endif
                             </div>

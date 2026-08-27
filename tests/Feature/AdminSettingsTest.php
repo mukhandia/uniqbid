@@ -61,14 +61,15 @@ test('admin settings rejects a map url from an unknown host', function () {
         ->assertHasErrors(['mapUrl']);
 });
 
-test('admin settings links to profile security and appearance', function () {
+test('admin settings uses tabs for company info profile security and appearance', function () {
     $this->actingAs($this->admin)
         ->get(route('admin.settings'))
         ->assertOk()
+        ->assertSee('Company Info')
         ->assertSee(route('profile.edit'), false)
         ->assertSee(route('security.edit'), false)
         ->assertSee(route('appearance.edit'), false)
-        ->assertSee('Your account');
+        ->assertDontSee('Your account');
 });
 
 test('admin chrome shows name email logout and no profile dropdown', function () {
@@ -78,7 +79,12 @@ test('admin chrome shows name email logout and no profile dropdown', function ()
         ->assertSee($this->admin->name)
         ->assertSee($this->admin->email)
         ->assertSee('Log out')
+        ->assertDontSee('Platform')
+        ->assertSee('Sales & shop')
+        ->assertSee('People')
+        ->assertSee('Support & reports')
         ->assertSee('Support tickets')
+        ->assertSee('Reports')
         ->assertSee('Settings')
         ->assertDontSee('data-test="sidebar-menu-button"', false)
         ->assertSee('data-test="logout-button"', false)

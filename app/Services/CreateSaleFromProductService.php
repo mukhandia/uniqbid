@@ -25,6 +25,21 @@ class CreateSaleFromProductService
     {
         return DB::transaction(function () use ($product, $options): Auction {
             $product = Product::query()->lockForUpdate()->findOrFail($product->id);
+
+            $blockingSale = Auction::query()
+                ->where('product_id', $product->id)
+                ->blockingNewSale()
+                ->latest('id')
+                ->first();
+
+            if ($blockingSale !== null) {
+                throw ValidationException::withMessages([
+                    'product' => $blockingSale->isOpenLive()
+                        ? 'This product already has a live sale. Open that sale instead of creating another.'
+                        : 'Settle the ended sale for this product before creating a new one.',
+                ]);
+            }
+
             $reserve = $options['reserve_stock'] ?? true;
 
             if ($reserve && $product->availableStock() < 1) {

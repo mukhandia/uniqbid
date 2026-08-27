@@ -43,6 +43,20 @@ class AuctionResult extends Model
     /** @use HasFactory<AuctionResultFactory> */
     use HasFactory;
 
+    public const PAYMENT_AWAITING = 'awaiting_payment';
+
+    public const PAYMENT_PAID = 'paid';
+
+    public const FULFILMENT_PENDING = 'pending';
+
+    public const FULFILMENT_COLLECTION_READY = 'collection_ready';
+
+    public const FULFILMENT_DISPATCHED = 'dispatched';
+
+    public const FULFILMENT_COLLECTED = 'collected';
+
+    public const FULFILMENT_DELIVERED = 'delivered';
+
     /**
      * @return array<string, string>
      */
@@ -100,6 +114,70 @@ class AuctionResult extends Model
             ->incompleteFulfilment()
             ->whereNotNull('fulfilment_due_at')
             ->where('fulfilment_due_at', '<', now());
+    }
+
+    /**
+     * @param  Builder<AuctionResult>  $query
+     * @return Builder<AuctionResult>
+     */
+    public function scopeNeedsProcessing(Builder $query): Builder
+    {
+        return $query->where(function (Builder $inner): void {
+            $inner->where('sale_payment_status', self::PAYMENT_AWAITING)
+                ->orWhereNotIn('fulfilment_status', [self::FULFILMENT_COLLECTED, self::FULFILMENT_DELIVERED]);
+        });
+    }
+
+    public function isSalePaid(): bool
+    {
+        return $this->sale_payment_status === self::PAYMENT_PAID;
+    }
+
+    public function isPickedUp(): bool
+    {
+        return in_array($this->fulfilment_status, [self::FULFILMENT_COLLECTED, self::FULFILMENT_DELIVERED], true);
+    }
+
+    public function salePaymentLabel(): string
+    {
+        return $this->isSalePaid() ? 'Sale paid' : 'Awaiting sale payment';
+    }
+
+    public function fulfilmentLabel(): string
+    {
+        return match ($this->fulfilment_status) {
+            self::FULFILMENT_PENDING => 'Not picked up',
+            self::FULFILMENT_COLLECTION_READY => 'Ready for collection',
+            self::FULFILMENT_DISPATCHED => 'Dispatched',
+            self::FULFILMENT_COLLECTED => 'Picked up',
+            self::FULFILMENT_DELIVERED => 'Delivered',
+            default => str_replace('_', ' ', (string) $this->fulfilment_status),
+        };
+    }
+
+    public function canMarkPaid(): bool
+    {
+        return ! $this->isSalePaid();
+    }
+
+    public function canMarkCollectionReady(): bool
+    {
+        return $this->fulfilment_status === self::FULFILMENT_PENDING;
+    }
+
+    public function canMarkCollected(): bool
+    {
+        return in_array($this->fulfilment_status, [self::FULFILMENT_PENDING, self::FULFILMENT_COLLECTION_READY], true);
+    }
+
+    public function canMarkDispatched(): bool
+    {
+        return in_array($this->fulfilment_status, [self::FULFILMENT_PENDING, self::FULFILMENT_COLLECTION_READY], true);
+    }
+
+    public function canMarkDelivered(): bool
+    {
+        return $this->fulfilment_status === self::FULFILMENT_DISPATCHED;
     }
 
     public function getRouteKeyName(): string
