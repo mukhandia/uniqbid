@@ -158,14 +158,14 @@ class MapEmbedUrl
      */
     private static function openStreetMapEmbed(string $fragment, array $query): ?string
     {
-        $lat = $query['mlat'] ?? null;
-        $lon = $query['mlon'] ?? null;
+        $lat = isset($query['mlat']) ? (float) $query['mlat'] : null;
+        $lon = isset($query['mlon']) ? (float) $query['mlon'] : null;
         $zoom = 16;
 
         if (preg_match('#map=(\d+)/(-?\d+(?:\.\d+)?)/(-?\d+(?:\.\d+)?)#', $fragment, $matches) === 1) {
             $zoom = (int) $matches[1];
-            $lat ??= $matches[2];
-            $lon ??= $matches[3];
+            $lat ??= (float) $matches[2];
+            $lon ??= (float) $matches[3];
         }
 
         if ($lat === null || $lon === null) {

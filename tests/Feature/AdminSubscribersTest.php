@@ -63,8 +63,8 @@ test('admin subscribers page lists opted in accounts and guest bidders', functio
         ->assertDontSee('guest-out@example.com')
         ->assertDontSee('admin-optin@example.com');
 
-    $amina = app(SubscriberListService::class)->optedIn()->firstWhere('email', 'amina@example.com');
-    $james = app(SubscriberListService::class)->optedIn()->firstWhere('email', 'james@example.com');
+    $amina = collect(app(SubscriberListService::class)->optedIn())->firstWhere('email', 'amina@example.com');
+    $james = collect(app(SubscriberListService::class)->optedIn())->firstWhere('email', 'james@example.com');
 
     expect($amina['sms'])->toBeTrue()
         ->and($amina['whatsapp'])->toBeTrue()
@@ -87,7 +87,7 @@ test('a linked bidder is not listed twice when the account already opted in', fu
         'phone' => $user->phone,
     ]);
 
-    $rows = app(SubscriberListService::class)->optedIn()->where('email', 'linked@example.com');
+    $rows = collect(app(SubscriberListService::class)->optedIn())->where('email', 'linked@example.com');
 
     expect($rows)->toHaveCount(1)
         ->and($rows->first()['source'])->toBe('Account');
@@ -106,7 +106,7 @@ test('unchecking updates and offers removes the contact from subscribers', funct
         'name' => $user->name,
     ]);
 
-    expect(app(SubscriberListService::class)->optedIn()->pluck('email'))
+    expect(collect(app(SubscriberListService::class)->optedIn())->pluck('email'))
         ->toContain('leave@example.com');
 
     Livewire::actingAs($user)
@@ -117,7 +117,7 @@ test('unchecking updates and offers removes the contact from subscribers', funct
 
     expect($user->fresh()->marketing_consent)->toBeFalse()
         ->and($user->bidder->fresh()->marketing_consent)->toBeFalse()
-        ->and(app(SubscriberListService::class)->optedIn()->pluck('email'))
+        ->and(collect(app(SubscriberListService::class)->optedIn())->pluck('email'))
         ->not->toContain('leave@example.com');
 
     $this->actingAs($this->admin);
@@ -142,7 +142,7 @@ test('subscribers list reflects sms and whatsapp update preferences from my acco
         ->call('saveProfile')
         ->assertHasNoErrors();
 
-    $row = app(SubscriberListService::class)->optedIn()->firstWhere('email', 'channels@example.com');
+    $row = collect(app(SubscriberListService::class)->optedIn())->firstWhere('email', 'channels@example.com');
 
     expect($row['sms'])->toBeFalse()
         ->and($row['whatsapp'])->toBeTrue();

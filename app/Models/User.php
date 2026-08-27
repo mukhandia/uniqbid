@@ -19,11 +19,18 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string|null $phone
  * @property Carbon|null $email_verified_at
+ * @property Carbon|null $phone_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
+ * @property bool $is_admin
+ * @property bool $marketing_consent
+ * @property Carbon|null $marketing_consented_at
+ * @property bool $sms_notifications
+ * @property bool $whatsapp_notifications
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at

@@ -10,7 +10,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int|null $user_id
+ * @property string $name
+ * @property string $email
+ * @property string $phone
+ * @property string|null $whatsapp_number
+ * @property bool $marketing_consent
+ * @property Carbon|null $marketing_consented_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 #[Fillable(['user_id', 'name', 'email', 'phone', 'whatsapp_number', 'marketing_consent', 'marketing_consented_at'])]
 class Bidder extends Model
 {

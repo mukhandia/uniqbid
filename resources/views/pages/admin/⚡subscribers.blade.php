@@ -15,7 +15,7 @@ class extends Component {
 
     public function with(): array
     {
-        $all = app(SubscriberListService::class)->optedIn();
+        $all = collect(app(SubscriberListService::class)->optedIn());
         $perPage = 30;
         $page = $this->getPage();
 
