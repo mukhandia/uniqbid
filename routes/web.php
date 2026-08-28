@@ -19,6 +19,7 @@ Route::livewire('past-sales', 'pages::results')->name('past-sales');
 Route::redirect('results', '/past-sales');
 Route::livewire('how-it-works', 'pages::how-it-works')->name('how-it-works');
 Route::livewire('testimonials', 'pages::testimonials')->name('testimonials');
+Route::livewire('faqs', 'pages::faqs')->name('faqs');
 Route::livewire('contact', 'pages::contact')->name('contact');
 Route::livewire('legal', 'pages::legal')->name('legal');
 Route::livewire('account', 'pages::account')->name('account');
@@ -41,6 +42,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('tickets', 'pages::admin.tickets')->name('tickets');
     Route::livewire('tickets/{ticket}', 'pages::admin.ticket')->name('tickets.show');
     Route::livewire('reports', 'pages::admin.reports')->name('reports');
+    Route::livewire('testimonials', 'pages::admin.testimonials')->name('testimonials');
+    Route::livewire('legal', 'pages::admin.legal')->name('legal');
+    Route::livewire('how-it-works', 'pages::admin.how-it-works')->name('how-it-works');
+    Route::livewire('faqs', 'pages::admin.faqs')->name('faqs');
     Route::livewire('settings', 'pages::admin.settings')->name('settings');
 });
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Testimonial;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -11,56 +12,7 @@ class extends Component {
     public function with(): array
     {
         return [
-            'testimonials' => [
-                [
-                    'name' => 'Amina Wanjiku',
-                    'location' => 'Nairobi',
-                    'role' => 'Successful buyer',
-                    'item' => 'Samsung 55" QLED TV',
-                    'quote' => 'I secured a TV for less than the price of a month\'s data bundles. The countdown was clear, M-Pesa was instant, and the delivery team called the same day.',
-                    'rating' => 5,
-                ],
-                [
-                    'name' => 'Brian Otieno',
-                    'location' => 'Kisumu',
-                    'role' => 'Regular bidder',
-                    'item' => 'iPhone 15 Pro',
-                    'quote' => 'Finally an auction site that shows the bid fee up front. I placed three bids, got WhatsApp receipts every time, and understood the outcome clearly when past sales went public.',
-                    'rating' => 5,
-                ],
-                [
-                    'name' => 'Faith Chebet',
-                    'location' => 'Eldoret',
-                    'role' => 'Shop customer',
-                    'item' => 'Leather Cardholder',
-                    'quote' => 'Came for the auctions, stayed for the shop. Ordered a gift hamper for my sister: quality packaging and it arrived in Eldoret in two days.',
-                    'rating' => 5,
-                ],
-                [
-                    'name' => 'Daniel Kamau',
-                    'location' => 'Thika',
-                    'role' => 'Successful buyer',
-                    'item' => 'PlayStation 5 Bundle',
-                    'quote' => 'I was sceptical about "lowest unique bid", but the worked example on How It Works made sense. Secured a PS5 for a fraction of retail. UniqBid feels legit.',
-                    'rating' => 5,
-                ],
-                [
-                    'name' => 'Grace Njeri',
-                    'location' => 'Mombasa',
-                    'role' => 'First-time bidder',
-                    'item' => 'Dyson Airwrap',
-                    'quote' => 'Support replied on WhatsApp within an hour when I mistyped my bid amount. They walked me through the rules without pressure. That trust made me place another bid.',
-                    'rating' => 4,
-                ],
-                [
-                    'name' => 'Joseph Mutua',
-                    'location' => 'Nakuru',
-                    'role' => 'Successful buyer',
-                    'item' => 'MacBook Air M3',
-                    'quote' => 'The public past sales ledger sold me. I checked earlier sales before bidding and saw real prices. After my successful buy, collection at their Nairobi depot was smooth.',
-                    'rating' => 5,
-                ],
-            ],
+            'testimonials' => Testimonial::query()->published()->ordered()->get(),
         ];
     }
 }; ?>
@@ -71,43 +23,47 @@ class extends Component {
             <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer stories</p>
             <h1 class="mt-2 text-3xl font-bold text-navy sm:text-4xl">What people say about UniqBid</h1>
             <p class="mt-3 text-base text-muted-foreground">
-                Placeholder reviews from Kenyan bidders and shoppers while we collect live feedback. Replace these with real customer quotes when ready.
+                Real feedback from Kenyan bidders and shoppers using UniqBid.
             </p>
         </div>
 
         <div class="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            @foreach ($testimonials as $item)
-                <article class="flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm">
-                    <div class="flex items-center gap-1 text-gold" aria-label="{{ $item['rating'] }} out of 5 stars">
+            @forelse ($testimonials as $item)
+                <article class="flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm" wire:key="testimonial-{{ $item->id }}">
+                    <div class="flex items-center gap-1 text-gold" aria-label="{{ $item->rating }} out of 5 stars">
                         @for ($i = 1; $i <= 5; $i++)
                             <flux:icon.star
                                 @class([
                                     'size-4',
-                                    'fill-current' => $i <= $item['rating'],
-                                    'opacity-30' => $i > $item['rating'],
+                                    'fill-current' => $i <= $item->rating,
+                                    'opacity-30' => $i > $item->rating,
                                 ])
                             />
                         @endfor
                     </div>
 
                     <blockquote class="mt-4 flex-1 text-sm leading-relaxed text-zinc-800">
-                        “{{ $item['quote'] }}”
+                        “{{ $item->quote }}”
                     </blockquote>
 
                     <div class="mt-6 flex items-center gap-3 border-t border-border pt-4">
                         <div class="grid h-10 w-10 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">
-                            {{ strtoupper(substr($item['name'], 0, 1)) }}
+                            {{ strtoupper(substr($item->name, 0, 1)) }}
                         </div>
                         <div class="min-w-0">
-                            <div class="truncate text-sm font-semibold text-navy">{{ $item['name'] }}</div>
+                            <div class="truncate text-sm font-semibold text-navy">{{ $item->name }}</div>
                             <div class="truncate text-xs text-muted-foreground">
-                                {{ $item['location'] }} · {{ $item['role'] }}
+                                {{ $item->location }} · {{ $item->role }}
                             </div>
-                            <div class="mt-0.5 truncate text-xs font-medium text-zinc-600">{{ $item['item'] }}</div>
+                            <div class="mt-0.5 truncate text-xs font-medium text-zinc-600">{{ $item->item }}</div>
                         </div>
                     </div>
                 </article>
-            @endforeach
+            @empty
+                <div class="col-span-full rounded-2xl border border-dashed border-border bg-white p-10 text-center text-sm text-muted-foreground">
+                    Customer stories will appear here soon.
+                </div>
+            @endforelse
         </div>
 
         <div class="mt-12 rounded-2xl border border-border bg-white p-8 text-center shadow-sm sm:p-10">

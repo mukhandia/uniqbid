@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
@@ -61,7 +61,24 @@
 
                     <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
 
-                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings', 'profile.edit', 'security.edit', 'appearance.edit')" wire:navigate>
+                    <flux:sidebar.group :heading="__('Content')" class="grid">
+                        <flux:sidebar.item icon="chat-bubble-left-right" :href="route('admin.testimonials')" :current="request()->routeIs('admin.testimonials')" wire:navigate>
+                            {{ __('Testimonials') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="document-text" :href="route('admin.legal')" :current="request()->routeIs('admin.legal')" wire:navigate>
+                            {{ __('Legal') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="book-open" :href="route('admin.how-it-works')" :current="request()->routeIs('admin.how-it-works')" wire:navigate>
+                            {{ __('How it works') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="question-mark-circle" :href="route('admin.faqs')" :current="request()->routeIs('admin.faqs')" wire:navigate>
+                            {{ __('FAQs') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
+
+                    <flux:sidebar.item icon="cog-6-tooth" :href="route('admin.settings')" :current="request()->routeIs('admin.settings', 'profile.edit', 'security.edit')" wire:navigate>
                         {{ __('Settings') }}
                     </flux:sidebar.item>
                 @endif

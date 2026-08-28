@@ -46,6 +46,9 @@ MAINTENANCE_ON=1
 echo "==> Running migrations"
 $PHP_BIN artisan migrate --force --no-interaction
 
+echo "==> Seeding CMS content (skipped if content already exists)"
+$PHP_BIN artisan db:seed --class=ContentSeeder --force --no-interaction
+
 echo "==> Ensuring admin user exists"
 $PHP_BIN artisan uniqbid:ensure-admin --no-interaction
 

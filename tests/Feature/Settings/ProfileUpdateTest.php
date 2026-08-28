@@ -19,7 +19,7 @@ test('admin profile settings include company info tab', function () {
         ->assertSee('Company Info')
         ->assertSee(route('admin.settings'), false)
         ->assertSee('Security')
-        ->assertSee('Appearance');
+        ->assertDontSee('Appearance');
 });
 
 test('profile information can be updated', function () {

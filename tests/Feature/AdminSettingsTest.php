@@ -61,14 +61,14 @@ test('admin settings rejects a map url from an unknown host', function () {
         ->assertHasErrors(['mapUrl']);
 });
 
-test('admin settings uses tabs for company info profile security and appearance', function () {
+test('admin settings uses tabs for company info profile and security', function () {
     $this->actingAs($this->admin)
         ->get(route('admin.settings'))
         ->assertOk()
         ->assertSee('Company Info')
         ->assertSee(route('profile.edit'), false)
         ->assertSee(route('security.edit'), false)
-        ->assertSee(route('appearance.edit'), false)
+        ->assertDontSee('Appearance')
         ->assertDontSee('Your account');
 });
 

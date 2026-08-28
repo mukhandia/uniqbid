@@ -50,17 +50,4 @@
         {{ __('Security') }}
     </a>
 
-    <a
-        href="{{ route('appearance.edit') }}"
-        wire:navigate
-        @class([
-            'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-            'bg-white text-zinc-900 shadow-sm dark:bg-zinc-900 dark:text-white' => request()->routeIs('appearance.edit'),
-            'text-zinc-500 hover:bg-white/70 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900/70 dark:hover:text-white' => ! request()->routeIs('appearance.edit'),
-        ])
-        @if (request()->routeIs('appearance.edit')) aria-current="page" @endif
-    >
-        <flux:icon icon="swatch" variant="mini" class="size-4" />
-        {{ __('Appearance') }}
-    </a>
 </nav>

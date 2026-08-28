@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             SiteSettingSeeder::class,
+            ContentSeeder::class,
             UniqBidDemoSeeder::class,
         ]);
     }

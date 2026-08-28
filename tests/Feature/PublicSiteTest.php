@@ -3,11 +3,13 @@
 use App\Models\Auction;
 use App\Models\Product;
 use App\Models\SupportTicket;
+use Database\Seeders\ContentSeeder;
 use Database\Seeders\UniqBidDemoSeeder;
 use Livewire\Livewire;
 
 beforeEach(function () {
     $this->seed(UniqBidDemoSeeder::class);
+    $this->seed(ContentSeeder::class);
 });
 
 test('home page renders featured auctions and shop highlights', function () {
@@ -111,7 +113,7 @@ test('shop index and product detail work', function () {
 });
 
 test('static public pages are reachable', function () {
-    foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart', 'orders.track'] as $route) {
+    foreach (['past-sales', 'how-it-works', 'testimonials', 'faqs', 'legal', 'contact', 'account', 'cart', 'orders.track'] as $route) {
         $this->get(route($route))->assertOk();
     }
 
@@ -136,12 +138,19 @@ test('how it works uses successful buy language', function () {
         ->assertSee('Bid amount')
         ->assertDontSee('>Win<', false);
 });
-test('testimonials page shows placeholder customer stories', function () {
+test('testimonials page shows customer stories', function () {
     $this->get(route('testimonials'))
         ->assertOk()
         ->assertSee('What people say about UniqBid')
         ->assertSee('Amina Wanjiku')
         ->assertSee('Browse live auctions');
+});
+
+test('faqs page shows seeded questions', function () {
+    $this->get(route('faqs'))
+        ->assertOk()
+        ->assertSee('Frequently asked questions')
+        ->assertSee('What is a lowest unique bid?');
 });
 
 test('contact form creates a support ticket', function () {

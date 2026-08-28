@@ -6,6 +6,7 @@
         ['route' => 'how-it-works', 'label' => 'How It Works', 'match' => 'how-it-works'],
         ['route' => 'past-sales', 'label' => 'Past Sales', 'match' => 'past-sales'],
         ['route' => 'testimonials', 'label' => 'Testimonials', 'match' => 'testimonials'],
+        ['route' => 'faqs', 'label' => 'FAQs', 'match' => 'faqs'],
         ['route' => 'contact', 'label' => 'Contact', 'match' => 'contact'],
     ];
     $onShop = request()->routeIs('shop.*');

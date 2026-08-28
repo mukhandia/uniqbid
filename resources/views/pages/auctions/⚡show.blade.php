@@ -305,23 +305,6 @@ class extends Component {
                 </div>
             @endif
 
-            <div class="mt-6 rounded-xl border border-border bg-white p-5">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Frequently asked questions</div>
-                <dl class="mt-3 divide-y divide-border text-sm">
-                    <div class="py-3">
-                        <dt class="font-semibold text-zinc-900">Can I place more than one bid?</dt>
-                        <dd class="mt-1 text-muted-foreground">Yes. Each bid must be a different amount in the published range and needs its own participation fee.</dd>
-                    </div>
-                    <div class="py-3">
-                        <dt class="font-semibold text-zinc-900">When do I pay my bid amount?</dt>
-                        <dd class="mt-1 text-muted-foreground">Only if your bid becomes the lowest unique bid at close. You then pay that amount on collection or delivery within 7 days.</dd>
-                    </div>
-                    <div class="py-3">
-                        <dt class="font-semibold text-zinc-900">What happens if there is no unique bid?</dt>
-                        <dd class="mt-1 text-muted-foreground">This sale will extend by {{ $auction->extension_minutes }} minutes to allow further bids, as stated before the sale opened.</dd>
-                    </div>
-                </dl>
-            </div>
         </div>
 
         <div>
