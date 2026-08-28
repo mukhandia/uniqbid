@@ -4,18 +4,25 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
-            <flux:sidebar.header>
-                <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
-            </flux:sidebar.header>
+        <flux:sidebar
+            sticky
+            collapsible="mobile"
+            class="admin-sidebar flex h-svh max-h-svh flex-col overflow-hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900"
+        >
+            <div class="shrink-0 border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+                <flux:sidebar.header>
+                    <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
+                    <flux:sidebar.collapse class="lg:hidden" />
+                </flux:sidebar.header>
 
-            <div class="px-4 pb-4">
-                <div class="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ auth()->user()->name }}</div>
-                <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ auth()->user()->email }}</div>
+                <div class="px-4 pb-4">
+                    <div class="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ auth()->user()->name }}</div>
+                    <div class="truncate text-xs text-zinc-500 dark:text-zinc-400">{{ auth()->user()->email }}</div>
+                </div>
             </div>
 
-            <flux:sidebar.nav>
+            <div class="admin-sidebar-nav min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <flux:sidebar.nav>
                 <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
@@ -82,11 +89,10 @@
                         {{ __('Settings') }}
                     </flux:sidebar.item>
                 @endif
-            </flux:sidebar.nav>
+                </flux:sidebar.nav>
+            </div>
 
-            <flux:spacer />
-
-            <div class="hidden items-center gap-2 p-4 lg:flex">
+            <div class="flex shrink-0 items-center gap-2 border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 @if (auth()->user()->is_admin)
                     <livewire:admin-ticket-bell wire:key="ticket-bell-sidebar" />
                 @endif
