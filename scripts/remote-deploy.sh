@@ -36,9 +36,6 @@ composer install \
   --prefer-dist \
   --no-progress
 
-echo "==> Publishing Livewire and Flux assets"
-bash scripts/publish-frontend-assets.sh
-
 echo "==> Entering maintenance mode"
 $PHP_BIN artisan down --retry=60 --refresh=15 || true
 MAINTENANCE_ON=1
@@ -63,6 +60,9 @@ $PHP_BIN artisan event:cache || true
 
 echo "==> Restarting queues (if workers are running)"
 $PHP_BIN artisan queue:restart || true
+
+echo "==> Publishing Livewire and Flux assets"
+bash scripts/publish-frontend-assets.sh
 
 leave_maintenance
 trap - EXIT

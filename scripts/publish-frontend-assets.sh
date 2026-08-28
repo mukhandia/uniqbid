@@ -31,4 +31,11 @@ fi
 cp "$FLUX_SRC" public/flux/flux.js
 cp "$FLUX_SRC" public/flux/flux.min.js
 
+for required in public/flux/flux.js public/vendor/livewire/manifest.json; do
+  if [[ ! -s "$required" ]]; then
+    echo "Missing required frontend asset after publish: $required" >&2
+    exit 1
+  fi
+done
+
 echo "==> Frontend framework assets ready"
