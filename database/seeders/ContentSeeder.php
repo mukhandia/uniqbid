@@ -23,7 +23,7 @@ class ContentSeeder extends Seeder
     public function run(): void
     {
         if (Testimonial::query()->exists()) {
-            $this->command?->info('CMS content already present — skipping ContentSeeder.');
+            $this->command->info('CMS content already present — skipping ContentSeeder.');
 
             return;
         }
