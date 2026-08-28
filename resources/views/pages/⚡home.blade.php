@@ -2,6 +2,7 @@
 
 use App\Models\Auction;
 use App\Models\AuctionResult;
+use App\Models\HowItWorksStep;
 use App\Models\Product;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -23,9 +24,27 @@ class extends Component {
     $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(10)->get();
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
     $featuredProducts = Product::query()->featured()->orderBy('name')->limit(10)->get();
+
+    $howItWorksSteps = HowItWorksStep::query()->orderBy('sort_order')->orderBy('id')->get();
+
+    if ($howItWorksSteps->isEmpty()) {
+        $howItWorksSteps = collect([
+            (object) ['step_number' => 1, 'title_en' => 'Browse', 'description_en' => 'See product value, the bid range, and the small participation fee for each sale.'],
+            (object) ['step_number' => 2, 'title_en' => 'Enter a bid amount', 'description_en' => 'Choose any amount inside the range. You can place multiple bids at different amounts.'],
+            (object) ['step_number' => 3, 'title_en' => 'Pay participation fee', 'description_en' => 'Pay the participation fee now to confirm that bid. It is separate from your bid amount.'],
+            (object) ['step_number' => 4, 'title_en' => 'Successful buy', 'description_en' => 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount on collection or delivery.'],
+        ]);
+    }
+
+    $howItWorksStepStyles = [
+        1 => ['border' => 'border-navy/15', 'bg' => 'bg-navy/5', 'iconBg' => 'bg-navy/10', 'icon' => 'magnifying-glass', 'accent' => 'text-navy'],
+        2 => ['border' => 'border-violet-500/20', 'bg' => 'bg-violet-500/5', 'iconBg' => 'bg-violet-500/10', 'icon' => 'cursor-arrow-rays', 'accent' => 'text-violet-700'],
+        3 => ['border' => 'border-gold/30', 'bg' => 'bg-gold/10', 'iconBg' => 'bg-gold/15', 'icon' => 'device-phone-mobile', 'accent' => 'text-gold'],
+        4 => ['border' => 'border-emerald-500/20', 'bg' => 'bg-emerald-500/5', 'iconBg' => 'bg-emerald-500/10', 'icon' => 'trophy', 'accent' => 'text-emerald-700'],
+    ];
 @endphp
 
-<div>
+<div wire:poll.30s.visible>
     <section class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]">
         <div class="absolute inset-0" aria-hidden="true">
             @if ($featured)
@@ -128,22 +147,48 @@ class extends Component {
 
     <section class="bg-surface">
         <div class="mx-auto max-w-7xl px-4 py-14">
-            <h2 class="text-center text-2xl font-bold text-navy sm:text-3xl">How UniqBid works</h2>
-            <p class="mx-auto mt-2 max-w-xl text-center text-sm text-muted-foreground">
-                Product value and bid range up front. Pay a small participation fee per bid. Successful buyers pay their bid amount later.
-            </p>
-            <div class="mt-8 grid gap-4 md:grid-cols-3">
-                @foreach ([
-                    ['n' => '1', 't' => 'Browse sales', 'd' => 'See product value, bid range, countdown, and the participation fee.'],
-                    ['n' => '2', 't' => 'Bid & pay fee', 'd' => 'Enter a bid amount in range, then pay the participation fee to confirm it.'],
-                    ['n' => '3', 't' => 'Successful buy', 'd' => 'Lowest unique bid secures the item. That buyer pays the bid amount on collection.'],
-                ] as $step)
-                    <div class="rounded-xl border border-border bg-white p-6 shadow-sm">
-                        <div class="grid h-9 w-9 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">{{ $step['n'] }}</div>
-                        <h3 class="mt-4 text-base font-semibold">{{ $step['t'] }}</h3>
-                        <p class="mt-1.5 text-sm text-muted-foreground">{{ $step['d'] }}</p>
+            <div class="text-center">
+                <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Simple steps</div>
+                <h2 class="mt-2 text-2xl font-bold text-navy sm:text-3xl">How UniqBid works</h2>
+                <p class="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                    Product value and bid range up front. Pay a small participation fee per bid. Successful buyers pay their bid amount later.
+                </p>
+            </div>
+
+            <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @foreach ($howItWorksSteps as $step)
+                    @php
+                        $style = $howItWorksStepStyles[$step->step_number] ?? $howItWorksStepStyles[1];
+                        $title = $step instanceof \App\Models\HowItWorksStep ? $step->titleFor('en') : $step->title_en;
+                        $description = $step instanceof \App\Models\HowItWorksStep ? $step->descriptionFor('en') : $step->description_en;
+                    @endphp
+                    <div
+                        wire:key="home-step-{{ $step->step_number }}"
+                        @class([
+                            'flex h-full flex-col rounded-2xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+                            $style['border'],
+                            $style['bg'],
+                        ])
+                    >
+                        <div class="flex items-start gap-3">
+                            <span @class(['grid size-11 shrink-0 place-items-center rounded-xl', $style['iconBg'], $style['accent']])>
+                                <flux:icon :icon="$style['icon']" class="size-5" />
+                            </span>
+                            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">
+                                {{ $step->step_number }}
+                            </span>
+                        </div>
+                        <h3 class="mt-4 text-base font-semibold text-navy">{{ $title }}</h3>
+                        <p class="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{{ $description }}</p>
                     </div>
                 @endforeach
+            </div>
+
+            <div class="mt-8 text-center">
+                <flux:button href="{{ route('how-it-works') }}" class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                    See the full guide with worked example
+                    <flux:icon.arrow-right class="size-4" />
+                </flux:button>
             </div>
         </div>
     </section>
@@ -156,16 +201,16 @@ class extends Component {
         <x-scroll-row class="mt-6" loop autoplay>
             @foreach ($recentSales as $sale)
                 <x-scroll-row-item>
-                    <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+                    <div class="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm">
                         <div class="aspect-square overflow-hidden bg-muted">
                             <img src="{{ $sale->image }}" alt="{{ $sale->name }}" class="h-full w-full object-cover">
                         </div>
-                        <div class="p-3">
+                        <div class="flex flex-1 flex-col p-3">
                             <div class="text-xs text-muted-foreground">{{ $sale->sold_on->format('j M') }}</div>
-                            <div class="mt-0.5 line-clamp-1 text-sm font-semibold">{{ $sale->name }}</div>
-                            <div class="mt-1 flex items-center justify-between">
-                                <span class="text-xs text-muted-foreground">{{ $sale->buyer_display }}</span>
-                                <span class="text-sm font-bold text-navy">{{ Money::kes($sale->sale_price) }}</span>
+                            <div class="mt-0.5 line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug">{{ $sale->name }}</div>
+                            <div class="mt-auto space-y-1 pt-2">
+                                <div class="text-xs text-muted-foreground">{{ $sale->buyer_display }}</div>
+                                <div class="text-sm font-bold tabular-nums text-navy">{{ Money::kes($sale->sale_price) }}</div>
                             </div>
                         </div>
                     </div>

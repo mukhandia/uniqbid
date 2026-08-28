@@ -37,10 +37,10 @@ class extends Component {
     }
 }; ?>
 
-<div class="mx-auto max-w-7xl px-4 py-10">
+<div class="mx-auto max-w-7xl px-4 py-10" wire:poll.30s.visible>
     <div class="flex flex-col gap-2">
         <h1 class="text-3xl font-bold text-navy">Live Auctions</h1>
-        <p class="text-sm text-muted-foreground">All open auctions. Timers update in real time.</p>
+        <p class="text-sm text-muted-foreground">All open auctions. Timers refresh every 30 seconds from the server.</p>
     </div>
 
     <div class="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white p-3">

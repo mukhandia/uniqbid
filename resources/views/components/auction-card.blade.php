@@ -21,7 +21,7 @@
         </div>
         <div class="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 rounded-lg bg-black/60 px-2 py-1 text-[10px] font-medium text-white backdrop-blur sm:inset-x-3 sm:bottom-3 sm:px-3 sm:py-1.5 sm:text-xs">
             <span class="shrink-0">Closes in</span>
-            <x-countdown :target="$auction->endsAtMs()" class="font-mono tabular-nums text-gold" />
+            <x-countdown :auction="$auction" class="font-mono tabular-nums text-gold" />
         </div>
     </div>
 

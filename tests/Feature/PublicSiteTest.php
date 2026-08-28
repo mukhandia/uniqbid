@@ -84,18 +84,26 @@ test('auction detail page is reachable by slug', function () {
         ->assertSee('Place your bid');
 });
 
-test('auction countdown uses days hours and minutes without seconds', function () {
+test('auction pages poll the server every thirty seconds for countdown labels', function () {
     $auction = Auction::query()->where('slug', 'iphone-15-pro')->firstOrFail();
 
-    $this->get(route('auctions.show', $auction))
+    $response = $this->get(route('auctions.show', $auction));
+
+    $response
         ->assertOk()
-        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
-        ->assertDontSee("padStart(2, '0')}s", false);
+        ->assertSee('wire:poll.10s.visible="refreshLiveSnapshot"', false)
+        ->assertDontSee('wire:ignore', false);
+
+    expect($response->getContent())->toMatch('/\d+d : \d{2}h : \d{2}m/');
 
     $this->get(route('auctions.index'))
         ->assertOk()
-        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
-        ->assertDontSee("padStart(2, '0')}s", false);
+        ->assertSee('wire:poll.30s.visible', false)
+        ->assertSee('Timers refresh every 30 seconds from the server');
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('wire:poll.30s.visible', false);
 });
 
 test('shop index and product detail work', function () {

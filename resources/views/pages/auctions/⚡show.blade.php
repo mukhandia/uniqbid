@@ -193,6 +193,7 @@ class extends Component {
 
         app(AuctionBidService::class)->markSucceeded(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
         $this->formState = 'success';
+        $this->refreshLiveSnapshot();
 
         Flux::toast(
             variant: 'success',
@@ -215,6 +216,11 @@ class extends Component {
         $this->reference = '';
         $this->paymentAttemptId = null;
     }
+
+    public function refreshLiveSnapshot(): void
+    {
+        $this->auction = $this->auction->fresh(['images']);
+    }
 }; ?>
 
 @php
@@ -225,7 +231,7 @@ class extends Component {
     $isSignedInCustomer = auth()->user()?->phone && ! auth()->user()?->is_admin;
 @endphp
 
-<div class="mx-auto max-w-7xl px-4 py-8">
+<div class="mx-auto max-w-7xl px-4 py-8" wire:poll.10s.visible="refreshLiveSnapshot">
     <div class="text-xs text-muted-foreground">
         <a href="{{ route('auctions.index') }}" class="hover:underline">Live Auctions</a>
         / {{ $auction->category }}
@@ -278,15 +284,32 @@ class extends Component {
             </div>
 
             <div class="mt-6 rounded-xl border border-border bg-white p-5">
-                <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live sale statistics</div>
-                <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                    <div class="rounded-lg bg-surface p-3">
-                        <div class="text-xs text-muted-foreground">Confirmed bids</div>
-                        <div class="mt-1 text-lg font-bold text-navy">{{ number_format($acceptedBids->count()) }}</div>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live sale statistics</div>
+                    <div class="text-[11px] text-muted-foreground">Refreshes every 10 seconds</div>
+                </div>
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-xl border border-navy/15 bg-navy/5 p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-navy/10 text-navy">
+                                <flux:icon.users class="size-5" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-medium leading-snug text-muted-foreground">Confirmed bids</div>
+                                <div class="mt-1 text-2xl font-bold tabular-nums text-navy">{{ number_format($acceptedBids->count()) }}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="rounded-lg bg-surface p-3">
-                        <div class="text-xs text-muted-foreground">Currently unique amounts</div>
-                        <div class="mt-1 text-lg font-bold text-navy">{{ number_format($uniqueBidAmounts) }}</div>
+                    <div class="rounded-xl border border-gold/35 bg-gold/10 p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-gold/20 text-gold">
+                                <flux:icon.sparkles class="size-5" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-medium leading-snug text-muted-foreground">Currently unique amounts</div>
+                                <div class="mt-1 text-2xl font-bold tabular-nums text-navy">{{ number_format($uniqueBidAmounts) }}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <p class="mt-3 text-xs text-muted-foreground">These statistics update as confirmed bids arrive. A unique amount is not a guarantee until the sale closes.</p>
@@ -318,8 +341,8 @@ class extends Component {
                         <div class="sm:text-right">
                             <div class="text-xs text-muted-foreground">Closes in</div>
                             <x-countdown
-                                :target="$auction->endsAtMs()"
-                                @class(['font-mono text-base font-bold tabular-nums sm:text-lg', 'text-red-600' => $closingSoon, 'text-navy' => ! $closingSoon])
+                                :auction="$auction"
+                                @class(['text-base font-bold sm:text-lg', 'text-red-600' => $closingSoon, 'text-navy' => ! $closingSoon])
                             />
                         </div>
                     </div>

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\Countdown;
+use Carbon\CarbonInterface;
 use Database\Factories\AuctionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -250,6 +252,11 @@ class Auction extends Model
     public function endsAtMs(): int
     {
         return (int) $this->ends_at->getTimestampMs();
+    }
+
+    public function countdownLabel(?CarbonInterface $now = null): string
+    {
+        return Countdown::label($this->ends_at, $now);
     }
 
     public function makeHomepageHero(): void
