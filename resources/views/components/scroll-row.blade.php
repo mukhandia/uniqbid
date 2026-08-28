@@ -17,6 +17,7 @@
     - optional infinite loop + autoplay
 --}}
 <div
+    @if ($loop) wire:ignore @endif
     {{ $attributes->merge(['class' => 'relative']) }}
     x-data="{
         loop: {{ $loop ? 'true' : 'false' }},
@@ -66,21 +67,42 @@
         fillLoop() {
             if (! this.loop || this.originalCount === 0) return;
             const track = this.$refs.track;
-            const templates = Array.from(track.children).slice(0, this.originalCount);
+            const templates = Array.from(track.querySelectorAll('[data-scroll-row-original]'));
             const visible = this.visibleCount() + 1;
             while (track.children.length < this.originalCount * 3 + visible) {
-                templates.forEach((node) => track.appendChild(node.cloneNode(true)));
+                templates.forEach((node) => {
+                    const clone = node.cloneNode(true);
+                    clone.removeAttribute('data-scroll-row-original');
+                    clone.setAttribute('data-scroll-row-clone', '');
+                    track.appendChild(clone);
+                });
             }
             templates.slice().reverse().forEach((node) => {
-                track.insertBefore(node.cloneNode(true), track.firstChild);
+                const clone = node.cloneNode(true);
+                clone.removeAttribute('data-scroll-row-original');
+                clone.setAttribute('data-scroll-row-clone', '');
+                track.insertBefore(clone, track.firstChild);
             });
             this.index = this.originalCount;
             this.applyOffset();
         },
+        resetTrack() {
+            const track = this.$refs.track;
+            if (! track) return;
+            track.querySelectorAll('[data-scroll-row-clone]').forEach((node) => node.remove());
+            this.index = 0;
+            this.offset = 0;
+            this.motion = false;
+        },
         setup() {
             const track = this.$refs.track;
             if (! track) return;
-            this.originalCount = track.children.length;
+            this.stopAutoplay();
+            this.resetTrack();
+            this.originalCount = track.querySelectorAll('[data-scroll-row-original]').length;
+            if (this.originalCount === 0) {
+                this.originalCount = track.children.length;
+            }
             this.stride = this.itemStride();
             this.fillLoop();
             this.stride = this.itemStride();
@@ -204,7 +226,7 @@
             }
         },
     }"
-    x-init="$nextTick(() => setup())"
+    x-init="(() => { $nextTick(() => setup()); return () => stopAutoplay(); })()"
     x-on:mouseenter="stopAutoplay()"
     x-on:mouseleave="startAutoplay()"
 >

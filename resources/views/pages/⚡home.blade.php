@@ -37,14 +37,14 @@ class extends Component {
     }
 
     $howItWorksStepStyles = [
-        1 => ['border' => 'border-navy/15', 'bg' => 'bg-navy/5', 'iconBg' => 'bg-navy/10', 'icon' => 'magnifying-glass', 'accent' => 'text-navy'],
-        2 => ['border' => 'border-violet-500/20', 'bg' => 'bg-violet-500/5', 'iconBg' => 'bg-violet-500/10', 'icon' => 'cursor-arrow-rays', 'accent' => 'text-violet-700'],
-        3 => ['border' => 'border-gold/30', 'bg' => 'bg-gold/10', 'iconBg' => 'bg-gold/15', 'icon' => 'device-phone-mobile', 'accent' => 'text-gold'],
-        4 => ['border' => 'border-emerald-500/20', 'bg' => 'bg-emerald-500/5', 'iconBg' => 'bg-emerald-500/10', 'icon' => 'trophy', 'accent' => 'text-emerald-700'],
+        1 => ['border' => 'border-navy/15', 'bg' => 'bg-navy/5'],
+        2 => ['border' => 'border-violet-500/20', 'bg' => 'bg-violet-500/5'],
+        3 => ['border' => 'border-gold/30', 'bg' => 'bg-gold/10'],
+        4 => ['border' => 'border-emerald-500/20', 'bg' => 'bg-emerald-500/5'],
     ];
 @endphp
 
-<div wire:poll.30s.visible>
+<div>
     <section class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]">
         <div class="absolute inset-0" aria-hidden="true">
             @if ($featured)
@@ -128,7 +128,7 @@ class extends Component {
         </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-4 py-14">
+    <section class="mx-auto max-w-7xl px-4 py-14" wire:poll.30s.visible>
         <div class="flex items-end justify-between">
             <div>
                 <div class="text-xs font-semibold uppercase tracking-wider text-gold">Live now</div>
@@ -170,14 +170,9 @@ class extends Component {
                             $style['bg'],
                         ])
                     >
-                        <div class="flex items-start gap-3">
-                            <span @class(['grid size-11 shrink-0 place-items-center rounded-xl', $style['iconBg'], $style['accent']])>
-                                <flux:icon :icon="$style['icon']" class="size-5" />
-                            </span>
-                            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">
-                                {{ $step->step_number }}
-                            </span>
-                        </div>
+                        <span class="grid size-10 place-items-center rounded-full bg-navy text-sm font-bold text-navy-foreground">
+                            {{ $step->step_number }}
+                        </span>
                         <h3 class="mt-4 text-base font-semibold text-navy">{{ $title }}</h3>
                         <p class="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{{ $description }}</p>
                     </div>
