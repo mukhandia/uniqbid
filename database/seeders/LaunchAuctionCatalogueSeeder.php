@@ -180,6 +180,14 @@ class LaunchAuctionCatalogueSeeder extends Seeder
 
             $existing = Product::query()->where('slug', $row['slug'])->first();
 
+            $stock = 5;
+            $reservedStock = 0;
+
+            if ($existing !== null) {
+                $stock = max(5, (int) $existing->stock);
+                $reservedStock = (int) $existing->reserved_stock;
+            }
+
             $product = Product::query()->updateOrCreate(
                 ['slug' => $row['slug']],
                 [
@@ -191,8 +199,8 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                     'price_tier' => 'Mid-range',
                     'description' => $row['description'],
                     'price' => $row['price'],
-                    'stock' => max(5, (int) ($existing?->stock ?? 5)),
-                    'reserved_stock' => (int) ($existing?->reserved_stock ?? 0),
+                    'stock' => $stock,
+                    'reserved_stock' => $reservedStock,
                     'image' => $row['image'],
                     'is_featured' => false,
                     'is_returnable' => false,
