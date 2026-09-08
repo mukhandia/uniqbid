@@ -36,7 +36,7 @@ class SiteSearchService
         }
 
         $auctions = Auction::query()
-            ->live()
+            ->liveOnAuctionChannel()
             ->with('images')
             ->search($term)
             ->orderBy('ends_at')
@@ -44,6 +44,7 @@ class SiteSearchService
             ->get();
 
         $products = Product::query()
+            ->inShop()
             ->search($term)
             ->orderByDesc('is_featured')
             ->orderBy('name')
@@ -53,7 +54,7 @@ class SiteSearchService
         $extraAuctions = $products->isEmpty()
             ? $auctions->take(0)
             : Auction::query()
-                ->live()
+                ->liveOnAuctionChannel()
                 ->with('images')
                 ->whereIn('product_id', $products->modelKeys())
                 ->when(
@@ -177,7 +178,7 @@ class SiteSearchService
             'category' => $category,
             'image' => $image,
             'in_auction' => $auction !== null,
-            'in_shop' => $product !== null,
+            'in_shop' => $product !== null && $product->isInShop(),
             'auction_slug' => $auction?->slug,
             'product_slug' => $product?->slug,
         ];

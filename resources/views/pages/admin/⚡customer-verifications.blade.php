@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Support\AuditLogger;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
@@ -27,6 +28,10 @@ class extends Component {
         $control->update([
             'verification_status' => $status,
             'verification_requested_at' => $status === 'requested' ? now() : $control->verification_requested_at,
+        ]);
+
+        AuditLogger::log('customers', 'verification status updated', 'verification_updated', $user, [
+            'verification_status' => $status,
         ]);
 
         Flux::toast(variant: 'success', text: 'Verification status updated.');

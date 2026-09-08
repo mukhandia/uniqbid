@@ -27,6 +27,23 @@ test('live scope only includes open auctions that have not ended', function () {
         ->toBe(['Live Now']);
 });
 
+test('live on auction channel scope excludes orphan and shop-only sales', function () {
+    Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Catalogue Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+    ]);
+    Auction::factory()->create([
+        'name' => 'Orphan Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'product_id' => null,
+    ]);
+
+    expect(Auction::query()->liveOnAuctionChannel()->pluck('name')->all())
+        ->toBe(['Catalogue Sale']);
+});
+
 test('featured scope filters featured auctions', function () {
     Auction::factory()->create(['name' => 'Featured One', 'is_featured' => true]);
     Auction::factory()->create(['name' => 'Not Featured', 'is_featured' => false]);
@@ -83,6 +100,81 @@ test('removing a sale from the homepage hero clears its featured flag', function
     $auction->removeFromHomepageHero();
 
     expect($auction->fresh()->is_featured)->toBeFalse();
+});
+
+test('ensure homepage hero keeps only one live featured sale and promotes a replacement', function () {
+    $endedHero = Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Ended Hero',
+        'status' => 'closed',
+        'ends_at' => now()->subHour(),
+        'is_featured' => true,
+    ]);
+    $duplicateHero = Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Duplicate Live Hero',
+        'status' => 'live',
+        'ends_at' => now()->addHours(5),
+        'display_order' => 20,
+        'is_featured' => true,
+    ]);
+    $preferred = Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Preferred Live',
+        'status' => 'live',
+        'ends_at' => now()->addHours(2),
+        'display_order' => 10,
+        'is_featured' => true,
+    ]);
+
+    $hero = Auction::ensureHomepageHero();
+
+    expect($hero?->is($preferred))->toBeTrue()
+        ->and($preferred->fresh()->is_featured)->toBeTrue()
+        ->and($duplicateHero->fresh()->is_featured)->toBeFalse()
+        ->and($endedHero->fresh()->is_featured)->toBeFalse()
+        ->and(Auction::query()->liveOnAuctionChannel()->featured()->count())->toBe(1);
+});
+
+test('when the homepage hero leaves live status another live sale is promoted', function () {
+    $hero = Auction::factory()->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'is_featured' => true,
+    ]);
+    $other = Auction::factory()->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHours(3),
+        'is_featured' => false,
+    ]);
+
+    $hero->forceFill([
+        'status' => 'closed',
+        'ends_at' => now()->subMinute(),
+        'settled_at' => now(),
+    ])->save();
+
+    Auction::ensureHomepageHero();
+
+    expect($hero->fresh()->is_featured)->toBeFalse()
+        ->and($other->fresh()->is_featured)->toBeTrue();
+});
+
+test('removing homepage hero promotes a different live sale when available', function () {
+    $hero = Auction::factory()->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'display_order' => 10,
+        'is_featured' => true,
+    ]);
+    $other = Auction::factory()->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHours(2),
+        'display_order' => 20,
+        'is_featured' => false,
+    ]);
+
+    $hero->removeFromHomepageHero();
+
+    expect($hero->fresh()->is_featured)->toBeFalse()
+        ->and($other->fresh()->is_featured)->toBeTrue();
 });
 
 test('auction helpers expose primary image and end timestamp', function () {

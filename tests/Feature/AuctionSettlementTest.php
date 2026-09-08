@@ -39,6 +39,7 @@ test('lowest unique accepted bid becomes the successful buy', function () {
     $result = app(AuctionSettlementService::class)->settle($auction);
 
     expect($result['successful_bid']?->is($successful))->toBeTrue()
+        ->and($result['advanced_round'])->toBeFalse()
         ->and($auction->fresh()->status)->toBe('closed')
         ->and($auction->fresh()->settled_at)->not->toBeNull()
         ->and($auction->fresh()->result->sale_price)->toBe(22)
@@ -48,22 +49,29 @@ test('lowest unique accepted bid becomes the successful buy', function () {
         && ($context['template'] ?? null) === 'successful_buyer');
 });
 
-test('sale extends when no unique accepted bid exists', function () {
+test('sale advances to the next round when no unique accepted bid exists', function () {
     $auction = Auction::factory()->create([
         'status' => 'live',
         'ends_at' => now()->subMinute(),
+        'current_round' => 1,
+        'duration_hours' => 30,
     ]);
 
     AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 10]);
     AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 10]);
 
     $result = app(AuctionSettlementService::class)->settle($auction);
+    $fresh = $auction->fresh('rounds');
 
     expect($result['successful_bid'])->toBeNull()
-        ->and($auction->fresh()->status)->toBe('live')
-        ->and($auction->fresh()->settled_at)->toBeNull()
-        ->and($auction->fresh()->ends_at->isFuture())->toBeTrue()
-        ->and($auction->fresh()->result)->toBeNull();
+        ->and($result['advanced_round'])->toBeTrue()
+        ->and($fresh->status)->toBe('live')
+        ->and($fresh->settled_at)->toBeNull()
+        ->and($fresh->current_round)->toBe(2)
+        ->and($fresh->ends_at->isFuture())->toBeTrue()
+        ->and($fresh->result)->toBeNull()
+        ->and($fresh->rounds)->toHaveCount(2)
+        ->and($fresh->rounds->firstWhere('round', 1)?->outcome)->toBe('no_unique');
 });
 
 test('settle ended command settles due sales', function () {

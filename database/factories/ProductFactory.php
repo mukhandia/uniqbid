@@ -35,6 +35,8 @@ class ProductFactory extends Factory
             'image' => '/images/products/leather-cardholder.png',
             'is_featured' => false,
             'is_returnable' => true,
+            'channel' => Product::CHANNEL_SHOP,
+            'auction_sort_order' => 0,
         ];
     }
 
@@ -42,6 +44,34 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (): array => [
             'is_returnable' => false,
+        ]);
+    }
+
+    public function unassigned(): static
+    {
+        return $this->state(fn (): array => [
+            'channel' => Product::CHANNEL_NONE,
+        ]);
+    }
+
+    public function inShop(): static
+    {
+        return $this->state(fn (): array => [
+            'channel' => Product::CHANNEL_SHOP,
+        ]);
+    }
+
+    public function forAuction(): static
+    {
+        return $this->state(fn (): array => [
+            'channel' => Product::CHANNEL_AUCTION,
+        ]);
+    }
+
+    public function forBoth(): static
+    {
+        return $this->state(fn (): array => [
+            'channel' => Product::CHANNEL_BOTH,
         ]);
     }
 }

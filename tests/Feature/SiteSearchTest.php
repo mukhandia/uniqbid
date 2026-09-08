@@ -18,13 +18,26 @@ test('home and shop pages show a search bar under the header', function () {
 });
 
 test('searching finds a live auction', function () {
-    Auction::factory()->create([
+    $headphones = Product::factory()->forAuction()->create([
         'name' => 'Sony WH-1000XM5 Headphones',
+        'category' => 'Electronics',
+    ]);
+    Auction::factory()->create([
+        'product_id' => $headphones->id,
+        'name' => $headphones->name,
+        'category' => $headphones->category,
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
-    Auction::factory()->create([
+
+    $blender = Product::factory()->forAuction()->create([
         'name' => 'Kitchen blender bundle',
+        'category' => 'Home',
+    ]);
+    Auction::factory()->create([
+        'product_id' => $blender->id,
+        'name' => $blender->name,
+        'category' => $blender->category,
         'status' => 'live',
         'ends_at' => now()->addDays(2),
     ]);
@@ -56,7 +69,7 @@ test('searching finds a shop product', function () {
 });
 
 test('an item linked to a live sale and the shop is marked as found in both', function () {
-    $product = Product::factory()->create([
+    $product = Product::factory()->forBoth()->create([
         'name' => 'Dyson Airwrap',
         'category' => 'Beauty',
         'stock' => 3,
@@ -79,12 +92,13 @@ test('an item linked to a live sale and the shop is marked as found in both', fu
 });
 
 test('the same item name in a live sale and the shop is marked as found in both', function () {
-    Product::factory()->create([
+    $product = Product::factory()->forBoth()->create([
         'name' => 'MacBook Air M3',
         'category' => 'Electronics',
         'stock' => 2,
     ]);
     Auction::factory()->create([
+        'product_id' => $product->id,
         'name' => 'MacBook Air M3',
         'category' => 'Electronics',
         'status' => 'live',
@@ -100,12 +114,12 @@ test('the same item name in a live sale and the shop is marked as found in both'
 });
 
 test('closed and ended auctions are excluded from search', function () {
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Closed iPhone sale',
         'status' => 'closed',
         'ends_at' => now()->subHour(),
     ]);
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Expired iPhone listing',
         'status' => 'live',
         'ends_at' => now()->subMinute(),

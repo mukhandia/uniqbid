@@ -10,6 +10,7 @@
         ],
         'Shop & support' => [
             ['route' => 'shop.index', 'label' => 'Shop', 'icon' => 'shopping-bag'],
+            ['route' => 'redeem', 'label' => 'Redeem Bid', 'icon' => 'banknotes'],
             ['route' => 'account', 'label' => 'My account', 'icon' => 'user'],
             ['route' => 'faqs', 'label' => 'FAQs', 'icon' => 'question-mark-circle'],
             ['route' => 'contact', 'label' => 'Contact support', 'icon' => 'inbox'],
@@ -36,7 +37,7 @@
                         <div class="text-lg font-bold tracking-tight">
                             <span class="text-white">Uniq</span><span class="text-gold">Bid</span>
                         </div>
-                        <p class="mt-1 text-xs font-medium uppercase tracking-wider text-white/60">Licensed auctioneer · Kenya</p>
+                        <p class="mt-1 text-xs font-medium uppercase tracking-wider text-white/60">Kenya</p>
                     </div>
                 </div>
 

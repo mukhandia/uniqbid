@@ -4,6 +4,8 @@ use App\Models\Auction;
 use App\Models\AuctionResult;
 use App\Models\HowItWorksStep;
 use App\Models\Product;
+use App\Models\SiteSetting;
+use App\Services\LiveAuctionOrderingService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -18,12 +20,17 @@ class extends Component {
 @php
     use App\Support\Money;
 
-    $featured = Auction::query()->with('images')->live()->featured()->orderBy('ends_at')->first()
-        ?? Auction::query()->with('images')->live()->orderBy('ends_at')->first();
+    $ordering = app(LiveAuctionOrderingService::class);
+    $settings = SiteSetting::current();
+    Auction::ensureHomepageHero();
+    $pollSeconds = min(60, max(5, $settings->auctionShuffleIntervalSeconds()));
 
-    $grid = Auction::query()->with('images')->live()->orderBy('ends_at')->limit(10)->get();
+    $featured = Auction::query()->with('images')->liveOnAuctionChannel()->featured()->orderBy('ends_at')->first()
+        ?? $ordering->orderedLive(1)->first();
+
+    $grid = $ordering->orderedLive(10);
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
-    $featuredProducts = Product::query()->featured()->orderBy('name')->limit(10)->get();
+    $featuredProducts = Product::query()->inShop()->featured()->orderBy('name')->limit(10)->get();
 
     $howItWorksSteps = HowItWorksStep::query()->orderBy('sort_order')->orderBy('id')->get();
 
@@ -32,7 +39,7 @@ class extends Component {
             (object) ['step_number' => 1, 'title_en' => 'Browse', 'description_en' => 'See product value, the bid range, and the small participation fee for each sale.'],
             (object) ['step_number' => 2, 'title_en' => 'Enter a bid amount', 'description_en' => 'Choose any amount inside the range. You can place multiple bids at different amounts.'],
             (object) ['step_number' => 3, 'title_en' => 'Pay participation fee', 'description_en' => 'Pay the participation fee now to confirm that bid. It is separate from your bid amount.'],
-            (object) ['step_number' => 4, 'title_en' => 'Successful buy', 'description_en' => 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount on collection or delivery.'],
+            (object) ['step_number' => 4, 'title_en' => 'Successful buy', 'description_en' => 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount and can collect the item or redeem for the product value in cash.'],
         ]);
     }
 
@@ -128,7 +135,7 @@ class extends Component {
         </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-4 py-14" wire:poll.30s.visible>
+    <section class="mx-auto max-w-7xl px-4 py-14" wire:poll.{{ $pollSeconds }}s.visible>
         <div class="flex items-end justify-between">
             <div>
                 <div class="text-xs font-semibold uppercase tracking-wider text-gold">Live now</div>

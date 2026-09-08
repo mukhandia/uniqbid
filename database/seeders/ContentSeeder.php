@@ -155,12 +155,12 @@ class ContentSeeder extends Seeder
             'example_heading_sw' => 'Mfano wa kazi',
             'example_intro_en' => 'Five people bid on the same item. Who secures the buy?',
             'example_intro_sw' => 'Watu watano wanaweka zabuni kwenye bidhaa moja. Nani anapata ununuzi?',
-            'example_note_en' => 'Each bidder also paid a separate participation fee when placing their bid. Bidder C then pays {amount} on collection or delivery, not the product’s retail value. A and B tied at KES 15, so those bids were not unique.',
-            'example_note_sw' => 'Kila mwekezaji pia alilipa ada ya ushiriki tofauti alipoweka zabuni yake. Mwekezaji C analipa {amount} ukusanyaji au uwasilishaji, si thamani ya rejareja ya bidhaa. A na B walilingana kwa KES 15, hivyo zabuni hizo hazikuwa za kipekee.',
+            'example_note_en' => 'Each bidder also paid a separate participation fee when placing their bid. Bidder C then pays {amount} and may collect the item or redeem for the product value in cash — not the product’s retail value as a bid payment. A and B tied at KES 15, so those bids were not unique.',
+            'example_note_sw' => 'Kila mwekezaji pia alilipa ada ya ushiriki tofauti alipoweka zabuni yake. Mwekezaji C analipa {amount} na anaweza kuchukua bidhaa au kukomboa kwa thamani ya bidhaa kwa pesa — si thamani ya rejareja kama malipo ya zabuni. A na B walilingana kwa KES 15, hivyo zabuni hizo hazikuwa za kipekee.',
             'what_you_pay_title_en' => 'What you pay',
             'what_you_pay_title_sw' => 'Unacholipa',
-            'what_you_pay_body_en' => "<strong>Participation fee:</strong> paid now for each bid you place.<br>\n<strong>Bid amount:</strong> the number you enter in the range; paid later only if it is the successful bid.<br>\n<strong>Product value:</strong> shown for comparison only; never charged as a bid payment.",
-            'what_you_pay_body_sw' => "<strong>Ada ya ushiriki:</strong> inalipwa sasa kwa kila zabuni unayoweka.<br>\n<strong>Kiasi cha zabuni:</strong> nambari unayoweka ndani ya masafa; inalipwa baadaye tu ikiwa ndiyo zabuni iliyofanikiwa.<br>\n<strong>Thamani ya bidhaa:</strong> inaonyeshwa kwa kulinganisha tu; haijalipwi kama malipo ya zabuni.",
+            'what_you_pay_body_en' => "<strong>Participation fee:</strong> paid now for each bid you place.<br>\n<strong>Bid amount:</strong> the number you enter in the range; paid later only if it is the successful bid.<br>\n<strong>Product value:</strong> shown for comparison; successful buyers may redeem for this cash amount instead of collecting the item.",
+            'what_you_pay_body_sw' => "<strong>Ada ya ushiriki:</strong> inalipwa sasa kwa kila zabuni unayoweka.<br>\n<strong>Kiasi cha zabuni:</strong> nambari unayoweka ndani ya masafa; inalipwa baadaye tu ikiwa ndiyo zabuni iliyofanikiwa.<br>\n<strong>Thamani ya bidhaa:</strong> inaonyeshwa kwa kulinganisha; wanunuzi waliofanikiwa wanaweza kukomboa kwa kiasi hiki cha pesa badala ya kuchukua bidhaa.",
             'transparency_title_en' => 'Transparency',
             'transparency_title_sw' => 'Uwazi',
             'transparency_body_en' => 'Live bid counts and sale activity appear on auction pages. Past sales are published publicly. This is a products-selling platform, not gambling.',
@@ -171,7 +171,7 @@ class ContentSeeder extends Seeder
             [1, 'Browse', 'Vinjari', 'See product value, the bid range, and the small participation fee for each sale.', 'Angalia thamani ya bidhaa, masafa ya zabuni, na ada ndogo ya ushiriki kwa kila mauzo.'],
             [2, 'Enter a bid amount', 'Weka kiasi cha zabuni', 'Choose any amount inside the range. You can place multiple bids at different amounts.', 'Chagua kiasi chochote ndani ya masafa. Unaweza kuweka zabuni nyingi kwa viwango tofauti.'],
             [3, 'Pay participation fee', 'Lipa ada ya ushiriki', 'Pay the participation fee now to confirm that bid. It is separate from your bid amount.', 'Lipa ada ya ushiriki sasa kuthibitisha zabuni hiyo. Ni tofauti na kiasi cha zabuni yako.'],
-            [4, 'Successful buy', 'Ununuzi uliofanikiwa', 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount on collection or delivery.', 'Mwisho wa mauzo, zabuni ya chini kabisa isiyo na mfano ndiyo inayopata bidhaa. Mnunuzi huyo analipa kiasi cha zabuni yake ukusanyaji au uwasilishaji.'],
+            [4, 'Successful buy', 'Ununuzi uliofanikiwa', 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount and can collect the item or redeem for the product value in cash.', 'Mwisho wa mauzo, zabuni ya chini kabisa isiyo na mfano ndiyo inayopata bidhaa. Mnunuzi huyo analipa kiasi cha zabuni yake na anaweza kuchukua bidhaa au kukomboa kwa thamani ya bidhaa kwa pesa.'],
         ];
 
         foreach ($steps as $index => [$number, $titleEn, $titleSw, $descriptionEn, $descriptionSw]) {

@@ -14,6 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Spatie\Permission\Traits\HasRoles;
 
 /**
  * @property int $id
@@ -50,7 +51,7 @@ use Illuminate\Support\Str;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -104,9 +105,37 @@ class User extends Authenticatable
         return $query->where('marketing_consent', true)->where('is_admin', false);
     }
 
+    /**
+     * Users with admin panel access via is_admin flag and/or Spatie roles.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeStaff(Builder $query): Builder
+    {
+        return $query->where(function (Builder $inner): void {
+            $inner->where('is_admin', true)->orWhereHas('roles');
+        });
+    }
+
+    public function canAccessAdmin(): bool
+    {
+        if ($this->is_admin) {
+            return true;
+        }
+
+        if ($this->roles()->exists()) {
+            return true;
+        }
+
+        return $this->getAllPermissions()->contains(
+            fn ($permission): bool => $permission->name === 'access.admin',
+        );
+    }
+
     public function homePath(): string
     {
-        return $this->is_admin
+        return $this->canAccessAdmin()
             ? route('dashboard', absolute: false)
             : route('account', absolute: false);
     }

@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
  * @property string $address
  * @property string $hours
  * @property string|null $map_url
+ * @property string $auction_display_mode
+ * @property int $auction_shuffle_interval_seconds
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -26,11 +28,13 @@ use Illuminate\Support\Str;
     'address',
     'hours',
     'map_url',
+    'auction_display_mode',
+    'auction_shuffle_interval_seconds',
 ])]
 class SiteSetting extends Model
 {
     /**
-     * @return array<string, string|null>
+     * @return array<string, mixed>
      */
     public static function defaults(): array
     {
@@ -41,12 +45,36 @@ class SiteSetting extends Model
             'address' => "Westlands Business Centre, 3rd Floor\nWaiyaki Way, Nairobi",
             'hours' => 'Mon–Sat, 8:00 – 18:00 EAT',
             'map_url' => null,
+            'auction_display_mode' => 'auto',
+            'auction_shuffle_interval_seconds' => 5,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'auction_shuffle_interval_seconds' => 'integer',
         ];
     }
 
     public static function current(): self
     {
         return once(fn (): self => static::query()->first() ?? static::query()->create(self::defaults()));
+    }
+
+    public function auctionDisplayMode(): string
+    {
+        return in_array($this->auction_display_mode, ['auto', 'manual'], true)
+            ? $this->auction_display_mode
+            : 'auto';
+    }
+
+    public function auctionShuffleIntervalSeconds(): int
+    {
+        return max(5, (int) ($this->auction_shuffle_interval_seconds ?: 5));
     }
 
     public function phoneTel(): string

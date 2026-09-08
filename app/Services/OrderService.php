@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -215,6 +216,11 @@ class OrderService
             $callback($locked);
 
             $fresh = $locked->fresh('items');
+
+            AuditLogger::log('orders', 'order status updated', 'status_updated', $fresh, [
+                'reference' => $fresh->reference,
+                'status' => $fresh->status,
+            ]);
 
             if ($notify === 'dispatched') {
                 $this->notifications->notifyOrderDispatched($fresh);

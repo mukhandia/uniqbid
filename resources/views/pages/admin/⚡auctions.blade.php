@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Auction;
+use App\Models\SiteSetting;
 use App\Services\AuctionSettlementService;
 use App\Services\DestroySaleService;
+use App\Support\AuditLogger;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +29,13 @@ class extends Component {
     #[Url(except: '')]
     public string $category = '';
 
+    public int $shuffleIntervalSeconds = 5;
+
+    public function mount(): void
+    {
+        $this->shuffleIntervalSeconds = SiteSetting::current()->auctionShuffleIntervalSeconds();
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -50,8 +59,30 @@ class extends Component {
         $this->resetPage();
     }
 
+    public function saveShuffleInterval(): void
+    {
+        $validated = $this->validate([
+            'shuffleIntervalSeconds' => ['required', 'integer', 'min:5', 'max:600'],
+        ]);
+
+        SiteSetting::current()->update([
+            'auction_display_mode' => 'auto',
+            'auction_shuffle_interval_seconds' => $validated['shuffleIntervalSeconds'],
+        ]);
+
+        $this->shuffleIntervalSeconds = (int) $validated['shuffleIntervalSeconds'];
+
+        AuditLogger::log('settings', 'live auction shuffle timer updated', 'shuffle_updated', SiteSetting::current(), [
+            'auction_shuffle_interval_seconds' => $this->shuffleIntervalSeconds,
+        ]);
+
+        Flux::toast(variant: 'success', text: 'Live auction shuffle timer updated to '.$this->shuffleIntervalSeconds.' seconds.');
+    }
+
     public function with(): array
     {
+        Auction::ensureHomepageHero();
+
         $auctions = Auction::query()
             ->withCount([
                 'bids as accepted_bids_count' => fn ($query) => $query->where('status', 'accepted'),
@@ -79,7 +110,11 @@ class extends Component {
 
         $message = $result['successful_bid']
             ? 'Sale settled. Successful bid: '.Money::kes($result['successful_bid']->amount)
-            : 'Sale settled with no unique accepted bid.';
+            : (($result['advanced_round'] ?? false)
+                ? 'No unique bid — Round '.($result['auction']->current_round).' started automatically.'
+                : 'Sale settled with no unique accepted bid.');
+
+        Auction::ensureHomepageHero();
 
         Flux::toast(variant: 'success', text: $message);
     }
@@ -94,30 +129,41 @@ class extends Component {
             'settled_by' => null,
         ]);
 
+        AuditLogger::log('auctions', 'sale extended', 'extended', $auction->fresh(), [
+            'extension_minutes' => $auction->extension_minutes,
+            'ends_at' => $auction->fresh()->ends_at?->toIso8601String(),
+        ]);
+
         Flux::toast(variant: 'success', text: "Sale extended by {$auction->extension_minutes} minutes.");
     }
 
     public function void(int $auctionId): void
     {
         $auction = Auction::query()->findOrFail($auctionId);
-        $auction->update(['status' => 'voided', 'settled_at' => now(), 'settled_by' => auth()->id()]);
+
+        \App\Models\AuctionRound::query()->updateOrCreate(
+            [
+                'auction_id' => $auction->id,
+                'round' => $auction->current_round,
+            ],
+            [
+                'started_at' => $auction->created_at ?? now(),
+                'ended_at' => now(),
+                'outcome' => \App\Models\AuctionRound::OUTCOME_VOIDED,
+                'winning_bid_id' => null,
+            ],
+        );
+
+        $auction->update(['status' => 'voided', 'settled_at' => now(), 'settled_by' => auth()->id(), 'is_featured' => false]);
         app(\App\Services\CreateSaleFromProductService::class)->releaseReservedStock($auction);
+        Auction::ensureHomepageHero();
+
+        AuditLogger::log('auctions', 'sale voided', 'voided', $auction->fresh(), [
+            'auction_id' => $auction->id,
+            'current_round' => $auction->current_round,
+        ]);
 
         Flux::toast(variant: 'success', text: 'Sale voided. Participation-fee refunds must be processed once the payment provider is connected.');
-    }
-
-    public function rerun(int $auctionId): void
-    {
-        $auction = Auction::query()->findOrFail($auctionId);
-        $auction->update([
-            'status' => 'live',
-            'ends_at' => now()->addDay(),
-            'settled_at' => null,
-            'settled_by' => null,
-        ]);
-        $auction->result()?->delete();
-
-        Flux::toast(variant: 'success', text: 'Sale re-run for a new 24-hour window.');
     }
 
     public function reoffer(int $auctionId): void
@@ -129,7 +175,7 @@ class extends Component {
             variant: $bid ? 'success' : 'warning',
             text: $bid
                 ? 'Item re-offered to the next lowest unique bid: '.Money::kes($bid->amount)
-                : 'No next unique bid is available. Re-run the sale instead.',
+                : 'No next unique bid is available. Create a new sale from the product if you still want to sell it.',
         );
     }
 
@@ -139,6 +185,7 @@ class extends Component {
 
         if ($auction->is_featured) {
             $auction->removeFromHomepageHero();
+            AuditLogger::log('auctions', 'homepage hero removed', 'hero_removed', $auction->fresh());
             Flux::toast(variant: 'success', text: 'This sale is no longer the homepage hero.');
 
             return;
@@ -151,6 +198,7 @@ class extends Component {
         }
 
         $auction->makeHomepageHero();
+        AuditLogger::log('auctions', 'homepage hero set', 'hero_set', $auction->fresh());
         Flux::toast(variant: 'success', text: 'This sale is now the homepage hero.');
     }
 
@@ -176,7 +224,7 @@ class extends Component {
 <div class="space-y-6">
     <div>
         <flux:heading size="xl">Sales & bidding</flux:heading>
-        <flux:text class="mt-1">Click a sale name to open incoming bids and processing. That page refreshes every 3 minutes. Delete a mistaken sale only when no participation fee has been paid — that returns stock and removes the sale. Use Void when bidders have already paid, so bid history remains for refunds.</flux:text>
+        <flux:text class="mt-1">Click a sale name to open incoming bids and processing. That page refreshes every 3 minutes. When a sale ends with no unique bid, the next round starts automatically for the full duration (rounds are for admin audit only). Extend can add time while a sale is still live. Re-offer moves an unpaid successful buy to the next unique bidder. Delete a mistaken sale only when no participation fee has been paid — that returns stock and removes the sale. Use Void when bidders have already paid, so bid history remains for refunds.</flux:text>
     </div>
 
     <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
@@ -211,6 +259,18 @@ class extends Component {
                         <flux:select.option value="{{ $saleCategory }}">{{ $saleCategory }}</flux:select.option>
                     @endforeach
                 </flux:select>
+            </flux:field>
+        </div>
+        <div class="lg:w-44">
+            <flux:field>
+                <flux:label>Shuffle timer (sec)</flux:label>
+                <div class="flex items-end gap-2">
+                    <flux:input type="number" wire:model="shuffleIntervalSeconds" min="5" max="600" class="w-full" />
+                    <flux:button type="button" size="sm" variant="outline" wire:click="saveShuffleInterval">
+                        Save
+                    </flux:button>
+                </div>
+                <flux:error name="shuffleIntervalSeconds" />
             </flux:field>
         </div>
         @if ($hasActiveFilters)
@@ -262,9 +322,9 @@ class extends Component {
                                 {{ $auction->name }}
                             </a>
                             <div class="mt-0.5 text-xs text-zinc-500">
-                                {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · no-unique: {{ $auction->no_unique_bid_rule }} ({{ $auction->extension_minutes }} min)
+                                {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · round {{ $auction->current_round }} · {{ rtrim(rtrim(number_format((float) $auction->duration_hours, 2, '.', ''), '0'), '.') }}h rounds · extend {{ $auction->extension_minutes }} min
                             </div>
-                            @if ($auction->is_featured)
+                            @if ($auction->is_featured && $auction->isOpenLive())
                                 <div class="mt-1.5">
                                     <flux:badge size="sm" color="amber">Homepage hero</flux:badge>
                                 </div>
@@ -309,13 +369,13 @@ class extends Component {
                                 <flux:button size="sm" href="{{ route('admin.auction-bids', $auction) }}" wire:navigate>
                                     Open
                                 </flux:button>
-                                @if ($auction->is_featured)
-                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Remove this sale from the homepage hero?">
-                                        Remove from homepage
+                                @if ($auction->is_featured && $auction->isOpenLive())
+                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Remove this sale as the homepage hero?">
+                                        Remove homepage hero
                                     </flux:button>
                                 @elseif ($auction->status === 'live' && $auction->ends_at->isFuture())
-                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Show this sale on the homepage hero? This replaces any current homepage sale.">
-                                        Set as homepage
+                                    <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Set this sale as the homepage hero? This replaces any current homepage hero.">
+                                        Set as homepage hero
                                     </flux:button>
                                 @endif
                                 @if (! $auction->settled_at && $auction->ends_at->isPast())
@@ -330,14 +390,9 @@ class extends Component {
                                     <flux:button size="sm" variant="outline" wire:click="void({{ $auction->id }})" wire:confirm="Void this sale?">
                                         Void
                                     </flux:button>
-                                @elseif ($auction->status !== 'draft')
-                                    @if ($auction->result)
-                                        <flux:button size="sm" variant="outline" wire:click="reoffer({{ $auction->id }})" wire:confirm="Re-offer this item to the next lowest unique bidder?">
-                                            Re-offer
-                                        </flux:button>
-                                    @endif
-                                    <flux:button size="sm" variant="outline" wire:click="rerun({{ $auction->id }})" wire:confirm="Re-run this sale for 24 hours?">
-                                        Re-run
+                                @elseif ($auction->status !== 'draft' && $auction->result)
+                                    <flux:button size="sm" variant="outline" wire:click="reoffer({{ $auction->id }})" wire:confirm="Re-offer this item to the next lowest unique bidder?">
+                                        Re-offer
                                     </flux:button>
                                 @endif
                                 @if ($auction->accepted_bids_count === 0)

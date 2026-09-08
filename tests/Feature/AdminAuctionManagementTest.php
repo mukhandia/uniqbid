@@ -239,13 +239,13 @@ test('admins can filter sales that still need payment or pickup', function () {
 
 test('admins can set one live sale as the homepage hero', function () {
     $admin = User::factory()->admin()->create();
-    $previous = Auction::factory()->create([
+    $previous = Auction::factory()->onAuctionChannel()->create([
         'name' => 'Previous Homepage Sale',
         'status' => 'live',
         'ends_at' => now()->addHours(2),
         'is_featured' => true,
     ]);
-    $next = Auction::factory()->create([
+    $next = Auction::factory()->onAuctionChannel()->create([
         'name' => 'New Homepage Sale',
         'status' => 'live',
         'ends_at' => now()->addDay(),
@@ -254,8 +254,8 @@ test('admins can set one live sale as the homepage hero', function () {
 
     Livewire::actingAs($admin)
         ->test('pages::admin.auctions')
-        ->assertSee('Set as homepage')
-        ->assertSee('Remove from homepage')
+        ->assertSee('Set as homepage hero')
+        ->assertSee('Remove homepage hero')
         ->call('toggleHomepageHero', $next->id);
 
     expect($next->fresh()->is_featured)->toBeTrue()
@@ -264,7 +264,7 @@ test('admins can set one live sale as the homepage hero', function () {
 
 test('admins can remove a sale from the homepage hero', function () {
     $admin = User::factory()->admin()->create();
-    $auction = Auction::factory()->create([
+    $auction = Auction::factory()->onAuctionChannel()->create([
         'status' => 'live',
         'ends_at' => now()->addHour(),
         'is_featured' => true,

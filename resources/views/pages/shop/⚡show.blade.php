@@ -18,6 +18,8 @@ class extends Component {
 
     public function mount(Product $product): void
     {
+        abort_unless($product->isInShop(), 404);
+
         $this->product = $product;
         $this->qty = 1;
     }

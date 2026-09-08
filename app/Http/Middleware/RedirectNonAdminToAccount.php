@@ -15,7 +15,7 @@ class RedirectNonAdminToAccount
     {
         $user = $request->user();
 
-        if ($user !== null && $user->is_admin !== true) {
+        if ($user !== null && $user->canAccessAdmin() !== true) {
             return redirect()->route('account');
         }
 

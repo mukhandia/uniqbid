@@ -7,6 +7,7 @@ use App\Models\AuctionResult;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Subcategory;
+use App\Services\CreateSaleFromProductService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -17,137 +18,9 @@ class UniqBidDemoSeeder extends Seeder
      */
     public function run(): void
     {
-        $auctions = [
-            [
-                'slug' => 'iphone-15-pro',
-                'name' => 'iPhone 15 Pro 256GB (Titanium Blue)',
-                'category' => 'Electronics',
-                'bid_fee' => 50,
-                'min_bid' => 1,
-                'max_bid' => 15000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 6,
-                'bids_count' => 428,
-                'description' => 'Brand-new, sealed iPhone 15 Pro 256GB in Titanium Blue. 1-year Apple Kenya warranty. Delivered nationwide or collect from our Nairobi office.',
-                'retail_value' => 189000,
-                'similar_sales' => [4210, 3850, 5120, 4600],
-                'is_featured' => true,
-                'images' => [
-                    ['label' => 'iPhone 15 Pro', 'path' => '/images/auctions/iphone-15-pro.png'],
-                ],
-            ],
-            [
-                'slug' => 'samsung-tv-55',
-                'name' => 'Samsung 55" 4K Smart TV (QLED)',
-                'category' => 'Electronics',
-                'bid_fee' => 30,
-                'min_bid' => 1,
-                'max_bid' => 8000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 2,
-                'bids_count' => 312,
-                'description' => '2024 model Samsung QLED 55" 4K Smart TV. Sealed, with 2-year warranty. Free delivery within Nairobi.',
-                'retail_value' => 89000,
-                'similar_sales' => [2410, 1980, 3050],
-                'images' => [
-                    ['label' => 'Samsung QLED 55', 'path' => '/images/auctions/samsung-tv-55.png'],
-                ],
-            ],
-            [
-                'slug' => 'mkopa-boda',
-                'name' => 'Boxer 150cc Motorbike (New, Registered)',
-                'category' => 'Vehicles',
-                'bid_fee' => 100,
-                'min_bid' => 1,
-                'max_bid' => 25000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 23,
-                'bids_count' => 891,
-                'description' => 'Brand-new Bajaj Boxer 150cc with logbook, insurance, and helmet included. Ready to ride from our Nairobi yard.',
-                'retail_value' => 175000,
-                'similar_sales' => [8920, 7500, 9100],
-                'images' => [
-                    ['label' => 'Boxer 150cc', 'path' => '/images/auctions/boxer-150.png'],
-                ],
-            ],
-            [
-                'slug' => 'ps5',
-                'name' => 'PlayStation 5 Slim Disc Edition',
-                'category' => 'Electronics',
-                'bid_fee' => 40,
-                'min_bid' => 1,
-                'max_bid' => 10000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 11,
-                'bids_count' => 256,
-                'description' => 'Sealed PS5 Slim Disc Edition with 1 DualSense controller. 1-year warranty.',
-                'retail_value' => 82000,
-                'similar_sales' => [3120, 2890, 3400],
-                'images' => [
-                    ['label' => 'PS5 Slim', 'path' => '/images/auctions/ps5-slim.png'],
-                ],
-            ],
-            [
-                'slug' => 'macbook-air-m3',
-                'name' => 'MacBook Air M3 13" 256GB (Midnight)',
-                'category' => 'Electronics',
-                'bid_fee' => 60,
-                'min_bid' => 1,
-                'max_bid' => 18000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 30,
-                'bids_count' => 189,
-                'description' => 'Sealed MacBook Air M3 13" 256GB in Midnight. Apple Kenya warranty.',
-                'retail_value' => 165000,
-                'similar_sales' => [5100, 4650, 5800],
-                'images' => [
-                    ['label' => 'MacBook Air M3', 'path' => '/images/auctions/macbook-air-m3.png'],
-                ],
-            ],
-            [
-                'slug' => 'gas-cooker',
-                'name' => 'Ramtons 4-Burner Gas Cooker with Oven',
-                'category' => 'Home',
-                'bid_fee' => 20,
-                'min_bid' => 1,
-                'max_bid' => 4000,
-                'bid_increment' => 1,
-                'ends_in_hours' => 0.5,
-                'bids_count' => 542,
-                'description' => 'Ramtons 4-burner gas cooker with electric oven. New, boxed, with delivery.',
-                'retail_value' => 42000,
-                'similar_sales' => [980, 1120, 1450],
-                'images' => [
-                    ['label' => 'Gas Cooker', 'path' => '/images/auctions/gas-cooker.png'],
-                ],
-            ],
-        ];
-
-        foreach ($auctions as $data) {
-            $images = $data['images'];
-            $hours = $data['ends_in_hours'];
-            unset($data['images'], $data['ends_in_hours']);
-
-            $auction = Auction::query()->updateOrCreate(
-                ['slug' => $data['slug']],
-                [
-                    ...$data,
-                    'ends_at' => now()->addHours($hours),
-                    'status' => 'live',
-                    'is_featured' => $data['is_featured'] ?? false,
-                ]
-            );
-
-            $auction->images()->delete();
-
-            foreach ($images as $index => $image) {
-                $auction->images()->create([
-                    'url' => $image['path'],
-                    'label' => $image['label'],
-                    'sort_order' => $index,
-                ]);
-            }
-        }
+        // Older standalone demo sales are no longer seeded as live.
+        // Live Auctions now only shows sales linked to auction-channel products
+        // (see seedLaunchAuctionProducts below).
 
         $placeholderImages = [
             '/images/products/leather-cardholder.png',
@@ -261,9 +134,12 @@ class UniqBidDemoSeeder extends Seeder
                     'image' => $placeholderImages[$index % count($placeholderImages)],
                     'is_featured' => (bool) ($product['is_featured'] ?? false),
                     'is_returnable' => (bool) ($product['is_returnable'] ?? true),
+                    'channel' => Product::CHANNEL_SHOP,
                 ]
             );
         }
+
+        $this->seedLaunchAuctionProducts();
 
         $results = [
             [
@@ -352,6 +228,210 @@ class UniqBidDemoSeeder extends Seeder
                     'sold_on' => $result['date'],
                 ]
             );
+        }
+
+        Auction::ensureHomepageHero();
+    }
+
+    private function seedLaunchAuctionProducts(): void
+    {
+        $electronics = Category::query()->firstOrCreate(
+            ['slug' => 'electronics'],
+            ['name' => 'Electronics', 'sort_order' => 10, 'is_active' => true],
+        );
+        $vehicles = Category::query()->firstOrCreate(
+            ['slug' => 'vehicles'],
+            ['name' => 'Vehicles', 'sort_order' => 20, 'is_active' => true],
+        );
+        $home = Category::query()->firstOrCreate(
+            ['slug' => 'home'],
+            ['name' => 'Home', 'sort_order' => 30, 'is_active' => true],
+        );
+        $livestock = Category::query()->firstOrCreate(
+            ['slug' => 'livestock'],
+            ['name' => 'Livestock', 'sort_order' => 40, 'is_active' => true],
+        );
+        $housing = Category::query()->firstOrCreate(
+            ['slug' => 'housing'],
+            ['name' => 'Housing', 'sort_order' => 50, 'is_active' => true],
+        );
+
+        $subcategories = [
+            'phones' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $electronics->id, 'slug' => 'phones'],
+                ['name' => 'Phones', 'sort_order' => 1, 'is_active' => true],
+            ),
+            'tv-audio' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $electronics->id, 'slug' => 'tv-audio'],
+                ['name' => 'TV & Audio', 'sort_order' => 2, 'is_active' => true],
+            ),
+            'motorbikes' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $vehicles->id, 'slug' => 'motorbikes'],
+                ['name' => 'Motorbikes', 'sort_order' => 1, 'is_active' => true],
+            ),
+            'energy' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $home->id, 'slug' => 'energy'],
+                ['name' => 'Energy', 'sort_order' => 1, 'is_active' => true],
+            ),
+            'cooking' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $home->id, 'slug' => 'cooking'],
+                ['name' => 'Cooking', 'sort_order' => 2, 'is_active' => true],
+            ),
+            'cattle' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $livestock->id, 'slug' => 'cattle'],
+                ['name' => 'Cattle', 'sort_order' => 1, 'is_active' => true],
+            ),
+            'rent' => Subcategory::query()->firstOrCreate(
+                ['category_id' => $housing->id, 'slug' => 'rent-support'],
+                ['name' => 'Rent support', 'sort_order' => 1, 'is_active' => true],
+            ),
+        ];
+
+        $launchProducts = [
+            [
+                'slug' => 'auction-motorbike-boxer-150',
+                'name' => 'Motorbike',
+                'subcategory' => $subcategories['motorbikes'],
+                'price' => 195000,
+                'bid_fee' => 100,
+                'max_bid' => 25000,
+                'image' => '/images/auctions/boxer-150.png',
+                'description' => 'Brand-new Bajaj Boxer 150cc motorbike with logbook pathway support. Nairobi collection from our yard.',
+                'sort' => 10,
+                'ends_in_hours' => 30,
+                'is_featured' => true,
+            ],
+            [
+                'slug' => 'auction-iphone',
+                'name' => 'iPhone',
+                'subcategory' => $subcategories['phones'],
+                'price' => 145000,
+                'bid_fee' => 50,
+                'max_bid' => 15000,
+                'image' => '/images/auctions/iphone-15-pro.png',
+                'description' => 'Sealed iPhone suitable for the Kenya market, with standard Apple warranty options.',
+                'sort' => 20,
+                'ends_in_hours' => 28,
+            ],
+            [
+                'slug' => 'auction-samsung',
+                'name' => 'Samsung',
+                'subcategory' => $subcategories['phones'],
+                'price' => 72000,
+                'bid_fee' => 40,
+                'max_bid' => 10000,
+                'image' => '/images/auctions/samsung-tv-55.png',
+                'description' => 'Current-generation Samsung smartphone, sealed, with local warranty support.',
+                'sort' => 30,
+                'ends_in_hours' => 26,
+            ],
+            [
+                'slug' => 'auction-tv-woofer',
+                'name' => 'TV & Woofer',
+                'subcategory' => $subcategories['tv-audio'],
+                'price' => 78000,
+                'bid_fee' => 30,
+                'max_bid' => 9000,
+                'image' => '/images/auctions/samsung-tv-55.png',
+                'description' => 'Smart TV and woofer entertainment package for living-room setups. Nairobi delivery available.',
+                'sort' => 40,
+                'ends_in_hours' => 24,
+            ],
+            [
+                'slug' => 'auction-dairy-cow',
+                'name' => 'Dairy Cow',
+                'subcategory' => $subcategories['cattle'],
+                'price' => 120000,
+                'bid_fee' => 80,
+                'max_bid' => 20000,
+                'image' => '/images/auctions/boxer-150.png',
+                'description' => 'Healthy dairy cow selected for Kenyan smallholder farming. Collection arrangements coordinated after the successful buy.',
+                'sort' => 50,
+                'ends_in_hours' => 36,
+            ],
+            [
+                'slug' => 'auction-rent-deposit',
+                'name' => 'Rent + 2 month deposit',
+                'subcategory' => $subcategories['rent'],
+                'price' => 75000,
+                'bid_fee' => 50,
+                'max_bid' => 12000,
+                'image' => '/images/auctions/macbook-air-m3.png',
+                'description' => 'Rent support package covering rent plus a two-month deposit equivalent, paid out after a successful buy and verification.',
+                'sort' => 60,
+                'ends_in_hours' => 32,
+            ],
+            [
+                'slug' => 'auction-solar-kit',
+                'name' => 'Solar Kit',
+                'subcategory' => $subcategories['energy'],
+                'price' => 55000,
+                'bid_fee' => 35,
+                'max_bid' => 8000,
+                'image' => '/images/auctions/ps5-slim.png',
+                'description' => 'Home solar kit sized for lighting and small appliance loads. Installation guidance included.',
+                'sort' => 70,
+                'ends_in_hours' => 22,
+            ],
+            [
+                'slug' => 'auction-gas-kit-hustler',
+                'name' => 'Gas Kit (Hustler)',
+                'subcategory' => $subcategories['cooking'],
+                'price' => 15000,
+                'bid_fee' => 20,
+                'max_bid' => 4000,
+                'image' => '/images/auctions/gas-cooker.png',
+                'description' => 'Hustler gas kit for everyday cooking. Compact, practical, and ready for collection or Nairobi delivery.',
+                'sort' => 80,
+                'ends_in_hours' => 20,
+            ],
+        ];
+
+        $saleService = app(CreateSaleFromProductService::class);
+
+        foreach ($launchProducts as $index => $row) {
+            /** @var Subcategory $subcategory */
+            $subcategory = $row['subcategory'];
+            $subcategory->loadMissing('category');
+
+            $product = Product::query()->updateOrCreate(
+                ['slug' => $row['slug']],
+                [
+                    'subcategory_id' => $subcategory->id,
+                    'name' => $row['name'],
+                    'category' => $subcategory->category->name,
+                    'subcategory' => $subcategory->name,
+                    'gender_age' => 'Unisex',
+                    'price_tier' => 'Mid-range',
+                    'description' => $row['description'],
+                    'price' => $row['price'],
+                    'stock' => 5,
+                    'reserved_stock' => 0,
+                    'image' => $row['image'],
+                    'is_featured' => false,
+                    'is_returnable' => false,
+                    'channel' => Product::CHANNEL_AUCTION,
+                    'auction_sort_order' => $row['sort'],
+                ],
+            );
+
+            if ($product->currentSale !== null) {
+                continue;
+            }
+
+            $auction = $saleService->handle($product, [
+                'bid_fee' => $row['bid_fee'],
+                'min_bid' => 1,
+                'max_bid' => $row['max_bid'],
+                'ends_in_hours' => $row['ends_in_hours'],
+                'reserve_stock' => true,
+                'is_featured' => (bool) ($row['is_featured'] ?? false),
+            ]);
+
+            $auction->forceFill([
+                'display_order' => $row['sort'],
+                'duration_hours' => (float) $row['ends_in_hours'],
+            ])->save();
         }
     }
 }

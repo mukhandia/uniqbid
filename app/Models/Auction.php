@@ -36,6 +36,9 @@ use Illuminate\Support\Facades\DB;
  * @property int|null $settled_by
  * @property string $no_unique_bid_rule
  * @property int $extension_minutes
+ * @property int $current_round
+ * @property float $duration_hours
+ * @property int $display_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -59,6 +62,9 @@ use Illuminate\Support\Facades\DB;
     'settled_by',
     'no_unique_bid_rule',
     'extension_minutes',
+    'current_round',
+    'duration_hours',
+    'display_order',
 ])]
 class Auction extends Model
 {
@@ -82,6 +88,9 @@ class Auction extends Model
             'similar_sales' => 'array',
             'settled_at' => 'datetime',
             'extension_minutes' => 'integer',
+            'current_round' => 'integer',
+            'duration_hours' => 'float',
+            'display_order' => 'integer',
         ];
     }
 
@@ -118,6 +127,14 @@ class Auction extends Model
     }
 
     /**
+     * @return HasMany<AuctionRound, $this>
+     */
+    public function rounds(): HasMany
+    {
+        return $this->hasMany(AuctionRound::class)->orderBy('round');
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function settledBy(): BelongsTo
@@ -132,6 +149,22 @@ class Auction extends Model
     public function scopeLive(Builder $query): Builder
     {
         return $query->where('status', 'live')->where('ends_at', '>', now());
+    }
+
+    /**
+     * Open live sales that belong to auction-channel products (public Live Auctions catalogue).
+     *
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
+    public function scopeLiveOnAuctionChannel(Builder $query): Builder
+    {
+        return $query
+            ->live()
+            ->whereNotNull('product_id')
+            ->whereHas('product', function (Builder $product): void {
+                $product->inAuctionChannel();
+            });
     }
 
     /**
@@ -215,6 +248,7 @@ class Auction extends Model
                         ->orWhereNotIn('fulfilment_status', [
                             AuctionResult::FULFILMENT_COLLECTED,
                             AuctionResult::FULFILMENT_DELIVERED,
+                            AuctionResult::FULFILMENT_REDEEMED,
                         ]);
                 });
             }),
@@ -262,6 +296,10 @@ class Auction extends Model
     public function makeHomepageHero(): void
     {
         DB::transaction(function (): void {
+            if (! $this->isOpenLive()) {
+                return;
+            }
+
             static::query()
                 ->whereKeyNot($this->id)
                 ->where('is_featured', true)
@@ -275,10 +313,87 @@ class Auction extends Model
 
     public function removeFromHomepageHero(): void
     {
-        if (! $this->is_featured) {
-            return;
+        if ($this->is_featured) {
+            $this->forceFill(['is_featured' => false])->save();
         }
 
-        $this->forceFill(['is_featured' => false])->save();
+        static::ensureHomepageHero(exceptId: $this->id);
+    }
+
+    /**
+     * Keep at most one homepage hero, and only for an open live sale.
+     * If a featured sale is no longer live, promote another live sale automatically.
+     */
+    public static function ensureHomepageHero(?int $exceptId = null): ?self
+    {
+        return DB::transaction(function () use ($exceptId): ?self {
+            $staleFeatured = static::query()
+                ->where('is_featured', true)
+                ->where(function (Builder $query): void {
+                    $query->where('status', '!=', 'live')
+                        ->orWhere('ends_at', '<=', now());
+                })
+                ->lockForUpdate()
+                ->pluck('id');
+
+            if ($staleFeatured->isNotEmpty()) {
+                static::query()->whereIn('id', $staleFeatured)->update(['is_featured' => false]);
+            }
+
+            if ($exceptId !== null) {
+                static::query()->whereKey($exceptId)->where('is_featured', true)->update(['is_featured' => false]);
+            }
+
+            $liveFeatured = static::query()
+                ->liveOnAuctionChannel()
+                ->featured()
+                ->orderBy('display_order')
+                ->orderBy('ends_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($liveFeatured->count() > 1) {
+                $keep = $liveFeatured->first();
+
+                static::query()
+                    ->where('is_featured', true)
+                    ->whereKeyNot($keep->id)
+                    ->update(['is_featured' => false]);
+
+                return $keep;
+            }
+
+            if ($liveFeatured->count() === 1) {
+                return $liveFeatured->first();
+            }
+
+            $shouldPromote = $staleFeatured->isNotEmpty() || $exceptId !== null;
+
+            if (! $shouldPromote) {
+                return null;
+            }
+
+            $replacement = static::query()
+                ->liveOnAuctionChannel()
+                ->when($exceptId !== null, fn (Builder $query): Builder => $query->whereKeyNot($exceptId))
+                ->orderBy('display_order')
+                ->orderBy('ends_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($replacement === null) {
+                return null;
+            }
+
+            static::query()
+                ->where('is_featured', true)
+                ->update(['is_featured' => false]);
+
+            $replacement->forceFill(['is_featured' => true])->save();
+
+            return $replacement->fresh();
+        });
     }
 }

@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\AuctionResult;
+use App\Models\AuctionRound;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,7 +20,7 @@ class AuctionSettlementService
     ) {}
 
     /**
-     * @return array{auction: Auction, successful_bid: ?AuctionBid}
+     * @return array{auction: Auction, successful_bid: ?AuctionBid, advanced_round: bool}
      */
     public function settle(Auction $auction, ?User $settledBy = null): array
     {
@@ -41,6 +43,7 @@ class AuctionSettlementService
                 return [
                     'auction' => $auction,
                     'successful_bid' => $successfulBid,
+                    'advanced_round' => false,
                 ];
             }
 
@@ -60,49 +63,53 @@ class AuctionSettlementService
 
             $successfulBid = $this->lowestUniqueAmong($acceptedBids);
 
-            if (! $successfulBid && $auction->no_unique_bid_rule === 'extend') {
-                $auction->forceFill([
-                    'ends_at' => now()->addMinutes($auction->extension_minutes),
-                    'status' => 'live',
-                ])->save();
+            if (! $successfulBid) {
+                $this->advanceRound($auction);
+                $auction = $auction->fresh(['rounds']);
+                $this->logActivity($auction, 'round advanced', 'advanced_round');
 
                 return [
-                    'auction' => $auction->fresh(),
+                    'auction' => $auction,
                     'successful_bid' => null,
+                    'advanced_round' => true,
                 ];
             }
+
+            $this->closeRound($auction, AuctionRound::OUTCOME_WINNER, $successfulBid);
 
             $auction->forceFill([
                 'status' => 'closed',
                 'settled_at' => now(),
                 'settled_by' => $settledBy?->id,
+                'is_featured' => false,
             ])->save();
 
-            if ($successfulBid) {
-                AuctionResult::query()->updateOrCreate(
-                    ['auction_id' => $auction->id],
-                    [
-                        'auction_bid_id' => $successfulBid->id,
-                        'slug' => $auction->slug.'-result',
-                        'name' => $auction->name,
-                        'category' => $auction->category,
-                        'image' => $auction->primaryImageUrl() ?: '/images/auctions/iphone-15-pro.png',
-                        'sale_price' => $successfulBid->amount,
-                        'sale_payment_status' => 'awaiting_payment',
-                        'sale_payment_paid_at' => null,
-                        'fulfilment_status' => 'pending',
-                        'fulfilment_due_at' => now()->addDays(7),
-                        'buyer_display' => $this->maskBuyer($successfulBid),
-                        'sold_on' => now()->toDateString(),
-                    ],
-                );
+            AuctionResult::query()->updateOrCreate(
+                ['auction_id' => $auction->id],
+                [
+                    'auction_bid_id' => $successfulBid->id,
+                    'slug' => $auction->slug.'-result',
+                    'name' => $auction->name,
+                    'category' => $auction->category,
+                    'image' => $auction->primaryImageUrl() ?: '/images/auctions/iphone-15-pro.png',
+                    'sale_price' => $successfulBid->amount,
+                    'sale_payment_status' => 'awaiting_payment',
+                    'sale_payment_paid_at' => null,
+                    'fulfilment_status' => 'pending',
+                    'fulfilment_due_at' => now()->addDays(7),
+                    'buyer_display' => $this->maskBuyer($successfulBid),
+                    'sold_on' => now()->toDateString(),
+                ],
+            );
 
-                $this->notifications->successfulBuyer($auction, $successfulBid);
-            }
+            $this->notifications->successfulBuyer($auction, $successfulBid);
+            $auction = $auction->fresh(['result', 'rounds']);
+            $this->logActivity($auction, 'sale settled', 'settled');
 
             return [
-                'auction' => $auction->fresh(['result']),
+                'auction' => $auction,
                 'successful_bid' => $successfulBid,
+                'advanced_round' => false,
             ];
         });
     }
@@ -112,6 +119,7 @@ class AuctionSettlementService
         $ended = Auction::query()
             ->whereNull('settled_at')
             ->where('ends_at', '<=', now())
+            ->whereNotIn('status', ['voided', 'draft'])
             ->get();
 
         $count = 0;
@@ -120,6 +128,8 @@ class AuctionSettlementService
             $this->settle($auction);
             $count++;
         }
+
+        Auction::ensureHomepageHero();
 
         return $count;
     }
@@ -163,6 +173,8 @@ class AuctionSettlementService
 
             $this->notifications->successfulBuyer($auction, $nextBid);
 
+            $this->logActivity($auction->fresh(), 'sale re-offered', 'reoffered');
+
             return $nextBid;
         });
     }
@@ -203,6 +215,53 @@ class AuctionSettlementService
         ];
     }
 
+    private function advanceRound(Auction $auction): void
+    {
+        $this->closeRound($auction, AuctionRound::OUTCOME_NO_UNIQUE);
+
+        $nextRound = $auction->current_round + 1;
+        $durationHours = max(0.25, (float) $auction->duration_hours);
+
+        $auction->forceFill([
+            'current_round' => $nextRound,
+            'ends_at' => now()->addHours($durationHours),
+            'status' => 'live',
+            'settled_at' => null,
+            'settled_by' => null,
+        ])->save();
+
+        AuctionRound::query()->create([
+            'auction_id' => $auction->id,
+            'round' => $nextRound,
+            'started_at' => now(),
+            'ended_at' => null,
+            'outcome' => null,
+            'winning_bid_id' => null,
+        ]);
+    }
+
+    private function closeRound(Auction $auction, string $outcome, ?AuctionBid $winningBid = null): void
+    {
+        $round = AuctionRound::query()->firstOrCreate(
+            [
+                'auction_id' => $auction->id,
+                'round' => $auction->current_round,
+            ],
+            [
+                'started_at' => $auction->created_at ?? now(),
+                'ended_at' => null,
+                'outcome' => null,
+                'winning_bid_id' => null,
+            ],
+        );
+
+        $round->forceFill([
+            'ended_at' => now(),
+            'outcome' => $outcome,
+            'winning_bid_id' => $winningBid?->id,
+        ])->save();
+    }
+
     /**
      * @param  Collection<int, AuctionBid>  $acceptedBids
      */
@@ -231,5 +290,14 @@ class AuctionSettlementService
         $phoneTail = Str::substr($bid->bidder->phone, -2);
 
         return trim($first.' '.$phoneTail.'.');
+    }
+
+    private function logActivity(Auction $auction, string $description, string $event): void
+    {
+        AuditLogger::log('auctions', $description, $event, $auction, [
+            'auction_id' => $auction->id,
+            'current_round' => $auction->current_round,
+            'status' => $auction->status,
+        ]);
     }
 }

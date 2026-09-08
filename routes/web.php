@@ -18,6 +18,7 @@ Route::livewire('orders/{order}', 'pages::orders.show')->name('orders.show');
 Route::livewire('past-sales', 'pages::results')->name('past-sales');
 Route::redirect('results', '/past-sales');
 Route::livewire('how-it-works', 'pages::how-it-works')->name('how-it-works');
+Route::livewire('redeem', 'pages::redeem')->name('redeem');
 Route::livewire('testimonials', 'pages::testimonials')->name('testimonials');
 Route::livewire('faqs', 'pages::faqs')->name('faqs');
 Route::livewire('contact', 'pages::contact')->name('contact');
@@ -46,6 +47,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('legal', 'pages::admin.legal')->name('legal');
     Route::livewire('how-it-works', 'pages::admin.how-it-works')->name('how-it-works');
     Route::livewire('faqs', 'pages::admin.faqs')->name('faqs');
+    Route::livewire('logistics', 'pages::admin.logistics')->name('logistics');
+    Route::livewire('activity', 'pages::admin.activity')->name('activity');
+    Route::livewire('staff', 'pages::admin.staff')->name('staff');
+    Route::livewire('roles', 'pages::admin.roles')->name('roles');
     Route::livewire('settings', 'pages::admin.settings')->name('settings');
 });
 

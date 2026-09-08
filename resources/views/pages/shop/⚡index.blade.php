@@ -47,6 +47,7 @@ class extends Component {
             ->get();
 
         $query = Product::query()
+            ->inShop()
             ->orderByDesc('is_featured')
             ->orderBy('name');
 

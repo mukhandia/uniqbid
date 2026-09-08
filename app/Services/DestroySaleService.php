@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Auction;
 use App\Models\AuctionBid;
+use App\Support\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -38,6 +39,12 @@ class DestroySaleService
             if ($auction->status !== 'voided') {
                 $this->createSaleFromProduct->releaseReservedStock($auction);
             }
+
+            AuditLogger::log('auctions', 'sale deleted', 'deleted', $auction, [
+                'auction_id' => $auction->id,
+                'slug' => $auction->slug,
+                'product_id' => $auction->product_id,
+            ]);
 
             $auction->delete();
         });

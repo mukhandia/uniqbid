@@ -35,6 +35,10 @@ use Illuminate\Support\Carbon;
     'sale_payment_paid_at',
     'fulfilment_status',
     'fulfilment_due_at',
+    'outcome_choice',
+    'redemption_amount',
+    'redemption_payout_status',
+    'redeemed_at',
     'buyer_display',
     'sold_on',
 ])]
@@ -57,6 +61,12 @@ class AuctionResult extends Model
 
     public const FULFILMENT_DELIVERED = 'delivered';
 
+    public const FULFILMENT_REDEEMED = 'redeemed';
+
+    public const REDEMPTION_PAYOUT_PENDING = 'pending';
+
+    public const REDEMPTION_PAYOUT_PAID = 'paid';
+
     /**
      * @return array<string, string>
      */
@@ -67,6 +77,8 @@ class AuctionResult extends Model
             'sold_on' => 'date',
             'sale_payment_paid_at' => 'datetime',
             'fulfilment_due_at' => 'datetime',
+            'redemption_amount' => 'integer',
+            'redeemed_at' => 'datetime',
         ];
     }
 
@@ -101,7 +113,7 @@ class AuctionResult extends Model
      */
     public function scopeIncompleteFulfilment(Builder $query): Builder
     {
-        return $query->whereNotIn('fulfilment_status', ['collected', 'delivered']);
+        return $query->whereNotIn('fulfilment_status', ['collected', 'delivered', 'redeemed']);
     }
 
     /**
@@ -124,7 +136,11 @@ class AuctionResult extends Model
     {
         return $query->where(function (Builder $inner): void {
             $inner->where('sale_payment_status', self::PAYMENT_AWAITING)
-                ->orWhereNotIn('fulfilment_status', [self::FULFILMENT_COLLECTED, self::FULFILMENT_DELIVERED]);
+                ->orWhereNotIn('fulfilment_status', [
+                    self::FULFILMENT_COLLECTED,
+                    self::FULFILMENT_DELIVERED,
+                    self::FULFILMENT_REDEEMED,
+                ]);
         });
     }
 
@@ -135,7 +151,11 @@ class AuctionResult extends Model
 
     public function isPickedUp(): bool
     {
-        return in_array($this->fulfilment_status, [self::FULFILMENT_COLLECTED, self::FULFILMENT_DELIVERED], true);
+        return in_array($this->fulfilment_status, [
+            self::FULFILMENT_COLLECTED,
+            self::FULFILMENT_DELIVERED,
+            self::FULFILMENT_REDEEMED,
+        ], true);
     }
 
     public function salePaymentLabel(): string
@@ -151,6 +171,7 @@ class AuctionResult extends Model
             self::FULFILMENT_DISPATCHED => 'Dispatched',
             self::FULFILMENT_COLLECTED => 'Picked up',
             self::FULFILMENT_DELIVERED => 'Delivered',
+            self::FULFILMENT_REDEEMED => 'Redeemed for cash',
             default => str_replace('_', ' ', (string) $this->fulfilment_status),
         };
     }

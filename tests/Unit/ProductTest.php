@@ -42,6 +42,28 @@ test('product out of stock and reserved-for-sales scopes', function () {
         ->not->toContain('Zero stock', 'Plenty available');
 });
 
+test('products can be assigned to shop auction or both', function () {
+    $product = Product::factory()->unassigned()->create();
+
+    $product->assignToShop();
+    expect($product->fresh()->channel)->toBe(Product::CHANNEL_SHOP)
+        ->and(Product::query()->inShop()->whereKey($product->id)->exists())->toBeTrue();
+
+    $product->assignToAuctionChannel();
+    expect($product->fresh()->channel)->toBe(Product::CHANNEL_BOTH)
+        ->and($product->fresh()->isInShop())->toBeTrue()
+        ->and($product->fresh()->isInAuctionChannel())->toBeTrue()
+        ->and(Product::query()->inShop()->whereKey($product->id)->exists())->toBeTrue()
+        ->and(Product::query()->inAuctionChannel()->whereKey($product->id)->exists())->toBeTrue();
+
+    $product->removeFromShop();
+    expect($product->fresh()->channel)->toBe(Product::CHANNEL_AUCTION);
+
+    $product->assignToShop();
+    $product->removeFromAuctionChannel();
+    expect($product->fresh()->channel)->toBe(Product::CHANNEL_SHOP);
+});
+
 test('product current sale ignores settled and voided listings', function () {
     $product = Product::factory()->create();
     Auction::factory()->create([

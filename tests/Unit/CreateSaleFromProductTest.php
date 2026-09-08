@@ -35,7 +35,10 @@ test('creating a sale from a product reserves stock and links the auction', func
         ->and($auction->is_featured)->toBeFalse()
         ->and($auction->images)->toHaveCount(1)
         ->and($product->fresh()->reserved_stock)->toBe(1)
-        ->and($product->fresh()->availableStock())->toBe(4);
+        ->and($product->fresh()->availableStock())->toBe(4)
+        ->and($product->fresh()->channel)->toBe(Product::CHANNEL_BOTH)
+        ->and($product->fresh()->isInShop())->toBeTrue()
+        ->and($product->fresh()->isInAuctionChannel())->toBeTrue();
 });
 
 test('creating a featured sale from a product makes it the only homepage hero', function () {

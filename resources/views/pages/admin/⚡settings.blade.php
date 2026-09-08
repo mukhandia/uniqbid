@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SiteSetting;
+use App\Support\AuditLogger;
 use App\Support\MapEmbedUrl;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
@@ -59,6 +60,8 @@ class extends Component {
             'hours' => $validated['hours'],
             'map_url' => filled($validated['mapUrl'] ?? null) ? $validated['mapUrl'] : null,
         ]);
+
+        AuditLogger::log('settings', 'site settings updated', 'updated', $settings->fresh());
 
         Flux::toast(variant: 'success', text: 'Settings saved.');
     }

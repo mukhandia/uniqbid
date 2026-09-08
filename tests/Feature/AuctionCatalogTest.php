@@ -4,13 +4,13 @@ use App\Models\Auction;
 use Livewire\Livewire;
 
 test('auctions index filters by category', function () {
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Phone Deal',
         'category' => 'Electronics',
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Sofa Set',
         'category' => 'Home',
         'status' => 'live',
@@ -26,13 +26,13 @@ test('auctions index filters by category', function () {
 });
 
 test('auctions index sorts by popular bids', function () {
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Quiet Auction',
         'bids_count' => 10,
         'status' => 'live',
         'ends_at' => now()->addDays(3),
     ]);
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Hot Auction',
         'bids_count' => 900,
         'status' => 'live',
@@ -47,13 +47,13 @@ test('auctions index sorts by popular bids', function () {
 });
 
 test('auctions index sorts by highest product value', function () {
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Lower Value',
         'retail_value' => 20000,
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Higher Value',
         'retail_value' => 180000,
         'status' => 'live',
@@ -68,12 +68,12 @@ test('auctions index sorts by highest product value', function () {
 });
 
 test('auctions index hides closed auctions', function () {
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Still Open',
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
-    Auction::factory()->create([
+    Auction::factory()->onAuctionChannel()->create([
         'name' => 'Already Closed',
         'status' => 'closed',
         'ends_at' => now()->subHour(),
@@ -82,4 +82,22 @@ test('auctions index hides closed auctions', function () {
     Livewire::test('pages::auctions.index')
         ->assertSee('Still Open')
         ->assertDontSee('Already Closed');
+});
+
+test('auctions index hides live sales that are not on the auction channel', function () {
+    Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Auction Channel Sale',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+    Auction::factory()->create([
+        'name' => 'Orphan Live Sale',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+        'product_id' => null,
+    ]);
+
+    Livewire::test('pages::auctions.index')
+        ->assertSee('Auction Channel Sale')
+        ->assertDontSee('Orphan Live Sale');
 });

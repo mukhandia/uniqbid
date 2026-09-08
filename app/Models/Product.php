@@ -28,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property string $image
  * @property bool $is_featured
  * @property bool $is_returnable
+ * @property string $channel
+ * @property int $auction_sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -46,9 +48,19 @@ use Illuminate\Support\Carbon;
     'image',
     'is_featured',
     'is_returnable',
+    'channel',
+    'auction_sort_order',
 ])]
 class Product extends Model
 {
+    public const CHANNEL_NONE = 'none';
+
+    public const CHANNEL_SHOP = 'shop';
+
+    public const CHANNEL_AUCTION = 'auction';
+
+    public const CHANNEL_BOTH = 'both';
+
     /** @use HasFactory<ProductFactory> */
     use HasFactory;
 
@@ -60,6 +72,8 @@ class Product extends Model
         'is_returnable' => true,
         'stock' => 0,
         'reserved_stock' => 0,
+        'channel' => self::CHANNEL_NONE,
+        'auction_sort_order' => 0,
     ];
 
     /**
@@ -73,6 +87,7 @@ class Product extends Model
             'reserved_stock' => 'integer',
             'is_featured' => 'boolean',
             'is_returnable' => 'boolean',
+            'auction_sort_order' => 'integer',
         ];
     }
 
@@ -185,6 +200,80 @@ class Product extends Model
     public function scopeOutOfStock(Builder $query): Builder
     {
         return $query->where('stock', 0);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeInShop(Builder $query): Builder
+    {
+        return $query->whereIn('channel', [self::CHANNEL_SHOP, self::CHANNEL_BOTH]);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeInAuctionChannel(Builder $query): Builder
+    {
+        return $query->whereIn('channel', [self::CHANNEL_AUCTION, self::CHANNEL_BOTH]);
+    }
+
+    public function isInShop(): bool
+    {
+        return in_array($this->channel, [self::CHANNEL_SHOP, self::CHANNEL_BOTH], true);
+    }
+
+    public function isInAuctionChannel(): bool
+    {
+        return in_array($this->channel, [self::CHANNEL_AUCTION, self::CHANNEL_BOTH], true);
+    }
+
+    public function assignToShop(): void
+    {
+        $this->forceFill([
+            'channel' => $this->isInAuctionChannel() ? self::CHANNEL_BOTH : self::CHANNEL_SHOP,
+        ])->save();
+    }
+
+    public function assignToAuctionChannel(): void
+    {
+        $this->forceFill([
+            'channel' => $this->isInShop() ? self::CHANNEL_BOTH : self::CHANNEL_AUCTION,
+        ])->save();
+    }
+
+    public function removeFromShop(): void
+    {
+        $this->forceFill([
+            'channel' => match ($this->channel) {
+                self::CHANNEL_BOTH => self::CHANNEL_AUCTION,
+                self::CHANNEL_SHOP => self::CHANNEL_NONE,
+                default => $this->channel,
+            },
+        ])->save();
+    }
+
+    public function removeFromAuctionChannel(): void
+    {
+        $this->forceFill([
+            'channel' => match ($this->channel) {
+                self::CHANNEL_BOTH => self::CHANNEL_SHOP,
+                self::CHANNEL_AUCTION => self::CHANNEL_NONE,
+                default => $this->channel,
+            },
+        ])->save();
+    }
+
+    public function channelLabel(): string
+    {
+        return match ($this->channel) {
+            self::CHANNEL_SHOP => 'Shop',
+            self::CHANNEL_AUCTION => 'Auction',
+            self::CHANNEL_BOTH => 'Shop & Auction',
+            default => 'Unassigned',
+        };
     }
 
     /**

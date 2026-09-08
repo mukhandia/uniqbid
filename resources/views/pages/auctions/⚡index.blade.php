@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Auction;
+use App\Models\SiteSetting;
+use App\Services\LiveAuctionOrderingService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -14,33 +16,41 @@ class extends Component {
     public string $category = 'All';
 
     #[Url]
-    public string $sort = 'closing';
+    public string $sort = 'display';
 
     public function with(): array
     {
-        $query = Auction::query()->with('images')->live();
+        $settings = SiteSetting::current();
+        $ordering = app(LiveAuctionOrderingService::class);
+        $pollSeconds = min(60, max(5, $settings->auctionShuffleIntervalSeconds()));
+
+        $query = Auction::query()->with('images')->liveOnAuctionChannel();
 
         if ($this->category !== 'All') {
             $query->where('category', $this->category);
         }
 
-        match ($this->sort) {
-            'popular' => $query->orderByDesc('bids_count'),
-            'value' => $query->orderByDesc('retail_value'),
-            default => $query->orderBy('ends_at'),
+        $auctions = match ($this->sort) {
+            'popular' => $query->orderByDesc('bids_count')->orderBy('id')->get(),
+            'value' => $query->orderByDesc('retail_value')->orderBy('id')->get(),
+            'closing' => $query->orderBy('ends_at')->orderBy('id')->get(),
+            default => $this->category === 'All'
+                ? $ordering->orderedLive()
+                : $ordering->autoShuffle($query->orderBy('id')->get(), $settings->auctionShuffleIntervalSeconds()),
         };
 
         return [
-            'auctions' => $query->get(),
-            'categories' => ['All', ...Auction::query()->live()->distinct()->orderBy('category')->pluck('category')->all()],
+            'auctions' => $auctions,
+            'categories' => ['All', ...Auction::query()->liveOnAuctionChannel()->distinct()->orderBy('category')->pluck('category')->all()],
+            'pollSeconds' => $pollSeconds,
         ];
     }
 }; ?>
 
-<div class="mx-auto max-w-7xl px-4 py-10" wire:poll.30s.visible>
+<div class="mx-auto max-w-7xl px-4 py-10" wire:poll.{{ $pollSeconds }}s.visible>
     <div class="flex flex-col gap-2">
         <h1 class="text-3xl font-bold text-navy">Live Auctions</h1>
-        <p class="text-sm text-muted-foreground">All open auctions. Timers refresh every 30 seconds from the server.</p>
+        <p class="text-sm text-muted-foreground">All open auctions.</p>
     </div>
 
     <div class="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white p-3">
@@ -53,6 +63,7 @@ class extends Component {
         </div>
         <div class="min-w-[180px] flex-1">
             <flux:select wire:model.live="sort">
+                <flux:select.option value="display">Live order</flux:select.option>
                 <flux:select.option value="closing">Closing soonest</flux:select.option>
                 <flux:select.option value="popular">Most bids</flux:select.option>
                 <flux:select.option value="value">Highest product value</flux:select.option>

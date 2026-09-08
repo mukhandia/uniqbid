@@ -4,6 +4,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Subcategory;
 use App\Services\CreateSaleFromProductService;
+use App\Support\AuditLogger;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Str;
@@ -26,6 +27,8 @@ class extends Component {
     public string $search = '';
 
     public string $filterCategoryId = '';
+
+    public string $filterChannel = 'all';
 
     public bool $showForm = false;
 
@@ -75,6 +78,11 @@ class extends Component {
     }
 
     public function updatedFilterCategoryId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFilterChannel(): void
     {
         $this->resetPage();
     }
@@ -177,10 +185,19 @@ class extends Component {
             }
 
             $product->update($payload);
+            AuditLogger::log('products', 'product updated', 'updated', $product->fresh(), [
+                'name' => $product->fresh()->name,
+            ]);
             Flux::toast(variant: 'success', text: 'Product updated.');
         } else {
-            Product::query()->create($payload);
-            Flux::toast(variant: 'success', text: 'Product created.');
+            $product = Product::query()->create([
+                ...$payload,
+                'channel' => Product::CHANNEL_NONE,
+            ]);
+            AuditLogger::log('products', 'product created', 'created', $product, [
+                'name' => $product->name,
+            ]);
+            Flux::toast(variant: 'success', text: 'Product created. Move it to Shop or Auction when ready.');
         }
 
         $this->resetForm();
@@ -197,6 +214,10 @@ class extends Component {
             return;
         }
 
+        AuditLogger::log('products', 'product deleted', 'deleted', $product, [
+            'product_id' => $product->id,
+            'name' => $product->name,
+        ]);
         $product->delete();
         Flux::toast(variant: 'success', text: 'Product deleted.');
     }
@@ -272,6 +293,53 @@ class extends Component {
         $this->saleProductId = null;
     }
 
+    public function moveToShop(int $productId): void
+    {
+        $product = Product::query()->findOrFail($productId);
+        $product->assignToShop();
+        AuditLogger::log('products', 'product added to shop', 'channel_shop', $product->fresh(), [
+            'channel' => $product->fresh()->channel,
+        ]);
+        Flux::toast(variant: 'success', text: 'Product is listed in the shop'.($product->isInAuctionChannel() ? ' and remains available for auction.' : '.'));
+    }
+
+    public function moveToAuctionChannel(int $productId): void
+    {
+        $product = Product::query()->findOrFail($productId);
+        $product->assignToAuctionChannel();
+        AuditLogger::log('products', 'product added to auction channel', 'channel_auction', $product->fresh(), [
+            'channel' => $product->fresh()->channel,
+        ]);
+        Flux::toast(variant: 'success', text: 'Product is ready for auction'.($product->isInShop() ? ' and remains listed in the shop.' : '. Create a sale when you want it live.'));
+    }
+
+    public function removeFromShop(int $productId): void
+    {
+        $product = Product::query()->findOrFail($productId);
+        $product->removeFromShop();
+        AuditLogger::log('products', 'product removed from shop', 'channel_shop_removed', $product->fresh(), [
+            'channel' => $product->fresh()->channel,
+        ]);
+        Flux::toast(variant: 'success', text: 'Product removed from the shop.');
+    }
+
+    public function removeFromAuctionChannel(int $productId): void
+    {
+        $product = Product::query()->with('currentSale')->findOrFail($productId);
+
+        if ($product->currentSale !== null) {
+            Flux::toast(variant: 'danger', text: 'Settle or void the active sale before removing this product from auction.');
+
+            return;
+        }
+
+        $product->removeFromAuctionChannel();
+        AuditLogger::log('products', 'product removed from auction channel', 'channel_auction_removed', $product->fresh(), [
+            'channel' => $product->fresh()->channel,
+        ]);
+        Flux::toast(variant: 'success', text: 'Product removed from the auction channel.');
+    }
+
     public function resetForm(): void
     {
         $this->editingId = null;
@@ -335,6 +403,14 @@ class extends Component {
             $query->whereHas('subcategoryRelation', fn ($q) => $q->where('category_id', $this->filterCategoryId));
         }
 
+        match ($this->filterChannel) {
+            'shop' => $query->inShop(),
+            'auction' => $query->inAuctionChannel(),
+            'both' => $query->where('channel', Product::CHANNEL_BOTH),
+            'none' => $query->where('channel', Product::CHANNEL_NONE),
+            default => null,
+        };
+
         $subcategories = $this->categoryId !== ''
             ? Subcategory::query()->where('category_id', $this->categoryId)->orderBy('sort_order')->orderBy('name')->get()
             : collect();
@@ -354,12 +430,12 @@ class extends Component {
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
             <flux:heading size="xl">Products</flux:heading>
-            <flux:text class="mt-1">Manage shop inventory. Create a live sale from a product that is not already in a live or unsettled sale.</flux:text>
+            <flux:text class="mt-1">Products start unassigned. Assign them to Shop, Auction, or both. Create a sale when you want an auction product live.</flux:text>
         </div>
         <flux:button wire:click="openCreate" class="bg-accent! text-accent-foreground!">Add product</flux:button>
     </div>
 
-    <div class="flex flex-col gap-3 sm:flex-row">
+    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Search products…" class="sm:max-w-sm" />
         <flux:select wire:model.live="filterCategoryId" class="sm:max-w-xs">
             <flux:select.option value="">All categories</flux:select.option>
@@ -367,6 +443,16 @@ class extends Component {
                 <flux:select.option value="{{ $category->id }}">{{ $category->name }}</flux:select.option>
             @endforeach
         </flux:select>
+        <flux:select wire:model.live="filterChannel" class="sm:max-w-xs">
+            <flux:select.option value="all">All channels</flux:select.option>
+            <flux:select.option value="shop">Shop products</flux:select.option>
+            <flux:select.option value="auction">Auction products</flux:select.option>
+            <flux:select.option value="both">Shop &amp; Auction</flux:select.option>
+            <flux:select.option value="none">Unassigned</flux:select.option>
+        </flux:select>
+        <flux:text class="sm:ms-auto">
+            {{ $products->total() }} {{ $products->total() === 1 ? 'product' : 'products' }}
+        </flux:text>
     </div>
 
     @if ($showForm)
@@ -463,7 +549,7 @@ class extends Component {
                 </flux:field>
                 <div class="flex flex-col gap-2 md:col-span-2">
                     <div class="flex flex-wrap gap-4">
-                        <flux:checkbox wire:model="isFeatured" label="Show in homepage shop" />
+                        <flux:checkbox wire:model="isFeatured" label="Set as Featured" />
                         <flux:checkbox wire:model="isReturnable" label="Allow shop returns" />
                     </div>
                     <p class="text-xs text-zinc-500 dark:text-zinc-400">
@@ -515,6 +601,7 @@ class extends Component {
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
                 <tr>
                     <th class="px-4 py-3 font-medium">Product</th>
+                    <th class="px-4 py-3 font-medium">Channel</th>
                     <th class="px-4 py-3 font-medium">Category</th>
                     <th class="px-4 py-3 font-medium">Price</th>
                     <th class="px-4 py-3 font-medium">Stock</th>
@@ -523,6 +610,14 @@ class extends Component {
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @foreach ($products as $product)
+                    @php
+                        $channelColor = match ($product->channel) {
+                            Product::CHANNEL_SHOP => 'sky',
+                            Product::CHANNEL_AUCTION => 'amber',
+                            Product::CHANNEL_BOTH => 'green',
+                            default => 'zinc',
+                        };
+                    @endphp
                     <tr wire:key="product-{{ $product->id }}">
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-3">
@@ -531,13 +626,16 @@ class extends Component {
                                     <div class="font-medium">{{ $product->name }}</div>
                                     <div class="text-xs text-zinc-500">{{ $product->subcategory }}</div>
                                     @if ($product->is_featured)
-                                        <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">Homepage shop</span>
+                                        <span class="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">Featured in shop</span>
                                     @endif
                                     @unless ($product->is_returnable)
                                         <span class="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">Non-returnable</span>
                                     @endunless
                                 </div>
                             </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <flux:badge size="sm" :color="$channelColor">{{ $product->channelLabel() }}</flux:badge>
                         </td>
                         <td class="px-4 py-3 text-xs">{{ $product->category }}</td>
                         <td class="px-4 py-3">{{ Money::kes($product->price) }}</td>
@@ -548,7 +646,25 @@ class extends Component {
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="flex justify-end gap-1">
+                            <div class="flex flex-wrap justify-end gap-1">
+                                @unless ($product->isInShop())
+                                    <flux:button size="sm" variant="outline" wire:click="moveToShop({{ $product->id }})">
+                                        Add to shop
+                                    </flux:button>
+                                @else
+                                    <flux:button size="sm" variant="ghost" wire:click="removeFromShop({{ $product->id }})">
+                                        Remove shop
+                                    </flux:button>
+                                @endunless
+                                @unless ($product->isInAuctionChannel())
+                                    <flux:button size="sm" variant="outline" wire:click="moveToAuctionChannel({{ $product->id }})">
+                                        Add to auction
+                                    </flux:button>
+                                @else
+                                    <flux:button size="sm" variant="ghost" wire:click="removeFromAuctionChannel({{ $product->id }})">
+                                        Remove auction
+                                    </flux:button>
+                                @endunless
                                 @if ($product->currentSale?->isOpenLive())
                                     <flux:button size="sm" variant="outline" href="{{ route('admin.auction-bids', $product->currentSale) }}">
                                         View sale

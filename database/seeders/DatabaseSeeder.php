@@ -36,5 +36,9 @@ class DatabaseSeeder extends Seeder
             ContentSeeder::class,
             UniqBidDemoSeeder::class,
         ]);
+
+        if (class_exists(RolePermissionSeeder::class)) {
+            $this->call(RolePermissionSeeder::class);
+        }
     }
 }

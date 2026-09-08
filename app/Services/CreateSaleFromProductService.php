@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Auction;
 use App\Models\Product;
+use App\Support\AuditLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -61,6 +62,8 @@ class CreateSaleFromProductService
                 $suffix++;
             }
 
+            $displayOrder = (int) (Auction::query()->max('display_order') ?? 0) + 10;
+
             $auction = Auction::query()->create([
                 'product_id' => $product->id,
                 'slug' => $slug,
@@ -78,7 +81,20 @@ class CreateSaleFromProductService
                 'is_featured' => false,
                 'no_unique_bid_rule' => 'extend',
                 'extension_minutes' => 60,
+                'current_round' => 1,
+                'duration_hours' => $hours,
+                'display_order' => $displayOrder,
             ]);
+
+            $auction->rounds()->create([
+                'round' => 1,
+                'started_at' => now(),
+                'ended_at' => null,
+                'outcome' => null,
+                'winning_bid_id' => null,
+            ]);
+
+            $product->assignToAuctionChannel();
 
             if ((bool) ($options['is_featured'] ?? false)) {
                 $auction->makeHomepageHero();
@@ -96,7 +112,15 @@ class CreateSaleFromProductService
                 $product->increment('reserved_stock');
             }
 
-            return $auction->load('images', 'product');
+            $auction = $auction->load('images', 'product');
+
+            AuditLogger::log('auctions', 'sale created', 'created', $auction, [
+                'product_id' => $product->id,
+                'bid_fee' => $auction->bid_fee,
+                'ends_at' => $auction->ends_at?->toIso8601String(),
+            ]);
+
+            return $auction;
         });
     }
 

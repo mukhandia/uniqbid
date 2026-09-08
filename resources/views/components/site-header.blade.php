@@ -4,6 +4,7 @@
         ['route' => 'auctions.index', 'label' => 'Live Auctions', 'match' => 'auctions.*'],
         ['route' => 'shop.index', 'label' => 'Shop', 'match' => 'shop.*'],
         ['route' => 'how-it-works', 'label' => 'How It Works', 'match' => 'how-it-works'],
+        ['route' => 'redeem', 'label' => 'Redeem Bid', 'match' => 'redeem'],
         ['route' => 'past-sales', 'label' => 'Past Sales', 'match' => 'past-sales'],
         ['route' => 'testimonials', 'label' => 'Testimonials', 'match' => 'testimonials'],
         ['route' => 'faqs', 'label' => 'FAQs', 'match' => 'faqs'],
