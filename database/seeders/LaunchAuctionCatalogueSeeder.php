@@ -102,7 +102,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'price' => 72000,
                 'bid_fee' => 40,
                 'max_bid' => 10000,
-                'image' => '/images/auctions/samsung-tv-55.png',
+                'image' => '/images/auctions/samsung-phone.png',
                 'description' => 'Current-generation Samsung smartphone, sealed, with local warranty support.',
                 'sort' => 30,
                 'ends_in_hours' => 26,
@@ -114,7 +114,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'price' => 78000,
                 'bid_fee' => 30,
                 'max_bid' => 9000,
-                'image' => '/images/auctions/samsung-tv-55.png',
+                'image' => '/images/auctions/tv-woofer.png',
                 'description' => 'Smart TV and woofer entertainment package for living-room setups. Nairobi delivery available.',
                 'sort' => 40,
                 'ends_in_hours' => 24,
@@ -126,7 +126,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'price' => 120000,
                 'bid_fee' => 80,
                 'max_bid' => 20000,
-                'image' => '/images/auctions/boxer-150.png',
+                'image' => '/images/auctions/dairy-cow.png',
                 'description' => 'Healthy dairy cow selected for Kenyan smallholder farming. Collection arrangements coordinated after the successful buy.',
                 'sort' => 50,
                 'ends_in_hours' => 36,
@@ -138,7 +138,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'price' => 75000,
                 'bid_fee' => 50,
                 'max_bid' => 12000,
-                'image' => '/images/auctions/macbook-air-m3.png',
+                'image' => '/images/auctions/rent-keys.png',
                 'description' => 'Rent support package covering rent plus a two-month deposit equivalent, paid out after a successful buy and verification.',
                 'sort' => 60,
                 'ends_in_hours' => 32,
@@ -150,7 +150,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'price' => 55000,
                 'bid_fee' => 35,
                 'max_bid' => 8000,
-                'image' => '/images/auctions/ps5-slim.png',
+                'image' => '/images/auctions/solar-kit.png',
                 'description' => 'Home solar kit sized for lighting and small appliance loads. Installation guidance included.',
                 'sort' => 70,
                 'ends_in_hours' => 22,
@@ -178,6 +178,8 @@ class LaunchAuctionCatalogueSeeder extends Seeder
             $subcategory = $row['subcategory'];
             $subcategory->loadMissing('category');
 
+            $existing = Product::query()->where('slug', $row['slug'])->first();
+
             $product = Product::query()->updateOrCreate(
                 ['slug' => $row['slug']],
                 [
@@ -189,8 +191,8 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                     'price_tier' => 'Mid-range',
                     'description' => $row['description'],
                     'price' => $row['price'],
-                    'stock' => 5,
-                    'reserved_stock' => 0,
+                    'stock' => max(5, (int) ($existing?->stock ?? 5)),
+                    'reserved_stock' => (int) ($existing?->reserved_stock ?? 0),
                     'image' => $row['image'],
                     'is_featured' => false,
                     'is_returnable' => false,
@@ -199,7 +201,16 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 ],
             );
 
-            if ($product->currentSale !== null) {
+            $currentSale = $product->fresh()->currentSale;
+
+            if ($currentSale !== null) {
+                $currentSale->images()->updateOrCreate(
+                    ['sort_order' => 0],
+                    [
+                        'url' => $row['image'],
+                        'label' => $product->name,
+                    ],
+                );
                 $skipped++;
 
                 continue;
@@ -224,6 +235,6 @@ class LaunchAuctionCatalogueSeeder extends Seeder
 
         Auction::ensureHomepageHero();
 
-        $this->command->info("Launch auction catalogue: created {$created} sale(s), skipped {$skipped} (already live).");
+        $this->command->info("Launch auction catalogue: created {$created} sale(s), refreshed images on {$skipped} live sale(s).");
     }
 }
