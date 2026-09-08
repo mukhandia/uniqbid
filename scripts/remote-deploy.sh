@@ -49,6 +49,9 @@ $PHP_BIN artisan db:seed --class=ContentSeeder --force --no-interaction
 echo "==> Seeding launch auction catalogue (idempotent)"
 $PHP_BIN artisan db:seed --class=LaunchAuctionCatalogueSeeder --force --no-interaction
 
+echo "==> Syncing catalogue product images (idempotent)"
+$PHP_BIN artisan db:seed --class=SyncCatalogueProductImagesSeeder --force --no-interaction
+
 echo "==> Ensuring admin user exists"
 $PHP_BIN artisan uniqbid:ensure-admin --no-interaction
 

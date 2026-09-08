@@ -130,7 +130,7 @@ class UniqBidDemoSeeder extends Seeder
                             ? 'Eligible for return within 7 days if unused and in original packaging.'
                             : 'Marked non-returnable under the Refund Policy (personalised or hygiene-restricted item).',
                     ]))),
-                    'image' => $placeholderImages[$index % count($placeholderImages)],
+                    'image' => $product['image'] ?? $placeholderImages[$index % count($placeholderImages)],
                     'is_featured' => (bool) ($product['is_featured'] ?? false),
                     'is_returnable' => (bool) ($product['is_returnable'] ?? true),
                     'channel' => Product::CHANNEL_SHOP,

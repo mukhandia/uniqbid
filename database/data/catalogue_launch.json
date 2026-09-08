@@ -605,7 +605,8 @@
       "price": 2650,
       "slug": "classic-leather-strap-dress-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/classic-leather-strap-dress-watch.png"
     },
     {
       "name": "Steel bracelet business watch",
@@ -616,7 +617,8 @@
       "price": 5250,
       "slug": "steel-bracelet-business-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/steel-bracelet-business-watch.png"
     },
     {
       "name": "Slim minimalist watch",
@@ -627,7 +629,8 @@
       "price": 2650,
       "slug": "slim-minimalist-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/slim-minimalist-watch.png"
     },
     {
       "name": "Rose-gold bracelet watch",
@@ -638,7 +641,8 @@
       "price": 4950,
       "slug": "rose-gold-bracelet-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/rose-gold-bracelet-watch.png"
     },
     {
       "name": "Crystal-bezel fashion watch",
@@ -649,7 +653,8 @@
       "price": 5750,
       "slug": "crystal-bezel-fashion-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/crystal-bezel-fashion-watch.png"
     },
     {
       "name": "Canvas/NATO strap casual watch",
@@ -660,7 +665,8 @@
       "price": 1350,
       "slug": "canvas-nato-strap-casual-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/canvas-nato-strap-casual-watch.png"
     },
     {
       "name": "Minimalist mesh-strap watch",
@@ -671,7 +677,8 @@
       "price": 2850,
       "slug": "minimalist-mesh-strap-watch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/minimalist-mesh-strap-watch.png"
     },
     {
       "name": "Fitness tracker smartwatch",
@@ -682,7 +689,8 @@
       "price": 5250,
       "slug": "fitness-tracker-smartwatch",
       "is_returnable": true,
-      "is_featured": true
+      "is_featured": true,
+      "image": "/images/products/fitness-tracker-smartwatch.png"
     },
     {
       "name": "Call-function smartwatch",
@@ -693,7 +701,8 @@
       "price": 6750,
       "slug": "call-function-smartwatch",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/call-function-smartwatch.png"
     },
     {
       "name": "Digital cartoon-print watch",
@@ -704,7 +713,8 @@
       "price": 850,
       "slug": "digital-cartoon-print-watch",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/digital-cartoon-print-watch.png"
     },
     {
       "name": "His & hers matching watch set",
@@ -715,7 +725,8 @@
       "price": 6450,
       "slug": "his-hers-matching-watch-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/his-hers-matching-watch-set.png"
     },
     {
       "name": "Watch + bracelet gift box",
@@ -726,7 +737,8 @@
       "price": 3450,
       "slug": "watch-bracelet-gift-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/watch-bracelet-gift-box.png"
     },
     {
       "name": "Designer-inspired men's EDP 100ml",
