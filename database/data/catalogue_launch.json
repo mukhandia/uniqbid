@@ -749,7 +749,8 @@
       "price": 2250,
       "slug": "designer-inspired-men-s-edp-100ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/designer-inspired-men-s-edp-100ml.png"
     },
     {
       "name": "Branded men's EDT 100ml",
@@ -760,7 +761,8 @@
       "price": 5250,
       "slug": "branded-men-s-edt-100ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/branded-men-s-edt-100ml.png"
     },
     {
       "name": "Designer-inspired women's EDP 100ml",
@@ -771,7 +773,8 @@
       "price": 2250,
       "slug": "designer-inspired-women-s-edp-100ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/designer-inspired-women-s-edp-100ml.png"
     },
     {
       "name": "Branded women's EDT 100ml",
@@ -782,7 +785,8 @@
       "price": 5250,
       "slug": "branded-women-s-edt-100ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/branded-women-s-edt-100ml.png"
     },
     {
       "name": "Concentrated perfume oil 12ml",
@@ -793,7 +797,8 @@
       "price": 1250,
       "slug": "concentrated-perfume-oil-12ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/concentrated-perfume-oil-12ml.png"
     },
     {
       "name": "Fruity/floral body mist 250ml",
@@ -804,7 +809,8 @@
       "price": 750,
       "slug": "fruity-floral-body-mist-250ml",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/fruity-floral-body-mist-250ml.png"
     },
     {
       "name": "Men's perfume + deodorant gift set",
@@ -815,7 +821,8 @@
       "price": 2950,
       "slug": "men-s-perfume-deodorant-gift-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/men-s-perfume-deodorant-gift-set.png"
     },
     {
       "name": "Women's perfume + lotion gift set",
@@ -826,7 +833,8 @@
       "price": 2950,
       "slug": "women-s-perfume-lotion-gift-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/women-s-perfume-lotion-gift-set.png"
     },
     {
       "name": "4-piece travel perfume set",
@@ -837,7 +845,8 @@
       "price": 2450,
       "slug": "4-piece-travel-perfume-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/4-piece-travel-perfume-set.png"
     },
     {
       "name": "Soy scented candle (single)",
@@ -848,7 +857,8 @@
       "price": 1250,
       "slug": "soy-scented-candle-single",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/soy-scented-candle-single.png"
     },
     {
       "name": "Structured tote handbag",
@@ -859,7 +869,8 @@
       "price": 3950,
       "slug": "structured-tote-handbag",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/structured-tote-handbag.png"
     },
     {
       "name": "Small crossbody bag",
@@ -870,7 +881,8 @@
       "price": 2250,
       "slug": "small-crossbody-bag",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/small-crossbody-bag.png"
     },
     {
       "name": "Men's leather bifold wallet",
@@ -881,7 +893,8 @@
       "price": 1550,
       "slug": "men-s-leather-bifold-wallet",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/men-s-leather-bifold-wallet.png"
     },
     {
       "name": "Women's compact wallet",
@@ -892,7 +905,8 @@
       "price": 1450,
       "slug": "women-s-compact-wallet",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/women-s-compact-wallet.png"
     },
     {
       "name": "Classic polarised sunglasses",
@@ -903,7 +917,8 @@
       "price": 1850,
       "slug": "classic-polarised-sunglasses",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/classic-polarised-sunglasses.png"
     },
     {
       "name": "Stainless steel pendant necklace",
@@ -914,7 +929,8 @@
       "price": 1250,
       "slug": "stainless-steel-pendant-necklace",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/stainless-steel-pendant-necklace.png"
     },
     {
       "name": "Beaded charm bracelet",
@@ -925,7 +941,8 @@
       "price": 650,
       "slug": "beaded-charm-bracelet",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/beaded-charm-bracelet.png"
     },
     {
       "name": "Stud earring set (5-pair pack)",
@@ -936,7 +953,8 @@
       "price": 750,
       "slug": "stud-earring-set-5-pair-pack",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/stud-earring-set-5-pair-pack.png"
     },
     {
       "name": "Makeup brush set (10-12 pcs)",
@@ -947,7 +965,8 @@
       "price": 1450,
       "slug": "makeup-brush-set-10-12-pcs",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/makeup-brush-set-10-12-pcs.png"
     },
     {
       "name": "Silk scrunchie set",
@@ -958,7 +977,8 @@
       "price": 450,
       "slug": "silk-scrunchie-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/silk-scrunchie-set.png"
     },
     {
       "name": "Claw clips set (assorted)",
@@ -969,7 +989,8 @@
       "price": 450,
       "slug": "claw-clips-set-assorted",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/claw-clips-set-assorted.png"
     },
     {
       "name": "Men's beard grooming kit",
@@ -980,7 +1001,8 @@
       "price": 2250,
       "slug": "men-s-beard-grooming-kit",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/men-s-beard-grooming-kit.png"
     },
     {
       "name": "Beard oil & comb set",
@@ -991,7 +1013,8 @@
       "price": 1250,
       "slug": "beard-oil-comb-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/beard-oil-comb-set.png"
     },
     {
       "name": "Men's minimalist card wallet",
@@ -1002,7 +1025,8 @@
       "price": 1450,
       "slug": "men-s-minimalist-card-wallet",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/men-s-minimalist-card-wallet.png"
     },
     {
       "name": "Grooming gift box (wallet+belt+cufflinks)",
@@ -1013,7 +1037,8 @@
       "price": 4450,
       "slug": "grooming-gift-box-wallet-belt-cufflinks",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/grooming-gift-box-wallet-belt-cufflinks.png"
     },
     {
       "name": "Toddler drawing tablet",
@@ -1167,7 +1192,8 @@
       "price": 3500,
       "slug": "birthday-gift-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/birthday-gift-box.png"
     },
     {
       "name": "His & Hers Set",
@@ -1178,7 +1204,8 @@
       "price": 8750,
       "slug": "his-hers-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/his-hers-set.png"
     },
     {
       "name": "Executive Man",
@@ -1189,7 +1216,8 @@
       "price": 12000,
       "slug": "executive-man",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/executive-man.png"
     },
     {
       "name": "Executive Woman",
@@ -1200,7 +1228,8 @@
       "price": 12000,
       "slug": "executive-woman",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/executive-woman.png"
     },
     {
       "name": "Date Night Box",
@@ -1211,7 +1240,8 @@
       "price": 4750,
       "slug": "date-night-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/date-night-box.png"
     },
     {
       "name": "Self-Care Box",
@@ -1222,7 +1252,8 @@
       "price": 4750,
       "slug": "self-care-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/self-care-box.png"
     },
     {
       "name": "New Mum Box",
@@ -1233,7 +1264,8 @@
       "price": 5250,
       "slug": "new-mum-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/new-mum-box.png"
     },
     {
       "name": "Teen Girl Box",
@@ -1244,7 +1276,8 @@
       "price": 4750,
       "slug": "teen-girl-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/teen-girl-box.png"
     },
     {
       "name": "Teen Boy Box",
@@ -1255,7 +1288,8 @@
       "price": 4750,
       "slug": "teen-boy-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/teen-boy-box.png"
     },
     {
       "name": "Young Gentleman",
@@ -1266,7 +1300,8 @@
       "price": 4750,
       "slug": "young-gentleman",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/young-gentleman.png"
     },
     {
       "name": "Young Lady",
@@ -1277,7 +1312,8 @@
       "price": 5750,
       "slug": "young-lady",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/young-lady.png"
     },
     {
       "name": "Kids' Birthday Box",
@@ -1288,7 +1324,8 @@
       "price": 4000,
       "slug": "kids-birthday-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/kids-birthday-box.png"
     },
     {
       "name": "Back-to-School Gadget Box",
@@ -1299,7 +1336,8 @@
       "price": 4500,
       "slug": "back-to-school-gadget-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/back-to-school-gadget-box.png"
     },
     {
       "name": "Travel Essentials",
@@ -1310,7 +1348,8 @@
       "price": 5250,
       "slug": "travel-essentials",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/travel-essentials.png"
     },
     {
       "name": "Grooming Box",
@@ -1321,7 +1360,8 @@
       "price": 5750,
       "slug": "grooming-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/grooming-box.png"
     },
     {
       "name": "Perfume & Watch Set",
@@ -1332,7 +1372,8 @@
       "price": 7750,
       "slug": "perfume-watch-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/perfume-watch-set.png"
     },
     {
       "name": "Watch & Wallet Set",
@@ -1343,7 +1384,8 @@
       "price": 7250,
       "slug": "watch-wallet-set",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/watch-wallet-set.png"
     },
     {
       "name": "Mother's Day Box",
@@ -1354,7 +1396,8 @@
       "price": 6500,
       "slug": "mother-s-day-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/mother-s-day-box.png"
     },
     {
       "name": "Father's Day Box",
@@ -1365,7 +1408,8 @@
       "price": 5750,
       "slug": "father-s-day-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/father-s-day-box.png"
     },
     {
       "name": "Anniversary Box",
@@ -1376,7 +1420,8 @@
       "price": 7750,
       "slug": "anniversary-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/anniversary-box.png"
     },
     {
       "name": "Corporate Executive Box",
@@ -1387,7 +1432,8 @@
       "price": 8250,
       "slug": "corporate-executive-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/corporate-executive-box.png"
     },
     {
       "name": "Bridesmaid Box",
@@ -1398,7 +1444,8 @@
       "price": 7000,
       "slug": "bridesmaid-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/bridesmaid-box.png"
     },
     {
       "name": "Beauty Hamper",
@@ -1409,7 +1456,8 @@
       "price": 4750,
       "slug": "beauty-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/beauty-hamper.png"
     },
     {
       "name": "Romance Hamper",
@@ -1420,7 +1468,8 @@
       "price": 4750,
       "slug": "romance-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/romance-hamper.png"
     },
     {
       "name": "Client Appreciation Hamper",
@@ -1431,7 +1480,8 @@
       "price": 7500,
       "slug": "client-appreciation-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/client-appreciation-hamper.png"
     },
     {
       "name": "New Employee Welcome Box",
@@ -1442,7 +1492,8 @@
       "price": 5250,
       "slug": "new-employee-welcome-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/new-employee-welcome-box.png"
     },
     {
       "name": "End-of-Year Hamper",
@@ -1453,7 +1504,8 @@
       "price": 7750,
       "slug": "end-of-year-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/end-of-year-hamper.png"
     },
     {
       "name": "Christmas Hamper",
@@ -1464,7 +1516,8 @@
       "price": 6750,
       "slug": "christmas-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/christmas-hamper.png"
     },
     {
       "name": "Valentine's Couple Box",
@@ -1475,7 +1528,8 @@
       "price": 6500,
       "slug": "valentine-s-couple-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/valentine-s-couple-box.png"
     },
     {
       "name": "Graduation Box",
@@ -1486,7 +1540,8 @@
       "price": 7250,
       "slug": "graduation-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/graduation-box.png"
     },
     {
       "name": "Baby Shower Hamper",
@@ -1497,7 +1552,8 @@
       "price": 4750,
       "slug": "baby-shower-hamper",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/baby-shower-hamper.png"
     },
     {
       "name": "Wedding Guest Gift Box",
@@ -1508,7 +1564,8 @@
       "price": 1600,
       "slug": "wedding-guest-gift-box",
       "is_returnable": true,
-      "is_featured": false
+      "is_featured": false,
+      "image": "/images/products/wedding-guest-gift-box.png"
     }
   ]
 }
