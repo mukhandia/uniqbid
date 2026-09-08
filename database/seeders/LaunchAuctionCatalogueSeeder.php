@@ -224,6 +224,6 @@ class LaunchAuctionCatalogueSeeder extends Seeder
 
         Auction::ensureHomepageHero();
 
-        $this->command?->info("Launch auction catalogue: created {$created} sale(s), skipped {$skipped} (already live).");
+        $this->command->info("Launch auction catalogue: created {$created} sale(s), skipped {$skipped} (already live).");
     }
 }
