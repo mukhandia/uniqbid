@@ -140,7 +140,7 @@ class LogisticsService
             Shipment::STATUS_CANCELLED,
         ];
 
-        $method = (string) ($data['method'] ?? '');
+        $method = (string) $data['method'];
         $status = (string) ($data['status'] ?? Shipment::STATUS_PENDING);
 
         if (! in_array($method, $methods, true)) {

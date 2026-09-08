@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -18,9 +19,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $address
  * @property int $fee
  * @property string|null $notes
- * @property Carbon|null $dispatched_at
- * @property Carbon|null $delivered_at
- * @property Carbon|null $collected_at
+ * @property CarbonInterface|null $dispatched_at
+ * @property CarbonInterface|null $delivered_at
+ * @property CarbonInterface|null $collected_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -71,6 +72,9 @@ class Shipment extends Model
         ];
     }
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function shippable(): MorphTo
     {
         return $this->morphTo();

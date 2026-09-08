@@ -103,7 +103,8 @@ class RedeemBidService
             $attempt = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
 
             if ($attempt->status === 'succeeded') {
-                $resultId = (int) ($attempt->request_payload['auction_result_id'] ?? 0);
+                $payload = $attempt->request_payload ?? [];
+                $resultId = (int) ($payload['auction_result_id'] ?? 0);
 
                 return AuctionResult::query()->findOrFail($resultId);
             }
@@ -114,7 +115,8 @@ class RedeemBidService
                 ]);
             }
 
-            $resultId = (int) ($attempt->request_payload['auction_result_id'] ?? 0);
+            $payload = $attempt->request_payload ?? [];
+            $resultId = (int) ($payload['auction_result_id'] ?? 0);
             $result = AuctionResult::query()->lockForUpdate()->findOrFail($resultId);
 
             $attempt->update([
@@ -156,7 +158,7 @@ class RedeemBidService
                 ]);
             }
 
-            $retailValue = (int) ($result->auction?->retail_value ?? 0);
+            $retailValue = (int) ($result->auction->retail_value ?? 0);
 
             $result->update([
                 'outcome_choice' => 'redeem',

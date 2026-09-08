@@ -117,7 +117,7 @@ class CreateSaleFromProductService
             AuditLogger::log('auctions', 'sale created', 'created', $auction, [
                 'product_id' => $product->id,
                 'bid_fee' => $auction->bid_fee,
-                'ends_at' => $auction->ends_at?->toIso8601String(),
+                'ends_at' => $auction->ends_at->toIso8601String(),
             ]);
 
             return $auction;

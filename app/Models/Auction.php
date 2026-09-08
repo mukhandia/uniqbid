@@ -163,7 +163,7 @@ class Auction extends Model
             ->live()
             ->whereNotNull('product_id')
             ->whereHas('product', function (Builder $product): void {
-                $product->inAuctionChannel();
+                $product->whereIn('channel', [Product::CHANNEL_AUCTION, Product::CHANNEL_BOTH]);
             });
     }
 

@@ -8,6 +8,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $auction_bid_id
+ * @property string $provider
+ * @property string $reference
+ * @property int $amount
+ * @property string $status
+ * @property string|null $failure_reason
+ * @property array<string, mixed>|null $request_payload
+ * @property array<string, mixed>|null $response_payload
+ */
 #[Fillable([
     'auction_bid_id',
     'provider',
