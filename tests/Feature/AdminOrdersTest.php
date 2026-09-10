@@ -3,6 +3,7 @@
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\Shipment;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -79,7 +80,7 @@ test('admin can move a paid order through fulfilment', function () {
 
     expect($order->fresh()->status)->toBe(Order::STATUS_DELIVERED)
         ->and($order->fresh()->delivered_at)->not->toBeNull()
-        ->and($order->fresh()->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DELIVERED);
+        ->and($order->fresh()->activeShipment()?->status)->toBe(Shipment::STATUS_DELIVERED);
 });
 
 test('admin can cancel an order before dispatch and restore stock', function () {

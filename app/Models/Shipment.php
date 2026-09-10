@@ -59,6 +59,8 @@ class Shipment extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_REDEEMED = 'redeemed';
+
     /**
      * @return array<string, string>
      */
@@ -99,6 +101,7 @@ class Shipment extends Model
             self::STATUS_DELIVERED => 'Delivered',
             self::STATUS_COLLECTED => 'Collected',
             self::STATUS_CANCELLED => 'Cancelled',
+            self::STATUS_REDEEMED => 'Redeemed',
             default => str_replace('_', ' ', $this->status),
         };
     }

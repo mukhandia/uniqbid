@@ -280,7 +280,7 @@ class extends Component {
                             </a>
                         @else
                             <p class="mt-2 text-xs text-zinc-500">
-                                A shipment is created when you mark ready for collection or dispatch (not for redeem).
+                                A shipment is created when you mark ready for collection or dispatch. Redeem sets it to Redeemed.
                             </p>
                         @endif
                     </div>

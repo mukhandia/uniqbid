@@ -89,6 +89,7 @@ class extends Component {
                 Shipment::STATUS_DELIVERED,
                 Shipment::STATUS_COLLECTED,
                 Shipment::STATUS_CANCELLED,
+                Shipment::STATUS_REDEEMED,
             ])],
             'recipientName' => ['nullable', 'string', 'max:120'],
             'recipientPhone' => ['nullable', 'string', 'max:40'],
@@ -201,6 +202,7 @@ class extends Component {
                 Shipment::STATUS_DELIVERED => 'Delivered',
                 Shipment::STATUS_COLLECTED => 'Collected',
                 Shipment::STATUS_CANCELLED => 'Cancelled',
+                Shipment::STATUS_REDEEMED => 'Redeemed',
             ],
         ];
     }
@@ -213,6 +215,7 @@ class extends Component {
         Shipment::STATUS_DISPATCHED => 'blue',
         Shipment::STATUS_DELIVERED, Shipment::STATUS_COLLECTED => 'green',
         Shipment::STATUS_CANCELLED => 'red',
+        Shipment::STATUS_REDEEMED => 'purple',
         default => 'zinc',
     };
 @endphp

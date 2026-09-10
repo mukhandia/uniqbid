@@ -12,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class RedeemBidService
 {
+    public function __construct(
+        private readonly LogisticsService $logistics,
+    ) {}
+
     /**
      * @return array{bid: AuctionBid, result: AuctionResult, auction: Auction}
      */
@@ -168,12 +172,14 @@ class RedeemBidService
                 'redeemed_at' => now(),
             ]);
 
-            $fresh = $result->fresh('auction');
+            $fresh = $result->fresh(['auction', 'auctionBid.bidder']);
 
             AuditLogger::log('redeem', 'successful buy redeemed', 'redeemed', $fresh, [
                 'auction_id' => $fresh->auction_id,
                 'redemption_amount' => $fresh->redemption_amount,
             ]);
+
+            $this->logistics->syncFromAuctionResult($fresh);
 
             return $fresh;
         });

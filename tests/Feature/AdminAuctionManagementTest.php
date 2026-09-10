@@ -5,6 +5,7 @@ use App\Models\AuctionBid;
 use App\Models\Bidder;
 use App\Models\PaymentAttempt;
 use App\Models\Product;
+use App\Models\Shipment;
 use App\Models\User;
 use App\Services\AuctionSettlementService;
 use App\Services\CreateSaleFromProductService;
@@ -185,8 +186,8 @@ test('admins can track a successful buy payment and fulfilment', function () {
         ->and($result->sale_payment_paid_at)->not->toBeNull()
         ->and($result->fulfilment_status)->toBe('collected')
         ->and($result->fulfilment_due_at)->not->toBeNull()
-        ->and($result->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_COLLECTED)
-        ->and($result->activeShipment()?->method)->toBe(\App\Models\Shipment::METHOD_WESTLANDS_COLLECTION);
+        ->and($result->activeShipment()?->status)->toBe(Shipment::STATUS_COLLECTED)
+        ->and($result->activeShipment()?->method)->toBe(Shipment::METHOD_WESTLANDS_COLLECTION);
 });
 
 test('admins can filter sales that still need payment or pickup', function () {

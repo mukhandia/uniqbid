@@ -2,6 +2,7 @@
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Shipment;
 use App\Services\CartService;
 use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,19 +69,19 @@ test('order service moves a paid order through dispatch and delivery', function 
 
     $shipment = $processing->activeShipment();
     expect($shipment)->not->toBeNull()
-        ->and($shipment->status)->toBe(\App\Models\Shipment::STATUS_PENDING)
-        ->and($shipment->method)->toBe(\App\Models\Shipment::METHOD_NAIROBI_DELIVERY)
+        ->and($shipment->status)->toBe(Shipment::STATUS_PENDING)
+        ->and($shipment->method)->toBe(Shipment::METHOD_NAIROBI_DELIVERY)
         ->and($shipment->recipient_name)->toBe('Amina');
 
     $dispatched = $service->markDispatched($processing);
     expect($dispatched->status)->toBe(Order::STATUS_DISPATCHED)
         ->and($dispatched->dispatched_at)->not->toBeNull()
-        ->and($dispatched->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DISPATCHED);
+        ->and($dispatched->activeShipment()?->status)->toBe(Shipment::STATUS_DISPATCHED);
 
     $delivered = $service->markDelivered($dispatched);
     expect($delivered->status)->toBe(Order::STATUS_DELIVERED)
         ->and($delivered->delivered_at)->not->toBeNull()
-        ->and($delivered->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DELIVERED);
+        ->and($delivered->activeShipment()?->status)->toBe(Shipment::STATUS_DELIVERED);
 });
 
 test('order cancel before dispatch marks the linked shipment cancelled', function () {
@@ -93,7 +94,7 @@ test('order cancel before dispatch marks the linked shipment cancelled', functio
     $cancelled = $service->cancelBeforeDispatch($processing, 'Customer cancelled');
 
     expect($cancelled->status)->toBe(Order::STATUS_CANCELLED)
-        ->and($cancelled->shipments()->latest('id')->first()?->status)->toBe(\App\Models\Shipment::STATUS_CANCELLED)
+        ->and($cancelled->shipments()->latest('id')->first()?->status)->toBe(Shipment::STATUS_CANCELLED)
         ->and($cancelled->activeShipment())->toBeNull();
 });
 

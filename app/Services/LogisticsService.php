@@ -97,12 +97,12 @@ class LogisticsService
 
     /**
      * Keep logistics in sync with auction successful-buy fulfilment.
-     * Redeemed results do not create shipments.
+     * Redeem marks an existing shipment Redeemed (or records a redeemed shipment).
      */
     public function syncFromAuctionResult(AuctionResult $result): ?Shipment
     {
         if ($result->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED) {
-            return null;
+            return $this->markAuctionResultRedeemed($result);
         }
 
         if ($result->fulfilment_status === AuctionResult::FULFILMENT_PENDING) {
@@ -142,6 +142,43 @@ class LogisticsService
         ]);
     }
 
+    private function markAuctionResultRedeemed(AuctionResult $result): Shipment
+    {
+        $result->loadMissing('auctionBid.bidder');
+        $bidder = $result->auctionBid?->bidder;
+        $recipientName = $bidder?->name ?? $result->buyer_display;
+        $recipientPhone = $bidder?->phone;
+
+        $shipment = Shipment::query()
+            ->where('shippable_type', $result->getMorphClass())
+            ->where('shippable_id', $result->getKey())
+            ->whereNotIn('status', [Shipment::STATUS_CANCELLED])
+            ->latest('id')
+            ->first();
+
+        if ($shipment === null) {
+            return $this->createShipmentForAuctionResult($result, [
+                'method' => Shipment::METHOD_WESTLANDS_COLLECTION,
+                'status' => Shipment::STATUS_REDEEMED,
+                'recipient_name' => $recipientName,
+                'recipient_phone' => $recipientPhone,
+                'address' => null,
+                'fee' => 0,
+                'notes' => 'Redeemed successful buy '.$result->slug,
+            ]);
+        }
+
+        return $this->updateShipment($shipment, [
+            'method' => $shipment->method,
+            'status' => Shipment::STATUS_REDEEMED,
+            'recipient_name' => $shipment->recipient_name ?: $recipientName,
+            'recipient_phone' => $shipment->recipient_phone ?: $recipientPhone,
+            'address' => $shipment->address,
+            'fee' => $shipment->fee,
+            'notes' => $shipment->notes,
+        ]);
+    }
+
     /**
      * @param  array{
      *     method: string,
@@ -176,7 +213,7 @@ class LogisticsService
         return Shipment::query()
             ->where('shippable_type', $shippable->getMorphClass())
             ->where('shippable_id', $shippable->getKey())
-            ->where('status', '!=', Shipment::STATUS_CANCELLED)
+            ->whereNotIn('status', [Shipment::STATUS_CANCELLED, Shipment::STATUS_REDEEMED])
             ->latest('id')
             ->first();
     }
@@ -292,6 +329,7 @@ class LogisticsService
             Shipment::STATUS_DELIVERED,
             Shipment::STATUS_COLLECTED,
             Shipment::STATUS_CANCELLED,
+            Shipment::STATUS_REDEEMED,
         ];
 
         $method = (string) $data['method'];
