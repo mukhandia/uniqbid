@@ -46,6 +46,9 @@ $PHP_BIN artisan migrate --force --no-interaction
 echo "==> Seeding CMS content (skipped if content already exists)"
 $PHP_BIN artisan db:seed --class=ContentSeeder --force --no-interaction
 
+echo "==> Seeding roles and permissions (idempotent)"
+$PHP_BIN artisan db:seed --class=RolePermissionSeeder --force --no-interaction
+
 echo "==> Seeding launch auction catalogue (idempotent)"
 $PHP_BIN artisan db:seed --class=LaunchAuctionCatalogueSeeder --force --no-interaction
 

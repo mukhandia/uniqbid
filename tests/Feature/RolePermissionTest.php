@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 
 test('role permission seeder creates roles and assigns super user to admins', function () {
@@ -70,4 +71,28 @@ test('users with only a staff role can access admin via canAccessAdmin', functio
         ->get(route('admin.logistics'))
         ->assertOk()
         ->assertSee('Logistics');
+});
+
+test('admins can delete a custom role but not Super User', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $admin = User::factory()->admin()->create();
+    $admin->assignRole('Super User');
+
+    $custom = Role::findOrCreate('Super Admin', 'web');
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.roles')
+        ->call('delete', $custom->id)
+        ->assertHasNoErrors();
+
+    expect(Role::query()->where('name', 'Super Admin')->exists())->toBeFalse();
+
+    $superUser = Role::query()->where('name', 'Super User')->firstOrFail();
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.roles')
+        ->call('delete', $superUser->id);
+
+    expect(Role::query()->where('name', 'Super User')->exists())->toBeTrue();
 });

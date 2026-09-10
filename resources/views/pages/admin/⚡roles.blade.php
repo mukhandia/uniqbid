@@ -108,6 +108,29 @@ class extends Component {
         $this->assignRoleName = '';
     }
 
+    public function delete(int $roleId): void
+    {
+        $role = Role::query()->findOrFail($roleId);
+
+        if ($role->name === 'Super User') {
+            Flux::toast(variant: 'danger', text: 'The Super User role cannot be deleted.');
+
+            return;
+        }
+
+        $name = $role->name;
+        $role->delete();
+
+        if ($this->editingRoleId === $roleId) {
+            $this->resetForm();
+        }
+
+        AuditLogger::log('roles', 'role deleted', 'deleted', null, [
+            'role' => $name,
+        ]);
+        Flux::toast(variant: 'success', text: "Role “{$name}” deleted.");
+    }
+
     public function resetForm(): void
     {
         $this->editingRoleId = null;
@@ -177,8 +200,18 @@ class extends Component {
                             </div>
                         </td>
                         <td class="px-4 py-3">{{ $role->users_count }}</td>
-                        <td class="px-4 py-3 text-right">
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
                             <flux:button size="sm" variant="ghost" wire:click="edit({{ $role->id }})">Edit</flux:button>
+                            @if ($role->name !== 'Super User')
+                                <flux:button
+                                    size="sm"
+                                    variant="danger"
+                                    wire:click="delete({{ $role->id }})"
+                                    wire:confirm="Delete role “{{ $role->name }}”? Staff with only this role may lose access."
+                                >
+                                    Delete
+                                </flux:button>
+                            @endif
                         </td>
                     </tr>
                 @empty
