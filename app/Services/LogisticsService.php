@@ -116,7 +116,7 @@ class LogisticsService
         $result->loadMissing('auctionBid.bidder');
         $bidder = $result->auctionBid?->bidder;
 
-        $recipientName = $bidder?->name ?? $result->buyer_display;
+        $recipientName = $bidder !== null ? $bidder->name : $result->buyer_display;
         $recipientPhone = $bidder?->phone;
 
         if ($active === null) {
@@ -146,7 +146,7 @@ class LogisticsService
     {
         $result->loadMissing('auctionBid.bidder');
         $bidder = $result->auctionBid?->bidder;
-        $recipientName = $bidder?->name ?? $result->buyer_display;
+        $recipientName = $bidder !== null ? $bidder->name : $result->buyer_display;
         $recipientPhone = $bidder?->phone;
 
         $shipment = Shipment::query()
