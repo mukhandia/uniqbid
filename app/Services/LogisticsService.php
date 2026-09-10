@@ -193,6 +193,11 @@ class LogisticsService
     public function updateShipment(Shipment $shipment, array $data): Shipment
     {
         $payload = $this->validatedPayload($data);
+        $shipment->loadMissing('shippable');
+
+        if ($shipment->shippable instanceof Order || $shipment->shippable instanceof AuctionResult) {
+            $this->assertStatusCompatibleWithShippable($shipment->shippable, $payload['status']);
+        }
 
         $shipment->fill($payload);
         $this->applyStatusTimestamps($shipment, $payload['status']);
@@ -206,6 +211,55 @@ class LogisticsService
         ]);
 
         return $fresh;
+    }
+
+    /**
+     * Statuses that do not conflict with the linked order or successful buy.
+     *
+     * @return list<string>
+     */
+    public function allowedStatusesForShippable(Order|AuctionResult $shippable): array
+    {
+        if ($shippable instanceof Order) {
+            if ($shippable->status === Order::STATUS_PAID) {
+                return [Shipment::STATUS_PENDING];
+            }
+
+            return [$this->shipmentStatusFromOrder($shippable)];
+        }
+
+        if ($shippable->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED) {
+            return [Shipment::STATUS_REDEEMED];
+        }
+
+        if ($shippable->fulfilment_status === AuctionResult::FULFILMENT_PENDING) {
+            return [Shipment::STATUS_PENDING];
+        }
+
+        return [$this->shipmentStatusFromAuctionResult($shippable)];
+    }
+
+    public function assertStatusCompatibleWithShippable(Order|AuctionResult $shippable, string $status): void
+    {
+        $allowed = $this->allowedStatusesForShippable($shippable);
+
+        if (in_array($status, $allowed, true)) {
+            return;
+        }
+
+        $labels = array_map(
+            fn (string $value): string => (new Shipment(['status' => $value]))->statusLabel(),
+            $allowed,
+        );
+
+        $source = $shippable instanceof Order
+            ? 'order ('.$shippable->statusLabel().')'
+            : 'sale ('.$shippable->fulfilmentLabel().')';
+
+        throw ValidationException::withMessages([
+            'status' => 'Shipment status conflicts with the linked '.$source.'. Allowed: '.implode(', ', $labels).'. Update fulfilment on the order or sale instead.',
+            'shipmentStatus' => 'Shipment status conflicts with the linked '.$source.'. Allowed: '.implode(', ', $labels).'. Update fulfilment on the order or sale instead.',
+        ]);
     }
 
     public function activeShipmentFor(Order|AuctionResult $shippable): ?Shipment
@@ -276,6 +330,7 @@ class LogisticsService
     private function createShipment(Order|AuctionResult $shippable, array $data): Shipment
     {
         $payload = $this->validatedPayload($data);
+        $this->assertStatusCompatibleWithShippable($shippable, $payload['status']);
 
         $shipment = new Shipment($payload);
         $shipment->shippable()->associate($shippable);

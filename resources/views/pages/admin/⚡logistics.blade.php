@@ -70,10 +70,36 @@ class extends Component {
         $this->address = (string) $shipment->address;
         $this->fee = (int) $shipment->fee;
         $this->notes = (string) $shipment->notes;
+
+        if ($shipment->shippable instanceof Order || $shipment->shippable instanceof AuctionResult) {
+            $allowed = app(LogisticsService::class)->allowedStatusesForShippable($shipment->shippable);
+
+            if ($allowed !== [] && ! in_array($this->shipmentStatus, $allowed, true)) {
+                $this->shipmentStatus = $allowed[0];
+            }
+        }
     }
 
     public function save(LogisticsService $logistics): void
     {
+        $allowedStatuses = [
+            Shipment::STATUS_PENDING,
+            Shipment::STATUS_READY,
+            Shipment::STATUS_DISPATCHED,
+            Shipment::STATUS_DELIVERED,
+            Shipment::STATUS_COLLECTED,
+            Shipment::STATUS_CANCELLED,
+            Shipment::STATUS_REDEEMED,
+        ];
+
+        if ($this->editingId) {
+            $existing = Shipment::query()->with('shippable')->find($this->editingId);
+
+            if ($existing?->shippable instanceof Order || $existing?->shippable instanceof AuctionResult) {
+                $allowedStatuses = $logistics->allowedStatusesForShippable($existing->shippable);
+            }
+        }
+
         $validated = $this->validate([
             'shippableType' => ['required', 'in:order,auction_result'],
             'shippableReference' => ['required', 'string', 'max:120'],
@@ -82,15 +108,7 @@ class extends Component {
                 Shipment::METHOD_WESTLANDS_COLLECTION,
                 Shipment::METHOD_UPCOUNTRY,
             ])],
-            'shipmentStatus' => ['required', 'in:'.implode(',', [
-                Shipment::STATUS_PENDING,
-                Shipment::STATUS_READY,
-                Shipment::STATUS_DISPATCHED,
-                Shipment::STATUS_DELIVERED,
-                Shipment::STATUS_COLLECTED,
-                Shipment::STATUS_CANCELLED,
-                Shipment::STATUS_REDEEMED,
-            ])],
+            'shipmentStatus' => ['required', 'in:'.implode(',', $allowedStatuses)],
             'recipientName' => ['nullable', 'string', 'max:120'],
             'recipientPhone' => ['nullable', 'string', 'max:40'],
             'address' => ['nullable', 'string', 'max:1000'],
@@ -195,16 +213,58 @@ class extends Component {
                 Shipment::METHOD_WESTLANDS_COLLECTION => 'Westlands collection',
                 Shipment::METHOD_UPCOUNTRY => 'Upcountry delivery',
             ],
-            'statuses' => [
-                Shipment::STATUS_PENDING => 'Pending',
-                Shipment::STATUS_READY => 'Ready for collection',
-                Shipment::STATUS_DISPATCHED => 'Dispatched',
-                Shipment::STATUS_DELIVERED => 'Delivered',
-                Shipment::STATUS_COLLECTED => 'Collected',
-                Shipment::STATUS_CANCELLED => 'Cancelled',
-                Shipment::STATUS_REDEEMED => 'Redeemed',
-            ],
+            'statuses' => $this->statusOptionsForForm(),
+            'statusHint' => $this->statusHintForForm(),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function statusOptionsForForm(): array
+    {
+        $all = [
+            Shipment::STATUS_PENDING => 'Pending',
+            Shipment::STATUS_READY => 'Ready for collection',
+            Shipment::STATUS_DISPATCHED => 'Dispatched',
+            Shipment::STATUS_DELIVERED => 'Delivered',
+            Shipment::STATUS_COLLECTED => 'Collected',
+            Shipment::STATUS_CANCELLED => 'Cancelled',
+            Shipment::STATUS_REDEEMED => 'Redeemed',
+        ];
+
+        if (! $this->editingId) {
+            return $all;
+        }
+
+        $shipment = Shipment::query()->with('shippable')->find($this->editingId);
+
+        if (! ($shipment?->shippable instanceof Order || $shipment?->shippable instanceof AuctionResult)) {
+            return $all;
+        }
+
+        $allowed = app(LogisticsService::class)->allowedStatusesForShippable($shipment->shippable);
+
+        return array_intersect_key($all, array_flip($allowed));
+    }
+
+    private function statusHintForForm(): ?string
+    {
+        if (! $this->editingId) {
+            return 'Status must match the linked order or sale. Conflicting changes are blocked.';
+        }
+
+        $shipment = Shipment::query()->with('shippable')->find($this->editingId);
+
+        if ($shipment?->shippable instanceof Order) {
+            return 'Locked to the order status ('.$shipment->shippable->statusLabel().'). Change fulfilment on the order to move this shipment.';
+        }
+
+        if ($shipment?->shippable instanceof AuctionResult) {
+            return 'Locked to the sale fulfilment ('.$shipment->shippable->fulfilmentLabel().'). Change fulfilment on the sale to move this shipment.';
+        }
+
+        return null;
     }
 }; ?>
 
@@ -278,7 +338,11 @@ class extends Component {
                             <flux:select.option value="{{ $value }}">{{ $label }}</flux:select.option>
                         @endforeach
                     </flux:select>
+                    @if ($statusHint)
+                        <flux:text class="mt-1 text-xs">{{ $statusHint }}</flux:text>
+                    @endif
                     <flux:error name="shipmentStatus" />
+                    <flux:error name="status" />
                 </flux:field>
                 <flux:field>
                     <flux:label>Recipient name</flux:label>
