@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -96,6 +97,22 @@ class AuctionResult extends Model
     public function auctionBid(): BelongsTo
     {
         return $this->belongsTo(AuctionBid::class);
+    }
+
+    /**
+     * @return MorphMany<Shipment, $this>
+     */
+    public function shipments(): MorphMany
+    {
+        return $this->morphMany(Shipment::class, 'shippable');
+    }
+
+    public function activeShipment(): ?Shipment
+    {
+        return $this->shipments()
+            ->where('status', '!=', Shipment::STATUS_CANCELLED)
+            ->latest('id')
+            ->first();
     }
 
     /**

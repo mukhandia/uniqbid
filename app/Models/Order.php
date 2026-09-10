@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -140,6 +141,22 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * @return MorphMany<Shipment, $this>
+     */
+    public function shipments(): MorphMany
+    {
+        return $this->morphMany(Shipment::class, 'shippable');
+    }
+
+    public function activeShipment(): ?Shipment
+    {
+        return $this->shipments()
+            ->where('status', '!=', Shipment::STATUS_CANCELLED)
+            ->latest('id')
+            ->first();
     }
 
     public function getRouteKeyName(): string

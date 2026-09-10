@@ -184,7 +184,9 @@ test('admins can track a successful buy payment and fulfilment', function () {
         ->and($result->sale_payment_status)->toBe('paid')
         ->and($result->sale_payment_paid_at)->not->toBeNull()
         ->and($result->fulfilment_status)->toBe('collected')
-        ->and($result->fulfilment_due_at)->not->toBeNull();
+        ->and($result->fulfilment_due_at)->not->toBeNull()
+        ->and($result->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_COLLECTED)
+        ->and($result->activeShipment()?->method)->toBe(\App\Models\Shipment::METHOD_WESTLANDS_COLLECTION);
 });
 
 test('admins can filter sales that still need payment or pickup', function () {

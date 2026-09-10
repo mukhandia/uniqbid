@@ -16,6 +16,7 @@ class OrderService
         private readonly CartService $cart,
         private readonly AuctionBidService $phones,
         private readonly NotificationPlaceholderService $notifications,
+        private readonly LogisticsService $logistics,
     ) {}
 
     /**
@@ -155,9 +156,11 @@ class OrderService
                 'cancel_reason' => $reason,
             ]);
 
-            $this->notifications->notifyOrderCancelled($order);
+            $fresh = $order->fresh('items');
+            $this->logistics->syncFromOrder($fresh);
+            $this->notifications->notifyOrderCancelled($fresh);
 
-            return $order->fresh('items');
+            return $fresh;
         });
     }
 
@@ -221,6 +224,8 @@ class OrderService
                 'reference' => $fresh->reference,
                 'status' => $fresh->status,
             ]);
+
+            $this->logistics->syncFromOrder($fresh);
 
             if ($notify === 'dispatched') {
                 $this->notifications->notifyOrderDispatched($fresh);

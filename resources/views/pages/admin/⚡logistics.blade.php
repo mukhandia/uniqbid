@@ -221,7 +221,7 @@ class extends Component {
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <flux:heading size="xl">Logistics</flux:heading>
-            <flux:text class="mt-1">Shipments for shop orders and successful auction buys.</flux:text>
+            <flux:text class="mt-1">Shipments are created automatically when you process an order or mark a successful buy for collection/dispatch. Edit fees, notes, and details here.</flux:text>
         </div>
         <flux:button type="button" wire:click="openCreate" class="bg-accent! text-accent-foreground!">New shipment</flux:button>
     </div>

@@ -55,18 +55,46 @@ test('delivery is not charged at checkout for any method', function () {
 
 test('order service moves a paid order through dispatch and delivery', function () {
     $service = app(OrderService::class);
-    $order = Order::factory()->create(['status' => Order::STATUS_PAID]);
+    $order = Order::factory()->create([
+        'status' => Order::STATUS_PAID,
+        'delivery_method' => Order::DELIVERY_NAIROBI,
+        'customer_name' => 'Amina',
+        'customer_phone' => '0712345678',
+        'delivery_address' => 'Westlands',
+    ]);
 
     $processing = $service->markProcessing($order);
     expect($processing->status)->toBe(Order::STATUS_PROCESSING);
 
+    $shipment = $processing->activeShipment();
+    expect($shipment)->not->toBeNull()
+        ->and($shipment->status)->toBe(\App\Models\Shipment::STATUS_PENDING)
+        ->and($shipment->method)->toBe(\App\Models\Shipment::METHOD_NAIROBI_DELIVERY)
+        ->and($shipment->recipient_name)->toBe('Amina');
+
     $dispatched = $service->markDispatched($processing);
     expect($dispatched->status)->toBe(Order::STATUS_DISPATCHED)
-        ->and($dispatched->dispatched_at)->not->toBeNull();
+        ->and($dispatched->dispatched_at)->not->toBeNull()
+        ->and($dispatched->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DISPATCHED);
 
     $delivered = $service->markDelivered($dispatched);
     expect($delivered->status)->toBe(Order::STATUS_DELIVERED)
-        ->and($delivered->delivered_at)->not->toBeNull();
+        ->and($delivered->delivered_at)->not->toBeNull()
+        ->and($delivered->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DELIVERED);
+});
+
+test('order cancel before dispatch marks the linked shipment cancelled', function () {
+    $service = app(OrderService::class);
+    $order = Order::factory()->create(['status' => Order::STATUS_PAID]);
+
+    $processing = $service->markProcessing($order);
+    expect($processing->activeShipment())->not->toBeNull();
+
+    $cancelled = $service->cancelBeforeDispatch($processing, 'Customer cancelled');
+
+    expect($cancelled->status)->toBe(Order::STATUS_CANCELLED)
+        ->and($cancelled->shipments()->latest('id')->first()?->status)->toBe(\App\Models\Shipment::STATUS_CANCELLED)
+        ->and($cancelled->activeShipment())->toBeNull();
 });
 
 test('order service refuses delivery before dispatch', function () {

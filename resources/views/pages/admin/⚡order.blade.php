@@ -17,7 +17,14 @@ class extends Component {
 
     public function mount(Order $order): void
     {
-        $this->order = $order->load('items');
+        $this->order = $order->load(['items', 'shipments']);
+    }
+
+    public function with(): array
+    {
+        return [
+            'shipment' => $this->order->activeShipment(),
+        ];
     }
 
     public function markProcessing(OrderService $orders): void
@@ -46,7 +53,7 @@ class extends Component {
     private function applyStatus(callable $action, string $success): void
     {
         try {
-            $this->order = $action();
+            $this->order = $action()->load(['items', 'shipments']);
             Flux::toast(variant: 'success', text: $success);
         } catch (ValidationException $exception) {
             Flux::toast(
@@ -177,6 +184,23 @@ class extends Component {
                 @unless ($order->canMarkProcessing() || $order->canMarkDispatched() || $order->canMarkDelivered() || $order->canCancelBeforeDispatch())
                     <p class="text-sm text-zinc-500">No further fulfilment actions on this order.</p>
                 @endunless
+            </div>
+
+            <div class="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <h2 class="text-sm font-semibold">Logistics</h2>
+                @if ($shipment)
+                    <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                        Shipment #{{ $shipment->id }} · {{ $shipment->statusLabel() }}
+                    </p>
+                    <p class="mt-1 text-xs text-zinc-500">{{ $shipment->methodLabel() }}</p>
+                    <a href="{{ route('admin.logistics') }}" class="mt-3 inline-block text-sm text-accent hover:underline" wire:navigate>
+                        Open Logistics
+                    </a>
+                @else
+                    <p class="mt-2 text-sm text-zinc-500">
+                        A shipment is created automatically when you start processing this order.
+                    </p>
+                @endif
             </div>
         </aside>
     </div>

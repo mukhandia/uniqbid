@@ -43,6 +43,106 @@ class LogisticsService
     }
 
     /**
+     * Keep logistics in sync with shop order fulfilment (order is source of truth).
+     */
+    public function syncFromOrder(Order $order): ?Shipment
+    {
+        if ($order->status === Order::STATUS_PAID) {
+            return null;
+        }
+
+        $active = $this->activeShipmentFor($order);
+
+        if ($order->status === Order::STATUS_CANCELLED) {
+            if ($active === null) {
+                return null;
+            }
+
+            return $this->updateShipment($active, [
+                'method' => $active->method,
+                'status' => Shipment::STATUS_CANCELLED,
+                'recipient_name' => $active->recipient_name,
+                'recipient_phone' => $active->recipient_phone,
+                'address' => $active->address,
+                'fee' => $active->fee,
+                'notes' => $active->notes,
+            ]);
+        }
+
+        $status = $this->shipmentStatusFromOrder($order);
+        $method = $this->shipmentMethodFromOrder($order);
+
+        if ($active === null) {
+            return $this->createShipmentForOrder($order, [
+                'method' => $method,
+                'status' => $status,
+                'recipient_name' => $order->customer_name,
+                'recipient_phone' => $order->customer_phone,
+                'address' => $order->delivery_address,
+                'fee' => (int) $order->delivery_fee,
+                'notes' => 'Auto-created from order '.$order->reference,
+            ]);
+        }
+
+        return $this->updateShipment($active, [
+            'method' => $active->method,
+            'status' => $status,
+            'recipient_name' => $active->recipient_name ?: $order->customer_name,
+            'recipient_phone' => $active->recipient_phone ?: $order->customer_phone,
+            'address' => $active->address ?: $order->delivery_address,
+            'fee' => $active->fee,
+            'notes' => $active->notes,
+        ]);
+    }
+
+    /**
+     * Keep logistics in sync with auction successful-buy fulfilment.
+     * Redeemed results do not create shipments.
+     */
+    public function syncFromAuctionResult(AuctionResult $result): ?Shipment
+    {
+        if ($result->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED) {
+            return null;
+        }
+
+        if ($result->fulfilment_status === AuctionResult::FULFILMENT_PENDING) {
+            return null;
+        }
+
+        $status = $this->shipmentStatusFromAuctionResult($result);
+        $method = $this->shipmentMethodFromAuctionResult($result);
+        $active = $this->activeShipmentFor($result);
+
+        $result->loadMissing('auctionBid.bidder');
+        $bidder = $result->auctionBid?->bidder;
+
+        $recipientName = $bidder?->name ?? $result->buyer_display;
+        $recipientPhone = $bidder?->phone;
+
+        if ($active === null) {
+            return $this->createShipmentForAuctionResult($result, [
+                'method' => $method,
+                'status' => $status,
+                'recipient_name' => $recipientName,
+                'recipient_phone' => $recipientPhone,
+                'address' => null,
+                'fee' => 0,
+                'notes' => 'Auto-created from successful buy '.$result->slug,
+            ]);
+        }
+
+        return $this->updateShipment($active, [
+            'method' => $active->method,
+            'status' => $status,
+            'recipient_name' => $active->recipient_name ?: $recipientName,
+            'recipient_phone' => $active->recipient_phone ?: $recipientPhone,
+            'address' => $active->address,
+            'fee' => $active->fee,
+            'notes' => $active->notes,
+        ]);
+    }
+
+    /**
      * @param  array{
      *     method: string,
      *     status?: string,
@@ -69,6 +169,60 @@ class LogisticsService
         ]);
 
         return $fresh;
+    }
+
+    public function activeShipmentFor(Order|AuctionResult $shippable): ?Shipment
+    {
+        return Shipment::query()
+            ->where('shippable_type', $shippable->getMorphClass())
+            ->where('shippable_id', $shippable->getKey())
+            ->where('status', '!=', Shipment::STATUS_CANCELLED)
+            ->latest('id')
+            ->first();
+    }
+
+    public function shipmentMethodFromOrder(Order $order): string
+    {
+        return match ($order->delivery_method) {
+            Order::DELIVERY_COLLECTION => Shipment::METHOD_WESTLANDS_COLLECTION,
+            Order::DELIVERY_UPCOUNTRY => Shipment::METHOD_UPCOUNTRY,
+            default => Shipment::METHOD_NAIROBI_DELIVERY,
+        };
+    }
+
+    public function shipmentStatusFromOrder(Order $order): string
+    {
+        return match ($order->status) {
+            Order::STATUS_PROCESSING => Shipment::STATUS_PENDING,
+            Order::STATUS_DISPATCHED => $order->delivery_method === Order::DELIVERY_COLLECTION
+                ? Shipment::STATUS_READY
+                : Shipment::STATUS_DISPATCHED,
+            Order::STATUS_DELIVERED => $order->delivery_method === Order::DELIVERY_COLLECTION
+                ? Shipment::STATUS_COLLECTED
+                : Shipment::STATUS_DELIVERED,
+            Order::STATUS_CANCELLED => Shipment::STATUS_CANCELLED,
+            default => Shipment::STATUS_PENDING,
+        };
+    }
+
+    public function shipmentMethodFromAuctionResult(AuctionResult $result): string
+    {
+        return match ($result->fulfilment_status) {
+            AuctionResult::FULFILMENT_COLLECTION_READY,
+            AuctionResult::FULFILMENT_COLLECTED => Shipment::METHOD_WESTLANDS_COLLECTION,
+            default => Shipment::METHOD_NAIROBI_DELIVERY,
+        };
+    }
+
+    public function shipmentStatusFromAuctionResult(AuctionResult $result): string
+    {
+        return match ($result->fulfilment_status) {
+            AuctionResult::FULFILMENT_COLLECTION_READY => Shipment::STATUS_READY,
+            AuctionResult::FULFILMENT_DISPATCHED => Shipment::STATUS_DISPATCHED,
+            AuctionResult::FULFILMENT_COLLECTED => Shipment::STATUS_COLLECTED,
+            AuctionResult::FULFILMENT_DELIVERED => Shipment::STATUS_DELIVERED,
+            default => Shipment::STATUS_PENDING,
+        };
     }
 
     /**

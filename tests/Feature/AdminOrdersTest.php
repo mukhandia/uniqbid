@@ -78,7 +78,8 @@ test('admin can move a paid order through fulfilment', function () {
         ->assertHasNoErrors();
 
     expect($order->fresh()->status)->toBe(Order::STATUS_DELIVERED)
-        ->and($order->fresh()->delivered_at)->not->toBeNull();
+        ->and($order->fresh()->delivered_at)->not->toBeNull()
+        ->and($order->fresh()->activeShipment()?->status)->toBe(\App\Models\Shipment::STATUS_DELIVERED);
 });
 
 test('admin can cancel an order before dispatch and restore stock', function () {

@@ -3,6 +3,7 @@
 use App\Models\Auction;
 use App\Models\AuctionResult;
 use App\Services\AuctionSettlementService;
+use App\Services\LogisticsService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Validation\ValidationException;
@@ -40,6 +41,7 @@ class extends Component {
             'leadingBid' => $snapshot['leading_bid'],
             'amountCounts' => $snapshot['amount_counts'],
             'successfulBid' => $this->auction->result?->auctionBid,
+            'shipment' => $this->auction->result?->activeShipment(),
         ];
     }
 
@@ -134,6 +136,10 @@ class extends Component {
 
         $result->update($attributes);
         $this->auction->load(['result.auctionBid.bidder']);
+
+        if (array_key_exists('fulfilment_status', $attributes)) {
+            app(LogisticsService::class)->syncFromAuctionResult($result->fresh(['auctionBid.bidder']));
+        }
 
         Flux::toast(variant: 'success', text: $success);
     }
@@ -262,6 +268,22 @@ class extends Component {
                     @unless ($result->canMarkPaid() || $result->canMarkCollectionReady() || $result->canMarkCollected() || $result->canMarkDispatched() || $result->canMarkDelivered())
                         <p class="text-sm text-zinc-500">This successful buy is complete.</p>
                     @endunless
+
+                    <div class="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+                        <h3 class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Logistics</h3>
+                        @if ($shipment)
+                            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                                Shipment #{{ $shipment->id }} · {{ $shipment->statusLabel() }}
+                            </p>
+                            <a href="{{ route('admin.logistics') }}" class="mt-2 inline-block text-sm text-accent hover:underline" wire:navigate>
+                                Open Logistics
+                            </a>
+                        @else
+                            <p class="mt-2 text-xs text-zinc-500">
+                                A shipment is created when you mark ready for collection or dispatch (not for redeem).
+                            </p>
+                        @endif
+                    </div>
                 </aside>
             </div>
         </section>
