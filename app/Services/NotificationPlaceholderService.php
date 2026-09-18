@@ -130,8 +130,8 @@ class NotificationPlaceholderService
         $product->loadMissing('seller');
 
         $adminEmail = SiteSetting::current()->email ?: 'support@uniqbid.co.ke';
-        $seller = $product->seller?->name ?? 'Guest seller';
-        $phone = $product->seller?->phone ?? 'n/a';
+        $seller = $product->seller->name ?? 'Guest seller';
+        $phone = $product->seller->phone ?? 'n/a';
 
         $this->send(
             channel: 'admin_email_placeholder',
