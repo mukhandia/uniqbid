@@ -88,5 +88,5 @@ test('admin chrome shows name email logout and no profile dropdown', function ()
         ->assertSee('Settings')
         ->assertDontSee('data-test="sidebar-menu-button"', false)
         ->assertSee('data-test="logout-button"', false)
-        ->assertSee('data-test="admin-ticket-bell"', false);
+        ->assertSee('data-test="admin-attention-bell"', false);
 });
