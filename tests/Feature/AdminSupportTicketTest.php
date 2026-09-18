@@ -1,7 +1,9 @@
 <?php
 
+use App\Models\Product;
 use App\Models\SupportTicket;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -86,10 +88,56 @@ test('ticket bell polls every three seconds and picks up new unread tickets', fu
 
     $bell = Livewire::test('admin-ticket-bell')
         ->assertSeeHtml('wire:poll.3s.visible')
-        ->assertSee('0 unread support tickets', false);
+        ->assertSee('No items needing attention', false);
 
     SupportTicket::factory()->create();
 
     $bell->call('$refresh')
         ->assertSee('1 unread support ticket', false);
+});
+
+test('attention bell combines unread tickets and unseen guest listings', function () {
+    SupportTicket::factory()->create(['subject' => 'Where is my order?']);
+
+    $seller = User::factory()->create(['is_admin' => false]);
+    Product::factory()->create([
+        'name' => 'Pending Guest Lamp',
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_PENDING,
+        'channel' => Product::CHANNEL_NONE,
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test('admin-ticket-bell')
+        ->assertSee('1 unread support ticket', false)
+        ->assertSee('1 unseen guest listing', false)
+        ->assertSee('Where is my order?')
+        ->assertSee('Pending Guest Lamp');
+});
+
+test('attention bell hides guest listings from roles without that permission', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    SupportTicket::factory()->create();
+    $seller = User::factory()->create(['is_admin' => false]);
+    Product::factory()->create([
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_PENDING,
+        'channel' => Product::CHANNEL_NONE,
+    ]);
+
+    $care = User::factory()->create(['is_admin' => false]);
+    $care->assignRole('Customer Care');
+
+    Livewire::actingAs($care->fresh())
+        ->test('admin-ticket-bell')
+        ->assertSee('1 unread support ticket', false)
+        ->assertSee('1 unseen guest listing', false);
+
+    $logistics = User::factory()->create(['is_admin' => false]);
+    $logistics->assignRole('Logistics');
+
+    Livewire::actingAs($logistics->fresh())
+        ->test('admin-ticket-bell')
+        ->assertSee('No items needing attention', false);
 });

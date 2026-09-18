@@ -73,6 +73,8 @@ class LogisticsService
         $method = $this->shipmentMethodFromOrder($order);
 
         if ($active === null) {
+            $order->loadMissing(['items.seller']);
+
             return $this->createShipmentForOrder($order, [
                 'method' => $method,
                 'status' => $status,
@@ -80,7 +82,7 @@ class LogisticsService
                 'recipient_phone' => $order->customer_phone,
                 'address' => $order->delivery_address,
                 'fee' => (int) $order->delivery_fee,
-                'notes' => 'Auto-created from order '.$order->reference,
+                'notes' => $this->notesForOrder($order),
             ]);
         }
 
@@ -411,6 +413,26 @@ class LogisticsService
             'fee' => max(0, (int) ($data['fee'] ?? 0)),
             'notes' => filled($data['notes'] ?? null) ? (string) $data['notes'] : null,
         ];
+    }
+
+    private function notesForOrder(Order $order): string
+    {
+        $notes = 'Auto-created from order '.$order->reference;
+
+        $guestLines = $order->items
+            ->filter(fn ($item): bool => $item->seller_user_id !== null)
+            ->map(function ($item): string {
+                $seller = $item->seller?->name ?? 'guest seller';
+
+                return $item->product_name.' (seller: '.$seller.')';
+            })
+            ->values();
+
+        if ($guestLines->isEmpty()) {
+            return $notes;
+        }
+
+        return $notes.'. Guest listing: '.$guestLines->implode('; ');
     }
 
     private function applyStatusTimestamps(Shipment $shipment, string $status): void

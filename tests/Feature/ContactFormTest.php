@@ -2,6 +2,7 @@
 
 use App\Models\SiteSetting;
 use App\Models\SupportTicket;
+use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
 
 test('contact form requires name contact and message', function () {
@@ -14,6 +15,8 @@ test('contact form requires name contact and message', function () {
 });
 
 test('contact form stores email contacts on the email column', function () {
+    Log::spy();
+
     Livewire::test('pages::contact')
         ->set('name', 'Amina Wanjiku')
         ->set('contact', 'amina@example.com')
@@ -32,6 +35,12 @@ test('contact form stores email contacts on the email column', function () {
         ->and($ticket->status)->toBe('open')
         ->and($ticket->isUnread())->toBeTrue()
         ->and($ticket->reference())->toBe('TKT'.str_pad((string) $ticket->id, 5, '0', STR_PAD_LEFT));
+
+    Log::shouldHaveReceived('info')
+        ->withArgs(fn (string $message, array $context): bool => $message === 'notification_placeholder'
+            && ($context['template'] ?? null) === 'support_ticket_submitted'
+            && ($context['support_ticket_id'] ?? null) === $ticket->id)
+        ->once();
 });
 
 test('contact form stores phone contacts on the phone column', function () {

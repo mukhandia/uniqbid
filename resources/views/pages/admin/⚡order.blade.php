@@ -17,7 +17,7 @@ class extends Component {
 
     public function mount(Order $order): void
     {
-        $this->order = $order->load(['items', 'shipments']);
+        $this->order = $order->load(['items.seller', 'shipments']);
     }
 
     public function with(): array
@@ -53,7 +53,7 @@ class extends Component {
     private function applyStatus(callable $action, string $success): void
     {
         try {
-            $this->order = $action()->load(['items', 'shipments']);
+            $this->order = $action()->load(['items.seller', 'shipments']);
             Flux::toast(variant: 'success', text: $success);
         } catch (ValidationException $exception) {
             Flux::toast(
@@ -126,8 +126,20 @@ class extends Component {
                         @foreach ($order->items as $item)
                             <div class="flex justify-between gap-3" wire:key="admin-item-{{ $item->id }}">
                                 <div>
-                                    <div class="font-medium">{{ $item->quantity }} × {{ $item->product_name }}</div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <div class="font-medium">{{ $item->quantity }} × {{ $item->product_name }}</div>
+                                        @if ($item->seller_user_id)
+                                            <flux:badge size="sm" color="amber">Guest listing</flux:badge>
+                                        @endif
+                                    </div>
                                     <div class="text-xs text-zinc-500">{{ $item->category }}</div>
+                                    @if ($item->seller_user_id)
+                                        <div class="text-xs text-amber-700 dark:text-amber-300">
+                                            Seller {{ $item->seller?->name ?? 'Guest' }}
+                                            · payout {{ Money::kes($item->seller_payout_amount) }}
+                                            ({{ $item->seller_payout_status }})
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="font-medium">{{ Money::kes($item->line_total) }}</div>
                             </div>

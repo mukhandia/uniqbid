@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\AdminAttentionService;
 use App\Services\AdminDashboardService;
 use App\Support\Money;
 use Livewire\Attributes\Layout;
@@ -13,12 +14,20 @@ class extends Component {
     public function with(): array
     {
         $dashboard = app(AdminDashboardService::class);
+        $attentionService = app(AdminAttentionService::class);
         $attention = $dashboard->attention();
+        $user = auth()->user();
+
+        if (! $attentionService->canViewGuestListings($user)) {
+            $attention['pendingGuestListings'] = collect();
+        }
+
+        $needsAttentionQueues = collect($attention)->except('pendingGuestListings');
 
         return [
             'snapshot' => $dashboard->snapshot(),
             'attention' => $attention,
-            'hasAttention' => collect($attention)->contains(fn ($rows) => $rows->isNotEmpty()),
+            'hasAttention' => $needsAttentionQueues->contains(fn ($rows) => $rows->isNotEmpty()),
             'liveSales' => $dashboard->liveSales(),
             'recentOrders' => $dashboard->recentOrders(),
         ];
@@ -392,4 +401,30 @@ class extends Component {
             </div>
         </section>
     </div>
+
+    @if ($attention['pendingGuestListings']->isNotEmpty())
+        <section class="overflow-hidden rounded-xl border border-amber-500/40 bg-amber-500/5 dark:border-amber-400/30 dark:bg-amber-500/10">
+            <div class="flex items-center justify-between gap-3 border-b border-amber-500/30 px-4 py-3 dark:border-amber-400/20">
+                <div>
+                    <h2 class="font-medium">Guest listings awaiting approval</h2>
+                    <p class="mt-0.5 text-xs text-zinc-500">Manual review required before these appear in the shop.</p>
+                </div>
+                <a href="{{ route('admin.guest-listings') }}" class="text-sm text-navy hover:underline dark:text-white" wire:navigate>Open guest listings</a>
+            </div>
+            <ul class="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+                @foreach ($attention['pendingGuestListings'] as $listing)
+                    <li wire:key="guest-listing-{{ $listing->id }}" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                        <div>
+                            <div class="font-medium">{{ $listing->name }}</div>
+                            <div class="text-xs text-zinc-500">
+                                {{ $listing->seller?->name ?? 'Guest seller' }}
+                                · {{ Money::kes($listing->price) }}
+                            </div>
+                        </div>
+                        <flux:badge size="sm" color="amber">Pending</flux:badge>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
 </div>

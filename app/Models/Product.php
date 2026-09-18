@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
  * @property string $approval_status
  * @property string|null $rejection_reason
  * @property Carbon|null $approved_at
+ * @property Carbon|null $admin_seen_at
  * @property int $auction_sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -57,6 +58,7 @@ use Illuminate\Support\Carbon;
     'approval_status',
     'rejection_reason',
     'approved_at',
+    'admin_seen_at',
     'auction_sort_order',
 ])]
 class Product extends Model
@@ -104,6 +106,7 @@ class Product extends Model
             'is_returnable' => 'boolean',
             'auction_sort_order' => 'integer',
             'approved_at' => 'datetime',
+            'admin_seen_at' => 'datetime',
         ];
     }
 
@@ -129,6 +132,14 @@ class Product extends Model
     public function auctions(): HasMany
     {
         return $this->hasMany(Auction::class);
+    }
+
+    /**
+     * @return HasMany<OrderItem, $this>
+     */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
     }
 
     /**
@@ -255,6 +266,15 @@ class Product extends Model
         return $query->guestListings()->where('approval_status', self::APPROVAL_PENDING);
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeUnseenPendingGuestApproval(Builder $query): Builder
+    {
+        return $query->pendingGuestApproval()->whereNull('admin_seen_at');
+    }
+
     public function isGuestListing(): bool
     {
         return $this->seller_user_id !== null;
@@ -265,12 +285,44 @@ class Product extends Model
         return $this->approval_status === self::APPROVAL_PENDING;
     }
 
+    public function markAdminSeen(): void
+    {
+        if ($this->admin_seen_at !== null) {
+            return;
+        }
+
+        $this->forceFill(['admin_seen_at' => now()])->save();
+    }
+
     public function approvalLabel(): string
     {
         return match ($this->approval_status) {
             self::APPROVAL_PENDING => 'Pending approval',
             self::APPROVAL_REJECTED => 'Rejected',
             default => 'Approved',
+        };
+    }
+
+    /**
+     * Seller-facing status for guest shop listings (view-only monitoring).
+     */
+    public function guestListingStatusLabel(): string
+    {
+        return match (true) {
+            $this->approval_status === self::APPROVAL_PENDING => 'Pending approval',
+            $this->approval_status === self::APPROVAL_REJECTED => 'Rejected',
+            $this->availableStock() <= 0 => 'Sold',
+            default => 'Live in shop',
+        };
+    }
+
+    public function guestListingStatusColor(): string
+    {
+        return match ($this->guestListingStatusLabel()) {
+            'Pending approval' => 'amber',
+            'Rejected' => 'red',
+            'Sold' => 'zinc',
+            default => 'green',
         };
     }
 

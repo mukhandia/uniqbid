@@ -23,7 +23,6 @@ class GuestListingService
      *     name: string,
      *     description: string,
      *     price: int,
-     *     stock: int,
      *     category_id: int,
      *     subcategory_id: int,
      *     image: string
@@ -65,7 +64,7 @@ class GuestListingService
             'price_tier' => 'Guest listing',
             'description' => $data['description'],
             'price' => $data['price'],
-            'stock' => $data['stock'],
+            'stock' => 1,
             'reserved_stock' => 0,
             'image' => $data['image'],
             'is_featured' => false,

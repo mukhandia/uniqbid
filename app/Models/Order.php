@@ -143,6 +143,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function hasGuestListingItems(): bool
+    {
+        return $this->items->contains(fn (OrderItem $item): bool => $item->seller_user_id !== null);
+    }
+
     /**
      * @return MorphMany<Shipment, $this>
      */

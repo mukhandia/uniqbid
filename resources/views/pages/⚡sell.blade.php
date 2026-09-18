@@ -1,11 +1,13 @@
 <?php
 
 use App\Models\Category;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\SiteSetting;
 use App\Models\Subcategory;
 use App\Services\GuestListingService;
 use App\Support\Money;
+use App\Support\ProductImageRules;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -28,8 +30,6 @@ class extends Component {
 
     public string $price = '';
 
-    public string $stock = '1';
-
     public string $categoryId = '';
 
     public string $subcategoryId = '';
@@ -50,9 +50,30 @@ class extends Component {
         $this->subcategoryId = '';
     }
 
-    public function updatedPrice(): void
+    public function updatedImageUpload(): void
     {
-        // Triggers commission preview recompute via Livewire.
+        $this->validateOnly('imageUpload', [
+            'imageUpload' => ProductImageRules::required(),
+        ], ProductImageRules::messages());
+    }
+
+    public function clearImageUpload(): void
+    {
+        $this->imageUpload = null;
+        $this->resetValidation('imageUpload');
+    }
+
+    public function imagePreviewUrl(): ?string
+    {
+        if ($this->imageUpload instanceof TemporaryUploadedFile) {
+            try {
+                return $this->imageUpload->temporaryUrl();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     #[Computed]
@@ -85,13 +106,10 @@ class extends Component {
             'name' => ['required', 'string', 'min:3', 'max:120'],
             'description' => ['required', 'string', 'min:20', 'max:2000'],
             'price' => ['required', 'integer', 'min:100', 'max:5000000'],
-            'stock' => ['required', 'integer', 'min:1', 'max:100'],
             'categoryId' => ['required', 'integer', 'exists:categories,id'],
             'subcategoryId' => ['required', 'integer', 'exists:subcategories,id'],
-            'imageUpload' => ['required', 'image', 'max:4096'],
-        ], [
-            'imageUpload.required' => 'Add a clear product photo.',
-        ]);
+            'imageUpload' => ProductImageRules::required(),
+        ], ProductImageRules::messages());
 
         if (! $this->imageUpload instanceof TemporaryUploadedFile) {
             $this->addError('imageUpload', 'Add a clear product photo.');
@@ -106,7 +124,6 @@ class extends Component {
                 'name' => $validated['name'],
                 'description' => $validated['description'],
                 'price' => (int) $validated['price'],
-                'stock' => (int) $validated['stock'],
                 'category_id' => (int) $validated['categoryId'],
                 'subcategory_id' => (int) $validated['subcategoryId'],
                 'image' => '/storage/'.$stored,
@@ -117,7 +134,7 @@ class extends Component {
             throw $exception;
         }
 
-        $this->reset(['name', 'description', 'price', 'stock', 'categoryId', 'subcategoryId', 'imageUpload']);
+        $this->reset(['name', 'description', 'price', 'categoryId', 'subcategoryId', 'imageUpload']);
 
         Flux::toast(variant: 'success', text: 'Listing submitted for admin approval: '.$product->name);
         $this->redirect(route('account'), navigate: true);
@@ -143,8 +160,9 @@ class extends Component {
         $myListings = Auth::user()
             ? Product::query()
                 ->where('seller_user_id', Auth::id())
+                ->with(['orderItems' => fn ($query) => $query->latest('id')->limit(1)])
                 ->latest('id')
-                ->limit(10)
+                ->limit(20)
                 ->get()
             : collect();
 
@@ -161,7 +179,7 @@ class extends Component {
         <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Guest shop listings</div>
         <h1 class="mt-2 text-3xl font-bold text-navy">Sell on UniqBid</h1>
         <p class="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-            Submit a shop-only product for review. Listings only appear after UniqBid approves them. Auctions are not available for guest products.
+            Submit one shop-only item for review. Stock is fixed at one unit. Listings appear only after UniqBid approves them. You can monitor status here; only UniqBid staff can edit or approve listings.
         </p>
     </div>
 
@@ -202,18 +220,12 @@ class extends Component {
                 </flux:field>
             </div>
 
-            <div class="grid gap-4 sm:grid-cols-2">
-                <flux:field>
-                    <flux:label>Price (KES)</flux:label>
-                    <flux:input wire:model.live.debounce.300ms="price" type="number" min="100" inputmode="numeric" />
-                    <flux:error name="price" />
-                </flux:field>
-                <flux:field>
-                    <flux:label>Stock</flux:label>
-                    <flux:input wire:model="stock" type="number" min="1" inputmode="numeric" />
-                    <flux:error name="stock" />
-                </flux:field>
-            </div>
+            <flux:field>
+                <flux:label>Price (KES)</flux:label>
+                <flux:input wire:model.live.debounce.300ms="price" type="number" min="100" inputmode="numeric" />
+                <flux:error name="price" />
+                <flux:description>Each guest listing is one unit only. UniqBid manages stock after approval.</flux:description>
+            </flux:field>
 
             <div class="rounded-xl border border-gold/30 bg-gold/5 p-4 text-sm">
                 <div class="font-semibold text-navy">Commission preview</div>
@@ -238,8 +250,30 @@ class extends Component {
 
             <flux:field>
                 <flux:label>Product photo</flux:label>
-                <input type="file" wire:model="imageUpload" accept="image/*" class="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium" />
-                <flux:error name="imageUpload" />
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+                    <div class="aspect-square w-32 shrink-0 overflow-hidden rounded-xl border border-border bg-surface">
+                        @if ($this->imagePreviewUrl())
+                            <img src="{{ $this->imagePreviewUrl() }}" alt="Product image preview" class="h-full w-full object-cover" />
+                        @else
+                            <div class="grid h-full place-items-center px-2 text-center text-xs text-muted-foreground">Square preview</div>
+                        @endif
+                    </div>
+                    <div class="min-w-0 flex-1 space-y-2">
+                        <label class="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-zinc-800 hover:bg-surface">
+                            <span>{{ $imageUpload ? 'Replace image' : 'Choose image' }}</span>
+                            <input type="file" wire:model="imageUpload" accept="{{ ProductImageRules::acceptAttribute() }}" class="sr-only" />
+                        </label>
+                        @if ($imageUpload)
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+                                <span class="truncate">{{ $imageUpload->getClientOriginalName() }}</span>
+                                <button type="button" class="font-medium text-navy underline" wire:click="clearImageUpload">Remove</button>
+                            </div>
+                        @endif
+                        <p wire:loading wire:target="imageUpload" class="text-xs text-muted-foreground">Uploading preview…</p>
+                        <p class="text-xs leading-relaxed text-muted-foreground">{{ ProductImageRules::guidance() }}</p>
+                        <flux:error name="imageUpload" />
+                    </div>
+                </div>
             </flux:field>
 
             <flux:button type="submit" class="w-full bg-accent! text-accent-foreground!">
@@ -250,14 +284,33 @@ class extends Component {
 
     @if ($myListings->isNotEmpty())
         <div class="mt-10">
-            <h2 class="text-lg font-bold text-navy">Your recent listings</h2>
+            <h2 class="text-lg font-bold text-navy">Your listings</h2>
+            <p class="mt-1 text-sm text-muted-foreground">View-only status. UniqBid staff approve, edit, and fulfil orders.</p>
             <div class="mt-4 space-y-3">
                 @foreach ($myListings as $listing)
-                    <div class="flex items-center gap-3 rounded-xl border border-border bg-white p-3">
+                    @php($sale = $listing->orderItems->first())
+                    <div class="flex items-start gap-3 rounded-xl border border-border bg-white p-3" wire:key="my-listing-{{ $listing->id }}">
                         <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
                         <div class="min-w-0 flex-1">
-                            <div class="truncate font-semibold">{{ $listing->name }}</div>
-                            <div class="text-xs text-muted-foreground">{{ $listing->approvalLabel() }} · {{ Money::kes($listing->price) }}</div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="truncate font-semibold">{{ $listing->name }}</div>
+                                <flux:badge size="sm" :color="$listing->guestListingStatusColor()">
+                                    {{ $listing->guestListingStatusLabel() }}
+                                </flux:badge>
+                            </div>
+                            <div class="mt-1 text-xs text-muted-foreground">
+                                {{ Money::kes($listing->price) }}
+                                · 1 unit
+                                @if ($listing->approval_status === Product::APPROVAL_REJECTED && filled($listing->rejection_reason))
+                                    · {{ $listing->rejection_reason }}
+                                @endif
+                            </div>
+                            @if ($sale)
+                                <div class="mt-1 text-xs text-muted-foreground">
+                                    Sold on order · Payout {{ $sale->seller_payout_status === OrderItem::PAYOUT_PAID ? 'paid' : 'pending' }}
+                                    ({{ Money::kes($sale->seller_payout_amount) }})
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach

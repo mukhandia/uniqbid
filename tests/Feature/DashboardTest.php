@@ -100,6 +100,17 @@ test('admins see operational snapshot queues and recent activity', function () {
         'stock' => 100,
         'reserved_stock' => 4,
     ]);
+    $seller = User::factory()->create([
+        'name' => 'Mary Seller',
+        'is_admin' => false,
+    ]);
+    Product::factory()->create([
+        'name' => 'Guest Bamboo Shelf',
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_PENDING,
+        'channel' => Product::CHANNEL_NONE,
+        'price' => 3500,
+    ]);
 
     $this->actingAs($admin)
         ->get(route('dashboard'))
@@ -130,6 +141,9 @@ test('admins see operational snapshot queues and recent activity', function () {
         ->assertSee('Reserved gold watch')
         ->assertSee('4 reserved · 100 in stock')
         ->assertDontSee('Plenty in shop')
+        ->assertSee('Guest listings awaiting approval')
+        ->assertSee('Guest Bamboo Shelf')
+        ->assertSee('Mary Seller')
         ->assertSee('Orders')
         ->assertDontSee('placeholder-pattern', false);
 

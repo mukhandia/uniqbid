@@ -6,6 +6,7 @@ use App\Models\Subcategory;
 use App\Services\CreateSaleFromProductService;
 use App\Support\AuditLogger;
 use App\Support\Money;
+use App\Support\ProductImageRules;
 use Flux\Flux;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -135,7 +136,7 @@ class extends Component {
             'isFeatured' => ['boolean'],
             'isReturnable' => ['boolean'],
             'imageUpload' => $this->imageUploadRules(),
-        ]);
+        ], ProductImageRules::messages());
 
         $subcategory = Subcategory::query()->with('category')->findOrFail((int) $validated['subcategoryId']);
         $slugBase = Str::slug($validated['name']);
@@ -362,7 +363,7 @@ class extends Component {
     {
         $this->validateOnly('imageUpload', [
             'imageUpload' => $this->imageUploadRules(),
-        ]);
+        ], ProductImageRules::messages());
     }
 
     public function clearImageUpload(): void
@@ -389,7 +390,7 @@ class extends Component {
      */
     private function imageUploadRules(): array
     {
-        return ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'max:4096'];
+        return ProductImageRules::optional();
     }
 
     public function with(): array
@@ -538,7 +539,7 @@ class extends Component {
                             @endif
                             <p wire:loading wire:target="imageUpload" class="text-xs text-zinc-500">Uploading preview…</p>
                             <p class="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                Square 1:1 photos display best. Use JPG, PNG, or WebP, 1024×1024px recommended (minimum 800×800px), max 4 MB. Shop tiles, product pages, and the homepage all show a square crop; wide or tall photos will lose the edges.
+                                {{ ProductImageRules::guidance() }}
                             </p>
                             @if ($existingImage && ! $imageUpload)
                                 <p class="text-xs text-zinc-500">Current image is in use until you choose a replacement.</p>

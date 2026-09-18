@@ -2,6 +2,7 @@
 
 use App\Models\SiteSetting;
 use App\Models\SupportTicket;
+use App\Services\NotificationPlaceholderService;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -21,7 +22,7 @@ class extends Component {
 
     public ?string $ticketRef = null;
 
-    public function submit(): void
+    public function submit(NotificationPlaceholderService $notifications): void
     {
         $this->validate([
             'name' => ['required', 'string', 'min:2'],
@@ -40,6 +41,8 @@ class extends Component {
             'message' => $this->message,
             'status' => SupportTicket::STATUS_OPEN,
         ]);
+
+        $notifications->supportTicketSubmitted($ticket);
 
         $this->ticketRef = $ticket->reference();
 

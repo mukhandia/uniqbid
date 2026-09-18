@@ -7,6 +7,7 @@ use App\Models\AuctionBid;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\SiteSetting;
+use App\Models\SupportTicket;
 use App\Support\Money;
 use Illuminate\Support\Facades\Log;
 
@@ -142,6 +143,23 @@ class NotificationPlaceholderService
                 'product_id' => $product->id,
                 'seller_user_id' => $product->seller_user_id,
                 'admin_url' => route('admin.guest-listings', absolute: true),
+            ],
+        );
+    }
+
+    public function supportTicketSubmitted(SupportTicket $ticket): void
+    {
+        $adminEmail = SiteSetting::current()->email ?: 'support@uniqbid.co.ke';
+        $contact = $ticket->email ?: ($ticket->phone ?: 'n/a');
+
+        $this->send(
+            channel: 'admin_email_placeholder',
+            to: $adminEmail,
+            template: 'support_ticket_submitted',
+            message: "UniqBid admin: New support ticket {$ticket->reference()} from {$ticket->name} ({$contact}) — {$ticket->subject}.",
+            context: [
+                'support_ticket_id' => $ticket->id,
+                'admin_url' => route('admin.tickets.show', $ticket, absolute: true),
             ],
         );
     }

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\CartService;
 use App\Services\GuestListingService;
 use App\Services\OrderService;
+use App\Support\ProductImageRules;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -32,13 +33,13 @@ test('guest listings stay off the shop until approved', function () {
         'name' => 'Guest Travel Mug',
         'description' => 'Insulated steel mug in excellent condition for daily commute use.',
         'price' => 2500,
-        'stock' => 2,
         'category_id' => $category->id,
         'subcategory_id' => $subcategory->id,
         'image' => '/storage/guest-products/mug.jpg',
     ]);
 
     expect($product->approval_status)->toBe(Product::APPROVAL_PENDING)
+        ->and($product->stock)->toBe(1)
         ->and($product->channel)->toBe(Product::CHANNEL_NONE)
         ->and(Product::query()->inShop()->whereKey($product->id)->exists())->toBeFalse();
 
@@ -49,7 +50,7 @@ test('guest listings stay off the shop until approved', function () {
         ->and(Product::query()->inShop()->whereKey($product->id)->exists())->toBeTrue();
 });
 
-test('sell form shows commission preview and submits pending listing', function () {
+test('sell form shows commission preview and submits pending listing with stock one', function () {
     $seller = User::factory()->create(['is_admin' => false, 'phone' => '254711000002']);
     $category = Category::factory()->create(['is_active' => true, 'name' => 'Home']);
     $subcategory = Subcategory::factory()->create([
@@ -62,14 +63,15 @@ test('sell form shows commission preview and submits pending listing', function 
         ->test('pages::sell')
         ->assertSee('Commission preview')
         ->assertSee('10%')
+        ->assertSee(ProductImageRules::guidance())
+        ->assertSee('one unit only')
         ->set('name', 'Guest Blender Set')
         ->set('description', 'Barely used blender with jug and spare blades included for kitchen use.')
         ->set('price', '10000')
         ->assertSee('KES')
-        ->set('stock', '1')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
-        ->set('imageUpload', UploadedFile::fake()->image('blender.jpg'))
+        ->set('imageUpload', UploadedFile::fake()->image('blender.jpg', 1024, 1024))
         ->call('submit')
         ->assertHasNoErrors()
         ->assertRedirect(route('account'));
@@ -78,7 +80,42 @@ test('sell form shows commission preview and submits pending listing', function 
 
     expect($product)->not->toBeNull()
         ->and($product->seller_user_id)->toBe($seller->id)
-        ->and($product->approval_status)->toBe(Product::APPROVAL_PENDING);
+        ->and($product->stock)->toBe(1)
+        ->and($product->approval_status)->toBe(Product::APPROVAL_PENDING)
+        ->and($product->image)->toStartWith('/storage/guest-products/');
+
+    Storage::disk('public')->assertExists(str_replace('/storage/', '', $product->image));
+});
+
+test('sell form rejects non square or unsupported product images', function () {
+    $seller = User::factory()->create(['is_admin' => false, 'phone' => '254711000012']);
+    $category = Category::factory()->create(['is_active' => true]);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'is_active' => true,
+    ]);
+
+    Livewire::actingAs($seller)
+        ->test('pages::sell')
+        ->set('name', 'Guest Wide Frame')
+        ->set('description', 'A listing that should fail because the photo is not square enough.')
+        ->set('price', '5000')
+        ->set('categoryId', (string) $category->id)
+        ->set('subcategoryId', (string) $subcategory->id)
+        ->set('imageUpload', UploadedFile::fake()->image('wide.jpg', 1200, 800))
+        ->call('submit')
+        ->assertHasErrors(['imageUpload']);
+
+    Livewire::actingAs($seller)
+        ->test('pages::sell')
+        ->set('name', 'Guest Gif Frame')
+        ->set('description', 'A listing that should fail because gif uploads are not allowed.')
+        ->set('price', '5000')
+        ->set('categoryId', (string) $category->id)
+        ->set('subcategoryId', (string) $subcategory->id)
+        ->set('imageUpload', UploadedFile::fake()->image('frame.gif', 1024, 1024))
+        ->call('submit')
+        ->assertHasErrors(['imageUpload']);
 });
 
 test('guest listing submission notifies admin via placeholder channel', function () {
@@ -95,7 +132,6 @@ test('guest listing submission notifies admin via placeholder channel', function
         'name' => 'Guest Side Table',
         'description' => 'Solid wood side table in good condition for living room use.',
         'price' => 4500,
-        'stock' => 1,
         'category_id' => $category->id,
         'subcategory_id' => $subcategory->id,
         'image' => '/storage/guest-products/table.jpg',
@@ -106,6 +142,43 @@ test('guest listing submission notifies admin via placeholder channel', function
             && ($context['template'] ?? null) === 'guest_listing_submitted'
             && ($context['product_id'] ?? null) === $product->id)
         ->once();
+});
+
+test('guest can monitor listing status without editing', function () {
+    $seller = User::factory()->create(['is_admin' => false, 'phone' => '254711000007']);
+    $pending = Product::factory()->create([
+        'name' => 'Pending Guest Chair',
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_PENDING,
+        'channel' => Product::CHANNEL_NONE,
+        'stock' => 1,
+    ]);
+    $sold = Product::factory()->inShop()->create([
+        'name' => 'Sold Guest Lamp',
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_APPROVED,
+        'stock' => 0,
+        'price' => 8000,
+    ]);
+    OrderItem::factory()->create([
+        'product_id' => $sold->id,
+        'seller_user_id' => $seller->id,
+        'product_name' => $sold->name,
+        'seller_payout_amount' => 7200,
+        'seller_payout_status' => OrderItem::PAYOUT_PENDING,
+        'commission_amount' => 800,
+    ]);
+
+    Livewire::actingAs($seller)
+        ->test('pages::account')
+        ->assertSee('Pending Guest Chair')
+        ->assertSee('Pending approval')
+        ->assertSee('Sold Guest Lamp')
+        ->assertSee('Sold')
+        ->assertSee('Payout pending');
+
+    expect($pending->guestListingStatusLabel())->toBe('Pending approval')
+        ->and($sold->guestListingStatusLabel())->toBe('Sold');
 });
 
 test('guest listings manage permission is required to approve', function () {
@@ -135,7 +208,7 @@ test('checkout on an approved guest product splits commission and seller payout'
         'seller_user_id' => $seller->id,
         'approval_status' => Product::APPROVAL_APPROVED,
         'price' => 10000,
-        'stock' => 3,
+        'stock' => 1,
         'name' => 'Guest Desk Lamp',
     ]);
 
@@ -161,4 +234,48 @@ test('checkout on an approved guest product splits commission and seller payout'
         ->assertHasNoErrors();
 
     expect($item->fresh()->seller_payout_status)->toBe(OrderItem::PAYOUT_PAID);
+});
+
+test('guest listing shop orders sync into logistics with guest context', function () {
+    $seller = User::factory()->create(['is_admin' => false, 'phone' => '254711000008', 'name' => 'Amina Seller']);
+    $buyer = User::factory()->create(['is_admin' => false, 'phone' => '254711000009']);
+    $product = Product::factory()->inShop()->create([
+        'seller_user_id' => $seller->id,
+        'approval_status' => Product::APPROVAL_APPROVED,
+        'price' => 6000,
+        'stock' => 1,
+        'name' => 'Guest Coffee Table',
+    ]);
+
+    app(CartService::class)->add($product->id, 1);
+
+    $order = app(OrderService::class)->placeFromCart([
+        'name' => $buyer->name,
+        'phone' => '0711000009',
+        'delivery_method' => 'collection',
+        'user' => $buyer,
+    ]);
+
+    app(OrderService::class)->markProcessing($order);
+    $shipment = $order->fresh()->activeShipment();
+
+    expect($shipment)->not->toBeNull()
+        ->and($shipment->notes)->toContain('Guest listing')
+        ->and($shipment->notes)->toContain('Guest Coffee Table')
+        ->and($shipment->notes)->toContain('Amina Seller')
+        ->and($order->fresh(['items'])->hasGuestListingItems())->toBeTrue();
+
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.logistics')
+        ->assertSee($order->reference)
+        ->assertSee('Guest listing')
+        ->assertSee('Guest Coffee Table')
+        ->assertSee('Amina Seller');
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.order', ['order' => $order])
+        ->assertSee('Guest listing')
+        ->assertSee('Amina Seller');
 });

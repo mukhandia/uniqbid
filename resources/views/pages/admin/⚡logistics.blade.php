@@ -200,7 +200,15 @@ class extends Component {
 
     public function with(): array
     {
-        $query = Shipment::query()->with('shippable')->latest();
+        $query = Shipment::query()
+            ->with([
+                'shippable' => function ($morphTo): void {
+                    $morphTo->morphWith([
+                        Order::class => ['items.seller'],
+                    ]);
+                },
+            ])
+            ->latest();
 
         if ($this->status !== '') {
             $query->where('status', $this->status);
@@ -399,7 +407,18 @@ class extends Component {
                         </td>
                         <td class="px-4 py-3 text-xs">
                             @if ($shipment->shippable instanceof Order)
-                                Order {{ $shipment->shippable->reference }}
+                                <div>Order {{ $shipment->shippable->reference }}</div>
+                                @if ($shipment->shippable->relationLoaded('items') && $shipment->shippable->hasGuestListingItems())
+                                    <div class="mt-1">
+                                        <flux:badge size="sm" color="amber">Guest listing</flux:badge>
+                                    </div>
+                                    @foreach ($shipment->shippable->items->whereNotNull('seller_user_id') as $guestItem)
+                                        <div class="mt-1 text-zinc-500">
+                                            {{ $guestItem->product_name }}
+                                            · {{ $guestItem->seller?->name ?? 'Guest seller' }}
+                                        </div>
+                                    @endforeach
+                                @endif
                             @elseif ($shipment->shippable instanceof AuctionResult)
                                 Result {{ $shipment->shippable->name }}
                             @else

@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\User;
 use App\Services\AuctionBidService;
 use App\Services\CustomerAccountService;
@@ -101,6 +103,23 @@ class extends Component {
         }
 
         return $user->orders()->with('items')->limit(20)->get();
+    }
+
+    #[Computed]
+    public function guestListings(): Collection
+    {
+        $user = Auth::user();
+
+        if ($user === null || $user->is_admin) {
+            return collect();
+        }
+
+        return Product::query()
+            ->where('seller_user_id', $user->id)
+            ->with(['orderItems' => fn ($query) => $query->latest('id')->limit(1)])
+            ->latest('id')
+            ->limit(20)
+            ->get();
     }
 
     public function cancelShopOrder(int $orderId): void
@@ -359,8 +378,42 @@ class extends Component {
                             </flux:button>
                         </div>
                         <p class="mt-2 text-sm text-muted-foreground">
-                            Submit a shop-only listing for admin approval. Commission is shown before you submit.
+                            Submit a one-unit shop listing for admin approval. Monitor status here; UniqBid staff manage edits and fulfilment.
                         </p>
+                        @if ($this->guestListings->isEmpty())
+                            <p class="mt-3 text-sm text-muted-foreground">No guest listings yet.</p>
+                        @else
+                            <div class="mt-4 space-y-3">
+                                @foreach ($this->guestListings as $listing)
+                                    @php($sale = $listing->orderItems->first())
+                                    <div class="rounded-xl border border-border p-4" wire:key="guest-listing-{{ $listing->id }}">
+                                        <div class="flex items-start gap-3">
+                                            <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <div class="font-semibold text-navy">{{ $listing->name }}</div>
+                                                    <flux:badge size="sm" :color="$listing->guestListingStatusColor()">
+                                                        {{ $listing->guestListingStatusLabel() }}
+                                                    </flux:badge>
+                                                </div>
+                                                <div class="mt-1 text-xs text-muted-foreground">
+                                                    {{ Money::kes($listing->price) }} · 1 unit
+                                                    @if ($listing->approval_status === Product::APPROVAL_REJECTED && filled($listing->rejection_reason))
+                                                        · {{ $listing->rejection_reason }}
+                                                    @endif
+                                                </div>
+                                                @if ($sale)
+                                                    <div class="mt-1 text-xs text-muted-foreground">
+                                                        Sold · Payout {{ $sale->seller_payout_status === OrderItem::PAYOUT_PAID ? 'paid' : 'pending' }}
+                                                        ({{ Money::kes($sale->seller_payout_amount) }})
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </section>
 
                     <section>

@@ -109,6 +109,12 @@ class AdminDashboardService
                 ->orderByDesc('reserved_stock')
                 ->limit(8)
                 ->get(['id', 'slug', 'name', 'stock', 'reserved_stock']),
+            'pendingGuestListings' => Product::query()
+                ->pendingGuestApproval()
+                ->with(['seller:id,name,phone'])
+                ->latest()
+                ->limit(8)
+                ->get(['id', 'slug', 'name', 'price', 'seller_user_id', 'approval_status', 'created_at']),
         ];
     }
 

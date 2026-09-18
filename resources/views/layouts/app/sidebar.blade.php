@@ -154,7 +154,7 @@
 
             <div class="flex shrink-0 items-center gap-2 border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 @if ($user->canAccessAdmin())
-                    <livewire:admin-ticket-bell wire:key="ticket-bell-sidebar" />
+                    <livewire:admin-ticket-bell placement="up" wire:key="ticket-bell-sidebar" />
                 @endif
                 <x-admin-logout-button class="min-w-0 flex-1" />
             </div>
@@ -172,7 +172,7 @@
 
             <div class="flex shrink-0 items-center gap-1">
                 @if ($user->canAccessAdmin())
-                    <livewire:admin-ticket-bell wire:key="ticket-bell-header" />
+                    <livewire:admin-ticket-bell placement="down" wire:key="ticket-bell-header" />
                 @endif
                 <x-admin-logout-button :wide="false" />
             </div>
