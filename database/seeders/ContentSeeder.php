@@ -23,7 +23,8 @@ class ContentSeeder extends Seeder
     public function run(): void
     {
         if (Testimonial::query()->exists()) {
-            $this->command->info('CMS content already present — skipping ContentSeeder.');
+            $this->syncPromotionsPrivacyClause();
+            $this->command->info('CMS content already present — skipped full ContentSeeder (privacy promotions clause synced).');
 
             return;
         }
@@ -32,6 +33,15 @@ class ContentSeeder extends Seeder
         $this->seedFaqs();
         $this->seedLegal();
         $this->seedHowItWorks();
+    }
+
+    private function syncPromotionsPrivacyClause(): void
+    {
+        $body = 'We process data to record sale entries, process payments, fulfil orders, prevent fraud, meet legal duties, and to send sale and promotion updates by SMS, WhatsApp, or email using the contact details you provide when you participate. By accepting the Selling Rules & Privacy Policy when you enter a sale, you agree that UniqBid may use those credentials for promotions and service messages. You may manage preferences later in your account. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.';
+
+        LegalClause::query()
+            ->where('heading', '3.3–3.6 Purpose, payments and sharing')
+            ->update(['body' => $body]);
     }
 
     private function seedTestimonials(): void
@@ -105,8 +115,8 @@ class ContentSeeder extends Seeder
             ]],
             ['privacy', 'Privacy Policy', [
                 ['3.1–3.2 Controller and data collected', 'UniqBid Auction Limited is the data controller under the Data Protection Act, 2019. We collect identity, contact, transaction, technical, and support-communication data needed to operate the platform. We do not knowingly collect data from people under 18.'],
-                ['3.3–3.6 Purpose, payments and sharing', 'We process data to record bids, process payments, fulfil orders, prevent fraud, meet legal duties, and, only with consent, send marketing. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.'],
-                ['3.7–3.11 Retention, rights, automation and cookies', 'Transaction records are retained for seven years; inactive account data for three years unless a longer period is required. You may request access, correction, erasure where permitted, restriction, objection, portability, or human review of a sale result. Essential cookies operate the site; analytics and marketing cookies require consent. Contact dpo@uniqbid.co.ke or support@uniqbid.co.ke.'],
+                ['3.3–3.6 Purpose, payments and sharing', 'We process data to record sale entries, process payments, fulfil orders, prevent fraud, meet legal duties, and to send sale and promotion updates by SMS, WhatsApp, or email using the contact details you provide when you participate. By accepting the Selling Rules & Privacy Policy when you enter a sale, you agree that UniqBid may use those credentials for promotions and service messages. You may manage preferences later in your account. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.'],
+                ['3.7–3.11 Retention, rights, automation and cookies', 'Transaction records are retained for seven years; inactive account data for three years unless a longer period is required. You may request access, correction, erasure where permitted, restriction, objection, portability, or human review of a sale result. Essential cookies operate the site; analytics cookies require consent. Contact dpo@uniqbid.co.ke or support@uniqbid.co.ke.'],
             ]],
             ['refunds', 'Refund Policy', [
                 ['4.1–4.3 Participation and sale payments', 'Bid fees are non-refundable except for voided sales, erroneous charges, or where required by law. A sale price paid for a cancelled sale is refunded in full within seven business days, subject to the Cancellation of Sale Policy.'],

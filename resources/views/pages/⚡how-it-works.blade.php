@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('How UniqBid Works: Lowest Unique Bid Auctions in Kenya')]
+#[Title('How UniqBid Works: Lowest Unique Amount Sales in Kenya')]
 class extends Component {
     public string $lang = 'en';
 
@@ -130,7 +130,7 @@ class extends Component {
 
         <div class="mt-10 text-center">
             <flux:button href="{{ route('auctions.index') }}" class="bg-accent! text-accent-foreground!">
-                Browse live auctions
+                    Browse live sales
             </flux:button>
         </div>
     </div>

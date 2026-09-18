@@ -13,10 +13,10 @@ use Livewire\Livewire;
 test('public redeem page is available', function () {
     $this->get(route('redeem'))
         ->assertOk()
-        ->assertSee('Redeem Bid');
+        ->assertSee('Redeem for cash');
 });
 
-test('successful bid can be looked up paid and redeemed', function () {
+test('successful buy can be redeemed for product value minus sale amount', function () {
     $auction = Auction::factory()->create([
         'name' => 'Redeemable Phone',
         'retail_value' => 85000,
@@ -44,22 +44,17 @@ test('successful bid can be looked up paid and redeemed', function () {
     Livewire::test('pages::redeem')
         ->set('reference', 'BID-REDEEMTEST')
         ->call('lookup')
-        ->assertSet('step', 'pay')
+        ->assertSet('step', 'redeem')
         ->assertSet('salePrice', 45)
         ->assertSet('retailValue', 85000)
-        ->call('startPayment')
-        ->assertSet('step', 'simulate')
-        ->call('simulateSuccess')
-        ->assertSet('step', 'redeem')
-        ->assertSet('salePaid', true)
+        ->assertSet('payoutAmount', 84955)
         ->call('confirmRedeem')
         ->assertSet('step', 'done');
 
     $result->refresh();
 
-    expect($result->sale_payment_status)->toBe(AuctionResult::PAYMENT_PAID)
-        ->and($result->fulfilment_status)->toBe(AuctionResult::FULFILMENT_REDEEMED)
-        ->and($result->redemption_amount)->toBe(85000)
+    expect($result->fulfilment_status)->toBe(AuctionResult::FULFILMENT_REDEEMED)
+        ->and($result->redemption_amount)->toBe(84955)
         ->and($result->redemption_payout_status)->toBe(AuctionResult::REDEMPTION_PAYOUT_PENDING)
         ->and($result->redeemed_at)->not->toBeNull()
         ->and($result->shipments()->latest('id')->first()?->status)->toBe(Shipment::STATUS_REDEEMED);
@@ -93,6 +88,7 @@ test('redeem after ready for collection marks logistics as redeemed', function (
     app(RedeemBidService::class)->redeem($result->fresh());
 
     expect($result->fresh()->fulfilment_status)->toBe(AuctionResult::FULFILMENT_REDEEMED)
+        ->and($result->fresh()->redemption_amount)->toBe(39978)
         ->and($result->fresh()->shipments()->latest('id')->first()?->status)->toBe(Shipment::STATUS_REDEEMED);
 });
 
@@ -109,7 +105,7 @@ test('redeem service rejects already redeemed results', function () {
         'sale_price' => 20,
         'sale_payment_status' => AuctionResult::PAYMENT_PAID,
         'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
-        'redemption_amount' => 50000,
+        'redemption_amount' => 49980,
         'redeemed_at' => now(),
     ]);
 
@@ -126,7 +122,7 @@ test('finance can mark redemption payout as paid', function () {
         'sale_price' => 33,
         'sale_payment_status' => AuctionResult::PAYMENT_PAID,
         'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
-        'redemption_amount' => 60000,
+        'redemption_amount' => 59967,
         'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
         'redeemed_at' => now(),
     ]);

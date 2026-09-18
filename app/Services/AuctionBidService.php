@@ -20,7 +20,7 @@ class AuctionBidService
     ) {}
 
     /**
-     * @param  array{name: string, email: string, phone: string, whatsapp_number: string, marketing_consent: bool}  $details
+     * @param  array{name: string, email?: string|null, phone: string, whatsapp_number?: string|null, marketing_consent?: bool}  $details
      */
     public function initiate(Auction $auction, int $amount, array $details): PaymentAttempt
     {
@@ -29,18 +29,22 @@ class AuctionBidService
 
             if ($auction->status !== 'live' || $auction->ends_at->isPast()) {
                 throw ValidationException::withMessages([
-                    'amount' => 'This sale is no longer accepting bids.',
+                    'amount' => 'This sale is no longer accepting entries.',
                 ]);
             }
 
             $phone = $this->normalizeKenyanPhone($details['phone']);
-            $whatsapp = $this->normalizeKenyanPhone($details['whatsapp_number'] ?: $details['phone']);
-            $consent = $details['marketing_consent'];
+            $whatsappSource = filled($details['whatsapp_number'] ?? null)
+                ? (string) $details['whatsapp_number']
+                : $details['phone'];
+            $whatsapp = $this->normalizeKenyanPhone($whatsappSource);
+            $consent = (bool) ($details['marketing_consent'] ?? true);
+            $email = filled($details['email'] ?? null) ? (string) $details['email'] : null;
             $user = User::query()->where('phone', $phone)->first();
 
             if ($user !== null && Auth::id() !== $user->id) {
                 throw ValidationException::withMessages([
-                    'phone' => 'This mobile number has an account. Sign in with the one-time code to place a bid.',
+                    'phone' => 'This mobile number has an account. Sign in with the one-time code to participate.',
                 ]);
             }
 
@@ -52,11 +56,20 @@ class AuctionBidService
             $bidder->fill([
                 'user_id' => $user?->id,
                 'name' => $details['name'],
-                'email' => $details['email'],
+                'email' => $email ?? $bidder->email,
                 'whatsapp_number' => $whatsapp,
                 'marketing_consent' => $consent,
-                'marketing_consented_at' => $consent ? now() : null,
+                'marketing_consented_at' => $consent ? ($bidder->marketing_consented_at ?? now()) : null,
             ])->save();
+
+            if ($user !== null && $consent) {
+                $user->forceFill([
+                    'marketing_consent' => true,
+                    'marketing_consented_at' => $user->marketing_consented_at ?? now(),
+                    'sms_notifications' => true,
+                    'whatsapp_notifications' => true,
+                ])->save();
+            }
 
             $bid = AuctionBid::query()->create([
                 'auction_id' => $auction->id,

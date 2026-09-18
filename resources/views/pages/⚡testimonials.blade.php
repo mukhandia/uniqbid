@@ -23,7 +23,7 @@ class extends Component {
             <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Customer stories</p>
             <h1 class="mt-2 text-3xl font-bold text-navy sm:text-4xl">What people say about UniqBid</h1>
             <p class="mt-3 text-base text-muted-foreground">
-                Real feedback from Kenyan bidders and shoppers using UniqBid.
+                Real feedback from Kenyan buyers and shoppers using UniqBid.
             </p>
         </div>
 
@@ -67,13 +67,13 @@ class extends Component {
         </div>
 
         <div class="mt-12 rounded-2xl border border-border bg-white p-8 text-center shadow-sm sm:p-10">
-            <h2 class="text-xl font-bold text-navy sm:text-2xl">Ready to place a bid on a live auction?</h2>
+            <h2 class="text-xl font-bold text-navy sm:text-2xl">Ready to join a live sale?</h2>
             <p class="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-                Browse open sales, pay for your bid with M-Pesa, and see why Kenyans keep coming back.
+                Browse open sales, pay your participation fee with M-Pesa, and see why Kenyans keep coming back.
             </p>
             <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
                 <flux:button href="{{ route('auctions.index') }}" class="bg-accent! text-accent-foreground!">
-                    Browse live auctions
+                    Browse live sales
                 </flux:button>
                 <flux:button href="{{ route('past-sales') }}" variant="outline">
                     See past sales

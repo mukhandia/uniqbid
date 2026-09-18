@@ -43,13 +43,20 @@ MAINTENANCE_ON=1
 echo "==> Running migrations"
 $PHP_BIN artisan migrate --force --no-interaction
 
+echo "==> Ensuring site settings row exists (idempotent)"
+$PHP_BIN artisan db:seed --class=SiteSettingSeeder --force --no-interaction
+
 echo "==> Seeding CMS content (skipped if content already exists)"
 $PHP_BIN artisan db:seed --class=ContentSeeder --force --no-interaction
 
-echo "==> Seeding roles and permissions (idempotent)"
+echo "==> Seeding roles and permissions (idempotent; includes guest-listings.*)"
 $PHP_BIN artisan db:seed --class=RolePermissionSeeder --force --no-interaction
+$PHP_BIN artisan permission:cache-reset || true
 
-echo "==> Seeding launch auction catalogue (idempotent)"
+echo "==> Syncing catalogue categories and subcategories (idempotent)"
+$PHP_BIN artisan db:seed --class=SyncCatalogueTaxonomySeeder --force --no-interaction
+
+echo "==> Seeding launch auction catalogue (idempotent; titles + images)"
 $PHP_BIN artisan db:seed --class=LaunchAuctionCatalogueSeeder --force --no-interaction
 
 echo "==> Syncing catalogue product images (idempotent)"

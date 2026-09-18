@@ -33,7 +33,7 @@
                 @if ($user->canAccessAdmin())
                     <div class="mx-3 my-2 border-t border-zinc-200 dark:border-zinc-700" role="separator"></div>
 
-                    @if ($can('auctions.view') || $can('auctions.manage') || $can('orders.view') || $can('orders.manage') || $can('products.view') || $can('products.manage') || $can('logistics.view') || $can('logistics.manage'))
+                    @if ($can('auctions.view') || $can('auctions.manage') || $can('orders.view') || $can('orders.manage') || $can('products.view') || $can('products.manage') || $can('guest-listings.view') || $can('guest-listings.manage') || $can('logistics.view') || $can('logistics.manage'))
                         <flux:sidebar.group :heading="__('Sales & shop')" class="grid">
                             @if ($can('auctions.view') || $can('auctions.manage'))
                                 <flux:sidebar.item icon="scale" :href="route('admin.auctions')" :current="request()->routeIs('admin.auctions*')" wire:navigate>
@@ -51,6 +51,11 @@
                                 </flux:sidebar.item>
                                 <flux:sidebar.item icon="shopping-bag" :href="route('admin.products')" :current="request()->routeIs('admin.products')" wire:navigate>
                                     {{ __('Products') }}
+                                </flux:sidebar.item>
+                            @endif
+                            @if ($can('guest-listings.view') || $can('guest-listings.manage'))
+                                <flux:sidebar.item icon="clipboard-document-check" :href="route('admin.guest-listings')" :current="request()->routeIs('admin.guest-listings')" wire:navigate>
+                                    {{ __('Guest listings') }}
                                 </flux:sidebar.item>
                             @endif
                             @if ($can('logistics.view') || $can('logistics.manage'))

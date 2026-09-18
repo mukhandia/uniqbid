@@ -241,7 +241,7 @@ class extends Component {
 
         @guest
             <p class="mt-2 text-center text-sm text-muted-foreground">
-                Sign in with your mobile number to view bid history, spending controls, and communication preferences.
+                Sign in with your mobile number to view entry history, spending controls, and communication preferences.
             </p>
             <div class="mt-6 flex flex-wrap justify-center gap-2">
                 <flux:button href="{{ route('mobile-login') }}" class="bg-accent! text-accent-foreground!">
@@ -280,7 +280,7 @@ class extends Component {
 
                 @if ($this->isSelfExcluded)
                     <flux:callout variant="warning" class="mt-6" icon="no-symbol">
-                        Your account is self-excluded from bidding until
+                        Your account is self-excluded from sales until
                         {{ Auth::user()->customerControl?->self_excluded_until?->timezone(config('app.timezone'))->format('j M Y, H:i') }}.
                     </flux:callout>
                 @endif
@@ -326,16 +326,16 @@ class extends Component {
                     <section>
                         <h2 class="text-lg font-semibold text-navy">Self-exclusion</h2>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Pause bidding for at least 30 days. This cannot be reversed early.
+                            Pause participation for at least 30 days. This cannot be reversed early.
                         </p>
                         <div class="mt-4 flex flex-wrap gap-2">
-                            <flux:button wire:click="applySelfExclusion(30)" variant="outline" wire:confirm="Self-exclude from bidding for 30 days?">
+                            <flux:button wire:click="applySelfExclusion(30)" variant="outline" wire:confirm="Self-exclude from sales for 30 days?">
                                 30 days
                             </flux:button>
-                            <flux:button wire:click="applySelfExclusion(60)" variant="outline" wire:confirm="Self-exclude from bidding for 60 days?">
+                            <flux:button wire:click="applySelfExclusion(60)" variant="outline" wire:confirm="Self-exclude from sales for 60 days?">
                                 60 days
                             </flux:button>
-                            <flux:button wire:click="applySelfExclusion(90)" variant="outline" wire:confirm="Self-exclude from bidding for 90 days?">
+                            <flux:button wire:click="applySelfExclusion(90)" variant="outline" wire:confirm="Self-exclude from sales for 90 days?">
                                 90 days
                             </flux:button>
                         </div>
@@ -350,6 +350,18 @@ class extends Component {
                             </p>
                         </section>
                     @endif
+
+                    <section>
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 class="text-lg font-semibold text-navy">Sell on UniqBid</h2>
+                            <flux:button href="{{ route('sell') }}" size="sm" class="bg-accent! text-accent-foreground!" wire:navigate>
+                                List a product
+                            </flux:button>
+                        </div>
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            Submit a shop-only listing for admin approval. Commission is shown before you submit.
+                        </p>
+                    </section>
 
                     <section>
                         <h2 class="text-lg font-semibold text-navy">Shop orders</h2>
@@ -403,16 +415,16 @@ class extends Component {
                     </section>
 
                     <section>
-                        <h2 class="text-lg font-semibold text-navy">Bid history</h2>
+                        <h2 class="text-lg font-semibold text-navy">Sale history</h2>
                         @if ($this->bidHistory->isEmpty())
-                            <p class="mt-2 text-sm text-muted-foreground">No bids yet. Browse live sales to place your first bid.</p>
+                            <p class="mt-2 text-sm text-muted-foreground">No entries yet. Browse live sales to place your first amount.</p>
                         @else
                             <div class="mt-4 overflow-x-auto rounded-xl border border-border">
                                 <table class="min-w-full divide-y divide-border text-sm">
                                     <thead class="bg-surface text-left text-muted-foreground">
                                         <tr>
                                             <th class="px-4 py-3 font-medium">Sale</th>
-                                            <th class="px-4 py-3 font-medium">Bid</th>
+                                            <th class="px-4 py-3 font-medium">Amount</th>
                                             <th class="px-4 py-3 font-medium">Reference</th>
                                             <th class="px-4 py-3 font-medium">Status</th>
                                         </tr>

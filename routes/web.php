@@ -23,6 +23,7 @@ Route::livewire('testimonials', 'pages::testimonials')->name('testimonials');
 Route::livewire('faqs', 'pages::faqs')->name('faqs');
 Route::livewire('contact', 'pages::contact')->name('contact');
 Route::livewire('legal', 'pages::legal')->name('legal');
+Route::livewire('sell', 'pages::sell')->name('sell');
 Route::livewire('account', 'pages::account')->name('account');
 Route::livewire('mobile-login', 'pages::auth.mobile-login')->name('mobile-login');
 
@@ -37,6 +38,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('orders/{order}', 'pages::admin.order')->name('orders.show');
     Route::livewire('categories', 'pages::admin.categories')->name('categories');
     Route::livewire('products', 'pages::admin.products')->name('products');
+    Route::livewire('guest-listings', 'pages::admin.guest-listings')->name('guest-listings');
     Route::livewire('customers', 'pages::admin.customers')->name('customers');
     Route::livewire('customer-verifications', 'pages::admin.customer-verifications')->name('customer-verifications');
     Route::livewire('subscribers', 'pages::admin.subscribers')->name('subscribers');

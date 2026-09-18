@@ -6,19 +6,25 @@ use App\Services\AuctionSettlementService;
 use App\Services\LogisticsService;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 new
 #[Layout('layouts.app')]
 #[Title('Admin: Sale activity')]
 class extends Component {
+    use WithFileUploads;
     use WithPagination;
 
     public Auction $auction;
+
+    public $buyerImageUpload = null;
 
     public function mount(Auction $auction): void
     {
@@ -143,6 +149,56 @@ class extends Component {
 
         Flux::toast(variant: 'success', text: $success);
     }
+
+    public function saveBuyerImage(): void
+    {
+        $result = AuctionResult::query()->where('auction_id', $this->auction->id)->first();
+
+        if ($result === null) {
+            Flux::toast(variant: 'danger', text: 'Settle this sale before adding a successful-buyer photo.');
+
+            return;
+        }
+
+        $this->validate([
+            'buyerImageUpload' => ['required', 'image', 'max:4096'],
+        ]);
+
+        if (! $this->buyerImageUpload instanceof TemporaryUploadedFile) {
+            Flux::toast(variant: 'danger', text: 'Choose a photo to upload.');
+
+            return;
+        }
+
+        if (filled($result->buyer_image) && ! str_starts_with((string) $result->buyer_image, 'http') && ! str_starts_with((string) $result->buyer_image, '/')) {
+            Storage::disk('public')->delete($result->buyer_image);
+        }
+
+        $stored = $this->buyerImageUpload->store('buyers', 'public');
+        $result->update(['buyer_image' => $stored]);
+        $this->reset('buyerImageUpload');
+        $this->auction->load(['result.auctionBid.bidder']);
+
+        Flux::toast(variant: 'success', text: 'Successful-buyer photo saved for past sales.');
+    }
+
+    public function clearBuyerImage(): void
+    {
+        $result = AuctionResult::query()->where('auction_id', $this->auction->id)->first();
+
+        if ($result === null) {
+            return;
+        }
+
+        if (filled($result->buyer_image) && ! str_starts_with((string) $result->buyer_image, 'http') && ! str_starts_with((string) $result->buyer_image, '/')) {
+            Storage::disk('public')->delete($result->buyer_image);
+        }
+
+        $result->update(['buyer_image' => null]);
+        $this->auction->load(['result.auctionBid.bidder']);
+
+        Flux::toast(variant: 'success', text: 'Successful-buyer photo removed. Past sales will show an avatar.');
+    }
 }; ?>
 
 @php
@@ -232,9 +288,38 @@ class extends Component {
                         <div class="mt-2 text-xs text-zinc-500">Public result listing: {{ $result->buyer_display }}</div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Successful bid</div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Successful amount</div>
                         <div class="mt-1 text-lg font-semibold tabular-nums">{{ Money::kes($result->sale_price) }}</div>
                         <div class="text-xs text-zinc-500">Ref {{ $successfulBid->reference }}</div>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Past-sales buyer photo</div>
+                        <p class="mt-1 text-xs text-zinc-500">Optional. Shown on Past Sales and homepage recent sales. If empty, the public site shows an avatar.</p>
+                        <div class="mt-3 flex flex-wrap items-center gap-4">
+                            <div class="size-16 overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
+                                @if ($result->buyerImageUrl())
+                                    <img src="{{ $result->buyerImageUrl() }}" alt="{{ $result->buyer_display }}" class="h-full w-full object-cover">
+                                @else
+                                    <div class="grid h-full w-full place-items-center text-zinc-400">
+                                        <flux:icon.user class="size-7" />
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="min-w-[16rem] flex-1 space-y-2">
+                                <input type="file" wire:model="buyerImageUpload" accept="image/*" class="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-sm file:font-medium dark:text-zinc-300 dark:file:bg-zinc-800" />
+                                <flux:error name="buyerImageUpload" />
+                                <div class="flex flex-wrap gap-2">
+                                    <flux:button size="sm" wire:click="saveBuyerImage" wire:loading.attr="disabled">
+                                        Save photo
+                                    </flux:button>
+                                    @if ($result->buyerImageUrl())
+                                        <flux:button size="sm" variant="ghost" wire:click="clearBuyerImage" wire:confirm="Remove the buyer photo? Past sales will show an avatar.">
+                                            Remove
+                                        </flux:button>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

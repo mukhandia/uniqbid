@@ -17,6 +17,7 @@ class OrderService
         private readonly AuctionBidService $phones,
         private readonly NotificationPlaceholderService $notifications,
         private readonly LogisticsService $logistics,
+        private readonly GuestListingService $guestListings,
     ) {}
 
     /**
@@ -103,16 +104,32 @@ class OrderService
             foreach ($prepared as $row) {
                 /** @var Product $product */
                 $product = $row['product'];
+                $commission = 0;
+                $payout = 0;
+                $payoutStatus = OrderItem::PAYOUT_NONE;
+                $sellerId = null;
+
+                if ($product->isGuestListing() && $product->seller_user_id !== null) {
+                    $split = $this->guestListings->splitAmounts($row['line_total']);
+                    $commission = $split['commission'];
+                    $payout = $split['payout'];
+                    $payoutStatus = OrderItem::PAYOUT_PENDING;
+                    $sellerId = $product->seller_user_id;
+                }
 
                 OrderItem::query()->create([
                     'order_id' => $order->id,
                     'product_id' => $product->id,
+                    'seller_user_id' => $sellerId,
                     'product_name' => $product->name,
                     'product_slug' => $product->slug,
                     'category' => $product->category,
                     'unit_price' => $product->price,
                     'quantity' => $row['qty'],
                     'line_total' => $row['line_total'],
+                    'commission_amount' => $commission,
+                    'seller_payout_amount' => $payout,
+                    'seller_payout_status' => $payoutStatus,
                     'is_returnable' => $product->is_returnable,
                 ]);
 

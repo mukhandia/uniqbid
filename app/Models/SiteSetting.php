@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
  * @property string|null $map_url
  * @property string $auction_display_mode
  * @property int $auction_shuffle_interval_seconds
+ * @property int $guest_shop_commission_percent
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -30,6 +31,7 @@ use Illuminate\Support\Str;
     'map_url',
     'auction_display_mode',
     'auction_shuffle_interval_seconds',
+    'guest_shop_commission_percent',
 ])]
 class SiteSetting extends Model
 {
@@ -47,6 +49,7 @@ class SiteSetting extends Model
             'map_url' => null,
             'auction_display_mode' => 'auto',
             'auction_shuffle_interval_seconds' => 5,
+            'guest_shop_commission_percent' => 10,
         ];
     }
 
@@ -57,6 +60,7 @@ class SiteSetting extends Model
     {
         return [
             'auction_shuffle_interval_seconds' => 'integer',
+            'guest_shop_commission_percent' => 'integer',
         ];
     }
 
@@ -75,6 +79,11 @@ class SiteSetting extends Model
     public function auctionShuffleIntervalSeconds(): int
     {
         return max(5, (int) ($this->auction_shuffle_interval_seconds ?: 5));
+    }
+
+    public function guestShopCommissionPercent(): int
+    {
+        return max(0, min(90, (int) ($this->guest_shop_commission_percent ?? 10)));
     }
 
     public function phoneTel(): string

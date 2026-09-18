@@ -14,6 +14,7 @@ test('role permission seeder creates roles and assigns super user to admins', fu
     expect(Role::query()->where('name', 'Super User')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'Marketing')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'Finance')->exists())->toBeTrue()
+        ->and(Role::query()->where('name', 'Logistics')->exists())->toBeTrue()
         ->and(Role::query()->where('name', 'Customer Care')->exists())->toBeTrue()
         ->and($admin->fresh()->hasRole('Super User'))->toBeTrue()
         ->and($admin->can('roles.manage'))->toBeTrue()
@@ -42,6 +43,8 @@ test('customer care role has ticket permissions but not reports', function () {
         ->and($care->can('tickets.view'))->toBeTrue()
         ->and($care->can('tickets.manage'))->toBeTrue()
         ->and($care->can('customers.view'))->toBeTrue()
+        ->and($care->can('guest-listings.view'))->toBeTrue()
+        ->and($care->can('guest-listings.manage'))->toBeFalse()
         ->and($care->can('reports.view'))->toBeFalse()
         ->and($care->can('roles.manage'))->toBeFalse();
 });
@@ -59,15 +62,19 @@ test('customer care can access admin tickets but lacks reports permission', func
     expect($care->fresh()->can('reports.view'))->toBeFalse();
 });
 
-test('users with only a staff role can access admin via canAccessAdmin', function () {
+test('logistics role can open logistics but not reports', function () {
     $this->seed(RolePermissionSeeder::class);
 
-    $finance = User::factory()->create(['is_admin' => false]);
-    $finance->assignRole('Finance');
+    $logistics = User::factory()->create(['is_admin' => false]);
+    $logistics->assignRole('Logistics');
 
-    expect($finance->canAccessAdmin())->toBeTrue();
+    expect($logistics->canAccessAdmin())->toBeTrue()
+        ->and($logistics->can('logistics.view'))->toBeTrue()
+        ->and($logistics->can('logistics.manage'))->toBeTrue()
+        ->and($logistics->can('reports.view'))->toBeFalse()
+        ->and($logistics->can('orders.manage'))->toBeFalse();
 
-    $this->actingAs($finance->fresh())
+    $this->actingAs($logistics->fresh())
         ->get(route('admin.logistics'))
         ->assertOk()
         ->assertSee('Logistics');

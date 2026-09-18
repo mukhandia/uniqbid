@@ -9,7 +9,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Past Sales: Completed UniqBid Auctions')]
+#[Title('Past Sales: Completed UniqBid Sales')]
 class extends Component {
     #[Url]
     public string $q = '';
@@ -55,7 +55,7 @@ class extends Component {
         <h1 class="text-3xl font-bold text-navy">Past sales</h1>
     </div>
     <p class="mt-2 max-w-xl text-sm text-muted-foreground">
-        Full public ledger of completed auctions. Buyer photos shown with consent.
+        See who secured real items through transparent lowest-unique sales. Buyer photos are added by UniqBid after each successful buy; otherwise an avatar is shown.
     </p>
 
     <div class="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white p-3">
@@ -85,19 +85,7 @@ class extends Component {
     @else
         <div class="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
             @foreach ($results as $result)
-                <div class="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-                    <div class="aspect-[4/3] overflow-hidden bg-muted">
-                        <img src="{{ $result->image }}" alt="{{ $result->name }}" class="h-full w-full object-cover">
-                    </div>
-                    <div class="p-4">
-                        <div class="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{{ $result->sold_on->format('j M Y') }}</span>
-                            <span>{{ $result->buyer_display }}</span>
-                        </div>
-                        <div class="mt-1 line-clamp-2 text-sm font-semibold">{{ $result->name }}</div>
-                        <div class="mt-2 text-base font-bold text-navy">{{ Money::kes($result->sale_price) }}</div>
-                    </div>
-                </div>
+                <x-past-sale-card :sale="$result" />
             @endforeach
         </div>
     @endif

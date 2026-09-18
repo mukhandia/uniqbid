@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int|null $user_id
  * @property string $name
- * @property string $email
+ * @property string|null $email
  * @property string $phone
  * @property string|null $whatsapp_number
  * @property bool $marketing_consent

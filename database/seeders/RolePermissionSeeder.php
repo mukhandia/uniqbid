@@ -19,6 +19,8 @@ class RolePermissionSeeder extends Seeder
         'auctions.manage',
         'products.view',
         'products.manage',
+        'guest-listings.view',
+        'guest-listings.manage',
         'orders.view',
         'orders.manage',
         'tickets.view',
@@ -54,6 +56,8 @@ class RolePermissionSeeder extends Seeder
             'auctions.manage',
             'products.view',
             'products.manage',
+            'guest-listings.view',
+            'guest-listings.manage',
             'content.manage',
         ]);
 
@@ -63,6 +67,15 @@ class RolePermissionSeeder extends Seeder
             'orders.view',
             'orders.manage',
             'reports.view',
+            'guest-listings.view',
+            'guest-listings.manage',
+            'logistics.view',
+            'logistics.manage',
+        ]);
+
+        $logistics = Role::findOrCreate('Logistics', 'web');
+        $logistics->syncPermissions([
+            'access.admin',
             'logistics.view',
             'logistics.manage',
         ]);
@@ -74,6 +87,7 @@ class RolePermissionSeeder extends Seeder
             'tickets.manage',
             'customers.view',
             'customers.manage',
+            'guest-listings.view',
         ]);
 
         User::query()

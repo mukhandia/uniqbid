@@ -12,7 +12,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('UniqBid: Live Auctions in Kenya | Licensed Auctioneer')]
+#[Title('UniqBid: Live Sales in Kenya')]
 class extends Component {
     //
 }; ?>
@@ -36,10 +36,10 @@ class extends Component {
 
     if ($howItWorksSteps->isEmpty()) {
         $howItWorksSteps = collect([
-            (object) ['step_number' => 1, 'title_en' => 'Browse', 'description_en' => 'See product value, the bid range, and the small participation fee for each sale.'],
-            (object) ['step_number' => 2, 'title_en' => 'Enter a bid amount', 'description_en' => 'Choose any amount inside the range. You can place multiple bids at different amounts.'],
-            (object) ['step_number' => 3, 'title_en' => 'Pay participation fee', 'description_en' => 'Pay the participation fee now to confirm that bid. It is separate from your bid amount.'],
-            (object) ['step_number' => 4, 'title_en' => 'Successful buy', 'description_en' => 'At close, the lowest unique bid secures the item. That buyer then pays their bid amount and can collect the item or redeem for the product value in cash.'],
+            (object) ['step_number' => 1, 'title_en' => 'Browse', 'description_en' => 'See product value, the amount range, and the small participation fee for each sale.'],
+            (object) ['step_number' => 2, 'title_en' => 'Enter an amount', 'description_en' => 'Choose any amount inside the range. You can enter multiple amounts.'],
+            (object) ['step_number' => 3, 'title_en' => 'Pay participation fee', 'description_en' => 'Pay the participation fee now to confirm that entry. It is separate from your chosen amount.'],
+            (object) ['step_number' => 4, 'title_en' => 'Successful buy', 'description_en' => 'At close, the lowest unique amount secures the item. That buyer then pays their amount and can collect the item or redeem for cash.'],
         ]);
     }
 
@@ -70,15 +70,11 @@ class extends Component {
 
         <div class="relative z-10 mx-auto grid min-h-[70vh] max-w-7xl items-center gap-10 px-4 py-16 md:min-h-[78vh] md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-10 md:py-24 lg:gap-14">
             <div class="max-w-xl">
-                <span class="inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium backdrop-blur">
-                    <flux:icon.shield-check class="size-3.5 text-gold" />
-                    Licensed Kenyan Auctioneer · Est. 2024
-                </span>
                 <h1 class="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-                    The lowest <span class="text-gold">unique bid</span> secures the item.
+                    The lowest <span class="text-gold">unique amount</span> secures the item.
                 </h1>
                 <p class="mt-4 max-w-md text-base opacity-90">
-                    Bid transparently on real items: phones, TVs, motorbikes, from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
+                    Participate transparently on real items: phones, TVs, motorbikes, from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
                 </p>
                 <div class="mt-6 flex flex-wrap gap-3">
                     @if ($featured)
@@ -86,7 +82,7 @@ class extends Component {
                             href="{{ route('auctions.show', $featured) }}"
                             class="bg-accent! text-accent-foreground! hover:bg-accent/90!"
                         >
-                            Place Your Bid
+                            Participate now
                             <flux:icon.arrow-right class="size-4" />
                         </flux:button>
                     @endif
@@ -127,7 +123,7 @@ class extends Component {
                     <div class="mt-4">
                         <div class="text-lg font-semibold leading-snug">{{ $featured->name }}</div>
                         <div class="mt-1 text-sm opacity-80">
-                            Value {{ Money::kes($featured->retail_value) }} · Bid {{ Money::kes($featured->min_bid) }}–{{ Money::kes($featured->max_bid) }} · Closes {{ $featured->ends_at?->timezone('Africa/Nairobi')->format('d M, H:i') }} EAT
+                            Value {{ Money::kes($featured->retail_value) }} · Range {{ Money::kes($featured->min_bid) }}–{{ Money::kes($featured->max_bid) }} · Closes {{ $featured->ends_at?->timezone('Africa/Nairobi')->format('d M, H:i') }} EAT
                         </div>
                     </div>
                 </a>
@@ -158,7 +154,7 @@ class extends Component {
                 <div class="text-xs font-semibold uppercase tracking-[0.18em] text-gold">Simple steps</div>
                 <h2 class="mt-2 text-2xl font-bold text-navy sm:text-3xl">How UniqBid works</h2>
                 <p class="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                    Product value and bid range up front. Pay a small participation fee per bid. Successful buyers pay their bid amount later.
+                    Product value and amount range up front. Pay a small participation fee per entry. Successful buyers pay their amount later.
                 </p>
             </div>
 
@@ -203,19 +199,7 @@ class extends Component {
         <x-scroll-row class="mt-6" loop autoplay>
             @foreach ($recentSales as $sale)
                 <x-scroll-row-item>
-                    <div class="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm">
-                        <div class="aspect-square overflow-hidden bg-muted">
-                            <img src="{{ $sale->image }}" alt="{{ $sale->name }}" class="h-full w-full object-cover">
-                        </div>
-                        <div class="flex flex-1 flex-col p-3">
-                            <div class="text-xs text-muted-foreground">{{ $sale->sold_on->format('j M') }}</div>
-                            <div class="mt-0.5 line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug">{{ $sale->name }}</div>
-                            <div class="mt-auto space-y-1 pt-2">
-                                <div class="text-xs text-muted-foreground">{{ $sale->buyer_display }}</div>
-                                <div class="text-sm font-bold tabular-nums text-navy">{{ Money::kes($sale->sale_price) }}</div>
-                            </div>
-                        </div>
-                    </div>
+                    <x-past-sale-card :sale="$sale" class="h-full" />
                 </x-scroll-row-item>
             @endforeach
         </x-scroll-row>
@@ -266,10 +250,10 @@ class extends Component {
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     @foreach ([
-                        'Licence No. AUC/2024/00847',
                         'Data Protection Act, 2019 compliant',
                         'Public past sales ledger',
                         'M-Pesa STK push payments',
+                        'Clear selling rules',
                     ] as $item)
                         <div class="flex items-start gap-2 rounded-lg bg-white/5 p-3 text-sm">
                             <flux:icon.shield-check class="mt-0.5 size-4 shrink-0 text-gold" />

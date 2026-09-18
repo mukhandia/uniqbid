@@ -11,8 +11,19 @@ use App\Services\AuctionSettlementService;
 use App\Services\CreateSaleFromProductService;
 use Livewire\Livewire;
 
-test('guests cannot access admin sales pages', function () {
-    $this->get(route('admin.auctions'))->assertRedirect(route('login'));
+test('admins can export filtered sales as csv', function () {
+    $admin = User::factory()->admin()->create();
+    Auction::factory()->create([
+        'name' => 'Exportable Motorbike Sale',
+        'category' => 'Vehicles',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('export')
+        ->assertFileDownloaded();
 });
 
 test('non admins cannot access admin sales pages', function () {

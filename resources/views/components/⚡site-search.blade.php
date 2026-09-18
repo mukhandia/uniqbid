@@ -65,7 +65,7 @@ new class extends Component
     @if ($showResults)
         <div
             id="site-search-results"
-            class="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-white shadow-sm"
+            class="absolute inset-x-0 top-full z-50 mt-1 max-h-[min(20rem,55dvh)] overflow-hidden rounded-xl border border-border bg-white shadow-sm"
             role="listbox"
         >
             <div class="max-h-80 overflow-y-auto py-1">

@@ -142,12 +142,6 @@ class RedeemBidService
         return DB::transaction(function () use ($result): AuctionResult {
             $result = AuctionResult::query()->lockForUpdate()->with('auction')->findOrFail($result->id);
 
-            if (! $result->isSalePaid()) {
-                throw ValidationException::withMessages([
-                    'redeem' => 'Pay the successful bid amount before redeeming.',
-                ]);
-            }
-
             if ($result->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED) {
                 return $result;
             }
@@ -163,11 +157,13 @@ class RedeemBidService
             }
 
             $retailValue = (int) ($result->auction->retail_value ?? 0);
+            $salePrice = (int) $result->sale_price;
+            $payout = max(0, $retailValue - $salePrice);
 
             $result->update([
                 'outcome_choice' => 'redeem',
                 'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
-                'redemption_amount' => $retailValue,
+                'redemption_amount' => $payout,
                 'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
                 'redeemed_at' => now(),
             ]);

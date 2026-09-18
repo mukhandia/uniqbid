@@ -69,6 +69,11 @@
       "name": "Solar & Power Solutions",
       "slug": "solar-power-solutions",
       "sort_order": 14
+    },
+    {
+      "name": "Car Accessories",
+      "slug": "car-accessories",
+      "sort_order": 15
     }
   ],
   "subcategories": [
@@ -427,34 +432,46 @@
       "sort_order": 59
     },
     {
-      "category": "Travel & Lifestyle",
-      "name": "Car accessories",
-      "slug": "car-accessories",
+      "category": "Car Accessories",
+      "name": "Seat covers & interiors",
+      "slug": "seat-covers-interiors",
       "sort_order": 60
+    },
+    {
+      "category": "Car Accessories",
+      "name": "Phone mounts & chargers",
+      "slug": "phone-mounts-chargers",
+      "sort_order": 61
+    },
+    {
+      "category": "Car Accessories",
+      "name": "Cleaning & care",
+      "slug": "car-cleaning-care",
+      "sort_order": 62
     },
     {
       "category": "Home & Personal Lifestyle",
       "name": "Decorative & LED lighting",
       "slug": "decorative-led-lighting",
-      "sort_order": 61
+      "sort_order": 63
     },
     {
       "category": "Home & Personal Lifestyle",
       "name": "Storage & desk organizers",
       "slug": "storage-desk-organizers",
-      "sort_order": 62
+      "sort_order": 64
     },
     {
       "category": "Home & Personal Lifestyle",
       "name": "Bedroom & bathroom accessories",
       "slug": "bedroom-bathroom-accessories",
-      "sort_order": 63
+      "sort_order": 65
     },
     {
       "category": "Novelty, Trending & Impulse",
       "name": "Social-media trending gadgets",
       "slug": "social-media-trending-gadgets",
-      "sort_order": 64
+      "sort_order": 66
     },
     {
       "category": "Solar & Power Solutions",

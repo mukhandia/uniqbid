@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $image
  * @property int $sale_price
  * @property string $buyer_display
+ * @property string|null $buyer_image
  * @property Carbon $sold_on
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -41,6 +42,7 @@ use Illuminate\Support\Carbon;
     'redemption_payout_status',
     'redeemed_at',
     'buyer_display',
+    'buyer_image',
     'sold_on',
 ])]
 class AuctionResult extends Model
@@ -216,6 +218,19 @@ class AuctionResult extends Model
     public function canMarkDelivered(): bool
     {
         return $this->fulfilment_status === self::FULFILMENT_DISPATCHED;
+    }
+
+    public function buyerImageUrl(): ?string
+    {
+        if (! filled($this->buyer_image)) {
+            return null;
+        }
+
+        if (str_starts_with($this->buyer_image, 'http://') || str_starts_with($this->buyer_image, 'https://') || str_starts_with($this->buyer_image, '/')) {
+            return $this->buyer_image;
+        }
+
+        return '/storage/'.$this->buyer_image;
     }
 
     public function getRouteKeyName(): string

@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\SiteSetting;
 use App\Support\Money;
 use Illuminate\Support\Facades\Log;
 
@@ -119,6 +121,27 @@ class NotificationPlaceholderService
             context: [
                 'order_id' => $order->id,
                 'email' => $order->customer_email,
+            ],
+        );
+    }
+
+    public function guestListingSubmitted(Product $product): void
+    {
+        $product->loadMissing('seller');
+
+        $adminEmail = SiteSetting::current()->email ?: 'support@uniqbid.co.ke';
+        $seller = $product->seller?->name ?? 'Guest seller';
+        $phone = $product->seller?->phone ?? 'n/a';
+
+        $this->send(
+            channel: 'admin_email_placeholder',
+            to: $adminEmail,
+            template: 'guest_listing_submitted',
+            message: "UniqBid admin: New guest shop listing “{$product->name}” from {$seller} ({$phone}) is awaiting approval.",
+            context: [
+                'product_id' => $product->id,
+                'seller_user_id' => $product->seller_user_id,
+                'admin_url' => route('admin.guest-listings', absolute: true),
             ],
         );
     }

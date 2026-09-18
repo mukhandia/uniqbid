@@ -14,7 +14,7 @@ test('non live auctions return not found', function () {
     $this->get(route('auctions.show', $auction))->assertNotFound();
 });
 
-test('bid form validates contact details amount and rules consent', function () {
+test('bid form validates name amount phone and rules consent', function () {
     $auction = Auction::factory()->create([
         'min_bid' => 10,
         'max_bid' => 1000,
@@ -25,12 +25,11 @@ test('bid form validates contact details amount and rules consent', function () 
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'A')
-        ->set('email', 'not-an-email')
         ->set('phone', '12345')
         ->set('amount', '3')
         ->set('rulesConsent', false)
         ->call('submitBid')
-        ->assertHasErrors(['name', 'email', 'phone', 'amount', 'rulesConsent']);
+        ->assertHasErrors(['name', 'phone', 'amount', 'rulesConsent']);
 });
 
 test('bid amount must match increment', function () {
@@ -44,7 +43,6 @@ test('bid amount must match increment', function () {
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'Amina Wanjiku')
-        ->set('email', 'amina@example.com')
         ->set('phone', '0712345678')
         ->set('amount', '12')
         ->set('rulesConsent', true)
@@ -64,7 +62,6 @@ test('valid bid moves to pending payment state', function () {
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'Amina Wanjiku')
-        ->set('email', 'amina@example.com')
         ->set('phone', '0712345678')
         ->set('amount', '15')
         ->set('rulesConsent', true)
@@ -135,9 +132,7 @@ test('existing customer numbers require mobile OTP sign in before bidding', func
         ->assertHasNoErrors()
         ->assertSet('bidStep', 'details')
         ->assertSet('name', 'Jane Bidder')
-        ->assertSet('email', 'jane@example.com')
-        ->assertSet('phone', '0712345678')
-        ->assertSet('whatsappNumber', '0711222333');
+        ->assertSet('phone', '0712345678');
 
     $this->assertAuthenticatedAs($user);
 });
@@ -165,7 +160,33 @@ test('inline bid OTP rejects an invalid code', function () {
     $this->assertGuest();
 });
 
-test('an unauthenticated visitor cannot submit a bid using an existing customer number', function () {
+test('a direct guest entry saves the bidder profile before payment confirmation', function () {
+    $auction = Auction::factory()->create([
+        'min_bid' => 10,
+        'max_bid' => 1000,
+        'bid_increment' => 5,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('name', 'Amina Wanjiku')
+        ->set('phone', '0712345678')
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->assertHasNoErrors()
+        ->assertSet('formState', 'pending');
+
+    $bidder = Bidder::query()->where('phone', '254712345678')->firstOrFail();
+
+    expect($bidder->name)->toBe('Amina Wanjiku')
+        ->and($bidder->email)->toBeNull()
+        ->and($bidder->whatsapp_number)->toBe('254712345678')
+        ->and($bidder->marketing_consent)->toBeTrue();
+});
+
+test('an unauthenticated visitor cannot submit an entry using an existing customer number', function () {
     User::factory()->create([
         'phone' => '254712345678',
         'phone_verified_at' => now(),
@@ -181,40 +202,12 @@ test('an unauthenticated visitor cannot submit a bid using an existing customer 
 
     Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'Amina Wanjiku')
-        ->set('email', 'amina@example.com')
         ->set('phone', '0712345678')
         ->set('amount', '15')
         ->set('rulesConsent', true)
         ->call('submitBid')
         ->assertHasErrors(['phone'])
         ->assertSet('formState', 'idle');
-});
-
-test('a direct guest bid saves the bidder profile before payment confirmation', function () {
-    $auction = Auction::factory()->create([
-        'min_bid' => 10,
-        'max_bid' => 1000,
-        'bid_increment' => 5,
-        'status' => 'live',
-        'ends_at' => now()->addDay(),
-    ]);
-
-    Livewire::test('pages::auctions.show', ['auction' => $auction])
-        ->set('name', 'Amina Wanjiku')
-        ->set('email', 'amina@example.com')
-        ->set('phone', '0712345678')
-        ->set('whatsappNumber', '0711222333')
-        ->set('amount', '15')
-        ->set('rulesConsent', true)
-        ->call('submitBid')
-        ->assertHasNoErrors()
-        ->assertSet('formState', 'pending');
-
-    $bidder = Bidder::query()->where('phone', '254712345678')->firstOrFail();
-
-    expect($bidder->name)->toBe('Amina Wanjiku')
-        ->and($bidder->email)->toBe('amina@example.com')
-        ->and($bidder->whatsapp_number)->toBe('254711222333');
 });
 
 test('simulated STK cancellation can be reset', function () {
@@ -228,7 +221,6 @@ test('simulated STK cancellation can be reset', function () {
 
     $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'James Mwangi')
-        ->set('email', 'james@example.com')
         ->set('phone', '0798765432')
         ->set('amount', '20')
         ->set('rulesConsent', true)
@@ -254,7 +246,6 @@ test('simulated STK approval persists and accepts a bid', function () {
 
     $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
         ->set('name', 'James Mwangi')
-        ->set('email', 'james@example.com')
         ->set('phone', '0798765432')
         ->set('amount', '25')
         ->set('rulesConsent', true)

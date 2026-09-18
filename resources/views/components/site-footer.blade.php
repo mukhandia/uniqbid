@@ -10,7 +10,7 @@
         ],
         'Shop & support' => [
             ['route' => 'shop.index', 'label' => 'Shop', 'icon' => 'shopping-bag'],
-            ['route' => 'redeem', 'label' => 'Redeem Bid', 'icon' => 'banknotes'],
+            ['route' => 'redeem', 'label' => 'Redeem', 'icon' => 'banknotes'],
             ['route' => 'account', 'label' => 'My account', 'icon' => 'user'],
             ['route' => 'faqs', 'label' => 'FAQs', 'icon' => 'question-mark-circle'],
             ['route' => 'contact', 'label' => 'Contact support', 'icon' => 'inbox'],
@@ -42,7 +42,7 @@
                 </div>
 
                 <p class="mt-5 text-sm leading-relaxed text-white/75">
-                    Transparent lowest-unique-bid sales and a curated shop. Genuine items, clear rules, and M-Pesa-ready checkout.
+                    Transparent lowest-unique sales and a curated shop. Genuine items, clear rules, and M-Pesa-ready checkout.
                 </p>
 
                 <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold">

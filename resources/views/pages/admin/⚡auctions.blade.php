@@ -7,12 +7,14 @@ use App\Services\DestroySaleService;
 use App\Support\AuditLogger;
 use App\Support\Money;
 use Flux\Flux;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 new
 #[Layout('layouts.app')]
@@ -77,6 +79,66 @@ class extends Component {
         ]);
 
         Flux::toast(variant: 'success', text: 'Live auction shuffle timer updated to '.$this->shuffleIntervalSeconds.' seconds.');
+    }
+
+    public function export(): StreamedResponse
+    {
+        $filename = 'uniqbid-sales-'.now()->timezone('Africa/Nairobi')->format('Y-m-d-His').'.csv';
+
+        $rows = Auction::query()
+            ->withCount([
+                'bids as accepted_bids_count' => fn ($query) => $query->where('status', 'accepted'),
+                'bids as pending_bids_count' => fn ($query) => $query->where('status', 'pending_payment'),
+                'bids as failed_bids_count' => fn ($query) => $query->where('status', 'failed'),
+            ])
+            ->with('result')
+            ->search($this->search)
+            ->adminStatus($this->status)
+            ->adminCategory($this->category)
+            ->latest('ends_at')
+            ->get();
+
+        return response()->streamDownload(function () use ($rows): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Name',
+                'Slug',
+                'Category',
+                'Status',
+                'Ends at (EAT)',
+                'Retail value (KES)',
+                'Fee paid',
+                'Awaiting payment',
+                'Failed',
+                'Successful amount (KES)',
+                'Buyer',
+                'Settled at (EAT)',
+            ]);
+
+            foreach ($rows as $auction) {
+                fputcsv($handle, [
+                    $auction->name,
+                    $auction->slug,
+                    $auction->category,
+                    $auction->status,
+                    $auction->ends_at?->timezone('Africa/Nairobi')->format('Y-m-d H:i:s'),
+                    $auction->retail_value,
+                    $auction->accepted_bids_count,
+                    $auction->pending_bids_count,
+                    $auction->failed_bids_count,
+                    $auction->result?->sale_price,
+                    $auction->result?->buyer_display,
+                    $auction->settled_at instanceof Carbon
+                        ? $auction->settled_at->timezone('Africa/Nairobi')->format('Y-m-d H:i:s')
+                        : null,
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function with(): array
@@ -276,6 +338,9 @@ class extends Component {
         @if ($hasActiveFilters)
             <flux:button type="button" variant="ghost" wire:click="clearFilters">Clear filters</flux:button>
         @endif
+        <flux:button type="button" variant="outline" wire:click="export">
+            Export Excel (CSV)
+        </flux:button>
         <flux:text class="lg:ms-auto">
             {{ $auctions->total() }} {{ $auctions->total() === 1 ? 'sale' : 'sales' }}
         </flux:text>

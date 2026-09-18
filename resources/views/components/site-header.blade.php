@@ -1,92 +1,144 @@
 @php
-    $nav = [
+    $primaryNav = [
         ['route' => 'home', 'label' => 'Home', 'match' => 'home'],
-        ['route' => 'auctions.index', 'label' => 'Live Auctions', 'match' => 'auctions.*'],
+        ['route' => 'auctions.index', 'label' => 'Live Sales/Auctions', 'match' => 'auctions.*'],
         ['route' => 'shop.index', 'label' => 'Shop', 'match' => 'shop.*'],
         ['route' => 'how-it-works', 'label' => 'How It Works', 'match' => 'how-it-works'],
-        ['route' => 'redeem', 'label' => 'Redeem Bid', 'match' => 'redeem'],
+    ];
+    $moreNav = [
+        ['route' => 'redeem', 'label' => 'Redeem', 'match' => 'redeem'],
         ['route' => 'past-sales', 'label' => 'Past Sales', 'match' => 'past-sales'],
         ['route' => 'testimonials', 'label' => 'Testimonials', 'match' => 'testimonials'],
         ['route' => 'faqs', 'label' => 'FAQs', 'match' => 'faqs'],
         ['route' => 'contact', 'label' => 'Contact', 'match' => 'contact'],
     ];
+    $allNav = array_merge($primaryNav, $moreNav);
+    $moreActive = collect($moreNav)->contains(fn ($item) => request()->routeIs($item['match']));
     $onShop = request()->routeIs('shop.*');
 @endphp
 
 <header
     class="sticky top-0 z-40 border-b border-border bg-white/85 backdrop-blur"
-    x-data="{ open: false }"
+    x-data="{
+        open: false,
+        close() { this.open = false },
+        init() {
+            window.addEventListener('resize', () => {
+                if (window.matchMedia('(min-width: 1024px)').matches) {
+                    this.open = false
+                }
+            })
+        },
+    }"
+    @keydown.escape.window="close()"
 >
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-        <a href="{{ route('home') }}" class="flex items-center gap-2" aria-label="UniqBid home">
-            <img
-                src="/images/brand/uniqbid-icon.jpeg"
-                alt=""
-                class="size-9 rounded-lg object-cover"
-            />
-            <div class="leading-tight">
-                <div class="text-base font-bold"><span class="text-navy">Uniq</span><span class="text-accent">Bid</span></div>
-                <div class="text-[10px] font-medium text-muted-foreground">Licensed Auctioneer · KE</div>
-            </div>
-        </a>
-
-        <nav class="hidden items-center gap-1 lg:flex">
-            @foreach ($nav as $item)
-                @php
-                    $active = request()->routeIs($item['match']);
-                @endphp
-                <a
-                    href="{{ route($item['route']) }}"
-                    @class([
-                        'rounded-md px-3 py-2 text-sm font-medium transition',
-                        'text-navy underline decoration-2 underline-offset-8' => $active,
-                        'text-muted-foreground hover:text-zinc-900' => ! $active,
-                    ])
-                >
-                    {{ $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
-
-        <div class="flex items-center gap-2">
-            <livewire:cart-count />
-
-            <a href="{{ route('account') }}" class="hidden rounded-md p-2 text-zinc-900 hover:bg-muted sm:block">
-                <flux:icon.user class="size-5" />
+    <div class="mx-auto max-w-7xl px-3 sm:px-4">
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-2 py-2.5 sm:gap-x-3 sm:py-3">
+            <a href="{{ route('home') }}" class="order-1 flex min-w-0 shrink-0 items-center gap-2" aria-label="UniqBid home">
+                <img
+                    src="/images/brand/uniqbid-icon.jpeg"
+                    alt=""
+                    class="size-8 shrink-0 rounded-lg object-cover sm:size-9"
+                />
+                <div class="min-w-0 leading-tight">
+                    <div class="truncate text-sm font-bold sm:text-base">
+                        <span class="text-navy">Uniq</span><span class="text-accent">Bid</span>
+                    </div>
+                    <div class="hidden text-[10px] font-medium text-muted-foreground sm:block">Licensed Auctioneer · KE</div>
+                </div>
             </a>
 
-            @unless ($onShop)
-                <a href="{{ route('auctions.index') }}" class="hidden sm:inline-flex">
-                    <flux:button class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
-                        Place Your Bid
+            <nav class="order-2 hidden items-center gap-0.5 lg:flex" aria-label="Primary">
+                @foreach ($primaryNav as $item)
+                    @php $active = request()->routeIs($item['match']); @endphp
+                    <a
+                        href="{{ route($item['route']) }}"
+                        @class([
+                            'whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium transition',
+                            'text-navy underline decoration-2 underline-offset-8' => $active,
+                            'text-muted-foreground hover:text-zinc-900' => ! $active,
+                        ])
+                    >
+                        {{ $item['label'] }}
+                    </a>
+                @endforeach
+
+                <flux:dropdown position="bottom" align="start">
+                    <flux:button
+                        variant="ghost"
+                        size="sm"
+                        icon:trailing="chevron-down"
+                        @class([
+                            'font-medium',
+                            'text-navy!' => $moreActive,
+                            'text-muted-foreground!' => ! $moreActive,
+                        ])
+                    >
+                        More
                     </flux:button>
+                    <flux:menu class="min-w-44">
+                        @foreach ($moreNav as $item)
+                            <flux:menu.item :href="route($item['route'])" wire:navigate>
+                                {{ $item['label'] }}
+                            </flux:menu.item>
+                        @endforeach
+                    </flux:menu>
+                </flux:dropdown>
+            </nav>
+
+            <div class="order-3 ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5 lg:order-4 lg:ml-0">
+                <livewire:cart-count />
+
+                <a
+                    href="{{ route('account') }}"
+                    class="hidden rounded-md p-2 text-zinc-900 hover:bg-muted sm:block"
+                    aria-label="My account"
+                >
+                    <flux:icon.user class="size-5" />
                 </a>
-            @endunless
 
-            <button
-                type="button"
-                class="rounded-md p-2 lg:hidden"
-                @click="open = !open"
-                aria-label="Menu"
-            >
-                <flux:icon.bars-3 class="size-5" x-show="!open" />
-                <flux:icon.x-mark class="size-5" x-cloak x-show="open" />
-            </button>
+                @unless ($onShop)
+                    <a href="{{ route('auctions.index') }}" class="hidden sm:inline-flex">
+                        <flux:button size="sm" class="bg-accent! text-accent-foreground! hover:bg-accent/90!">
+                            Place your amount
+                        </flux:button>
+                    </a>
+                @endunless
+
+                <button
+                    type="button"
+                    class="rounded-md p-2 lg:hidden"
+                    @click="open = !open"
+                    :aria-expanded="open.toString()"
+                    aria-controls="site-mobile-nav"
+                    aria-label="Menu"
+                >
+                    <flux:icon.bars-3 class="size-5" x-show="!open" />
+                    <flux:icon.x-mark class="size-5" x-cloak x-show="open" />
+                </button>
+            </div>
+
+            <div class="order-4 w-full min-w-0 lg:order-3 lg:w-auto lg:min-w-[14rem] lg:flex-1 lg:max-w-md xl:max-w-lg">
+                <livewire:site-search />
+            </div>
         </div>
     </div>
 
-    <div class="border-t border-border bg-white">
-        <div class="mx-auto max-w-7xl px-4 py-2">
-            <livewire:site-search />
-        </div>
-    </div>
-
-    <div class="border-t border-border bg-white lg:hidden" x-cloak x-show="open">
-        <div class="mx-auto flex max-w-7xl flex-col p-2">
-            @foreach ($nav as $item)
-                @php
-                    $active = request()->routeIs($item['match']);
-                @endphp
+    <div
+        id="site-mobile-nav"
+        class="border-t border-border bg-white lg:hidden"
+        x-cloak
+        x-show="open"
+        x-transition:enter="transition ease-out duration-150"
+        x-transition:enter-start="opacity-0 -translate-y-1"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-100"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 -translate-y-1"
+    >
+        <div class="mx-auto flex max-h-[min(70dvh,28rem)] max-w-7xl flex-col overflow-y-auto overscroll-contain p-2">
+            @foreach ($allNav as $item)
+                @php $active = request()->routeIs($item['match']); @endphp
                 <a
                     href="{{ route($item['route']) }}"
                     @class([
@@ -94,18 +146,22 @@
                         'text-navy underline decoration-2 underline-offset-4' => $active,
                         'text-zinc-900' => ! $active,
                     ])
-                    @click="open = false"
+                    @click="close()"
                 >
                     {{ $item['label'] }}
                 </a>
             @endforeach
-            <a href="{{ route('account') }}" class="rounded-md px-3 py-2.5 text-sm font-medium text-zinc-900 hover:bg-muted" @click="open = false">
+            <a
+                href="{{ route('account') }}"
+                class="rounded-md px-3 py-2.5 text-sm font-medium text-zinc-900 hover:bg-muted sm:hidden"
+                @click="close()"
+            >
                 My Account
             </a>
             @unless ($onShop)
-                <a href="{{ route('auctions.index') }}" class="mt-2" @click="open = false">
+                <a href="{{ route('auctions.index') }}" class="mt-2 sm:hidden" @click="close()">
                     <flux:button class="w-full bg-accent! text-accent-foreground! hover:bg-accent/90!">
-                        Place Your Bid
+                        Place your amount
                     </flux:button>
                 </a>
             @endunless

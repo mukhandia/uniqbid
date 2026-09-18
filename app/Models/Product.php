@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int|null $subcategory_id
+ * @property int|null $seller_user_id
  * @property string $slug
  * @property string $name
  * @property string $category
@@ -29,12 +30,16 @@ use Illuminate\Support\Carbon;
  * @property bool $is_featured
  * @property bool $is_returnable
  * @property string $channel
+ * @property string $approval_status
+ * @property string|null $rejection_reason
+ * @property Carbon|null $approved_at
  * @property int $auction_sort_order
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[Fillable([
     'subcategory_id',
+    'seller_user_id',
     'slug',
     'name',
     'category',
@@ -49,6 +54,9 @@ use Illuminate\Support\Carbon;
     'is_featured',
     'is_returnable',
     'channel',
+    'approval_status',
+    'rejection_reason',
+    'approved_at',
     'auction_sort_order',
 ])]
 class Product extends Model
@@ -60,6 +68,12 @@ class Product extends Model
     public const CHANNEL_AUCTION = 'auction';
 
     public const CHANNEL_BOTH = 'both';
+
+    public const APPROVAL_APPROVED = 'approved';
+
+    public const APPROVAL_PENDING = 'pending';
+
+    public const APPROVAL_REJECTED = 'rejected';
 
     /** @use HasFactory<ProductFactory> */
     use HasFactory;
@@ -73,6 +87,7 @@ class Product extends Model
         'stock' => 0,
         'reserved_stock' => 0,
         'channel' => self::CHANNEL_NONE,
+        'approval_status' => self::APPROVAL_APPROVED,
         'auction_sort_order' => 0,
     ];
 
@@ -88,7 +103,16 @@ class Product extends Model
             'is_featured' => 'boolean',
             'is_returnable' => 'boolean',
             'auction_sort_order' => 'integer',
+            'approved_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seller_user_id');
     }
 
     /**
@@ -208,7 +232,46 @@ class Product extends Model
      */
     public function scopeInShop(Builder $query): Builder
     {
-        return $query->whereIn('channel', [self::CHANNEL_SHOP, self::CHANNEL_BOTH]);
+        return $query
+            ->whereIn('channel', [self::CHANNEL_SHOP, self::CHANNEL_BOTH])
+            ->where('approval_status', self::APPROVAL_APPROVED);
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeGuestListings(Builder $query): Builder
+    {
+        return $query->whereNotNull('seller_user_id');
+    }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopePendingGuestApproval(Builder $query): Builder
+    {
+        return $query->guestListings()->where('approval_status', self::APPROVAL_PENDING);
+    }
+
+    public function isGuestListing(): bool
+    {
+        return $this->seller_user_id !== null;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->approval_status === self::APPROVAL_PENDING;
+    }
+
+    public function approvalLabel(): string
+    {
+        return match ($this->approval_status) {
+            self::APPROVAL_PENDING => 'Pending approval',
+            self::APPROVAL_REJECTED => 'Rejected',
+            default => 'Approved',
+        };
     }
 
     /**

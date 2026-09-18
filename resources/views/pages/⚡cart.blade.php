@@ -53,7 +53,7 @@ class extends Component {
                 <flux:icon.shopping-bag class="size-8 text-muted-foreground" />
             </div>
             <h1 class="mt-4 text-2xl font-bold text-navy">Your cart is empty</h1>
-            <p class="mt-2 text-sm text-muted-foreground">Browse the shop or explore live auctions.</p>
+            <p class="mt-2 text-sm text-muted-foreground">Browse the shop or explore live sales.</p>
             <div class="mt-6 flex justify-center gap-2">
                 <flux:button href="{{ route('shop.index') }}" class="bg-accent! text-accent-foreground!">Go to shop</flux:button>
                 <flux:button href="{{ route('auctions.index') }}" variant="outline">Live auctions</flux:button>

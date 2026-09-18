@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Live Auctions: UniqBid')]
+#[Title('Live Sales/Auctions: UniqBid')]
 class extends Component {
     #[Url]
     public string $category = 'All';
@@ -49,7 +49,7 @@ class extends Component {
 
 <div class="mx-auto max-w-7xl px-4 py-10" wire:poll.{{ $pollSeconds }}s.visible>
     <div class="flex flex-col gap-2">
-        <h1 class="text-3xl font-bold text-navy">Live Auctions</h1>
+        <h1 class="text-3xl font-bold text-navy">Live Sales/Auctions</h1>
         <p class="text-sm text-muted-foreground">All open auctions.</p>
     </div>
 

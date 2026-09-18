@@ -24,6 +24,8 @@ class extends Component {
 
     public string $mapUrl = '';
 
+    public int $guestShopCommissionPercent = 10;
+
     public function mount(): void
     {
         $settings = SiteSetting::current();
@@ -34,6 +36,7 @@ class extends Component {
         $this->address = $settings->address;
         $this->hours = $settings->hours;
         $this->mapUrl = (string) $settings->map_url;
+        $this->guestShopCommissionPercent = $settings->guestShopCommissionPercent();
     }
 
     public function save(): void
@@ -49,6 +52,7 @@ class extends Component {
                     $fail('Paste a Google Maps or OpenStreetMap share or embed URL.');
                 }
             }],
+            'guestShopCommissionPercent' => ['required', 'integer', 'min:0', 'max:90'],
         ]);
 
         $settings = SiteSetting::current();
@@ -59,7 +63,10 @@ class extends Component {
             'address' => $validated['address'],
             'hours' => $validated['hours'],
             'map_url' => filled($validated['mapUrl'] ?? null) ? $validated['mapUrl'] : null,
+            'guest_shop_commission_percent' => $validated['guestShopCommissionPercent'],
         ]);
+
+        $this->guestShopCommissionPercent = (int) $validated['guestShopCommissionPercent'];
 
         AuditLogger::log('settings', 'site settings updated', 'updated', $settings->fresh());
 
@@ -113,6 +120,12 @@ class extends Component {
                 <flux:input wire:model.live.debounce.400ms="mapUrl" placeholder="https://maps.app.goo.gl/… or Google Maps embed URL" />
                 <flux:description>Paste a Google Maps or OpenStreetMap share link, or the iframe embed HTML. Short links still show a map using the office address.</flux:description>
                 <flux:error name="mapUrl" />
+            </flux:field>
+            <flux:field class="sm:col-span-2">
+                <flux:label>Guest shop commission (%)</flux:label>
+                <flux:input type="number" wire:model="guestShopCommissionPercent" min="0" max="90" />
+                <flux:description>Shown to guests when they create a shop listing. Deducted from the paid amount before the seller payout.</flux:description>
+                <flux:error name="guestShopCommissionPercent" />
             </flux:field>
         </div>
 

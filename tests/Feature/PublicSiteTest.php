@@ -16,7 +16,7 @@ test('home page renders featured auctions and shop highlights', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('The lowest')
-        ->assertSee('unique bid')
+        ->assertSee('unique amount')
         ->assertSee('Motorbike')
         ->assertSee('Featured in the shop')
         ->assertSee('Classic leather-strap dress watch')
@@ -68,11 +68,26 @@ test('home shop strip only lists featured products', function () {
         ->assertDontSee('Hidden Shop Filler');
 });
 
-test('auctions index lists live auctions', function () {
+test('home page keeps licence number in the footer only', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Licence No. AUC/2024/00847')
+        ->assertDontSee('Licensed Kenyan Auctioneer · Est. 2024');
+});
+
+test('auctions index lists live sales', function () {
     $this->get(route('auctions.index'))
         ->assertOk()
-        ->assertSee('Live Auctions')
-        ->assertSee('Samsung');
+        ->assertSee('Live Sales/Auctions')
+        ->assertSee('Samsung S24');
+});
+
+test('auction detail page does not show live sale statistics', function () {
+    $auction = Auction::query()->where('slug', 'motorbike-sale')->firstOrFail();
+
+    $this->get(route('auctions.show', $auction))
+        ->assertOk()
+        ->assertDontSee('bids placed');
 });
 
 test('auction detail page is reachable by slug', function () {
@@ -81,7 +96,7 @@ test('auction detail page is reachable by slug', function () {
     $this->get(route('auctions.show', $auction))
         ->assertOk()
         ->assertSee($auction->name)
-        ->assertSee('Place your bid');
+        ->assertSee('Place your amount');
 });
 
 test('auction pages poll the server every thirty seconds for countdown labels', function () {
@@ -152,7 +167,7 @@ test('testimonials page shows customer stories', function () {
         ->assertOk()
         ->assertSee('What people say about UniqBid')
         ->assertSee('Amina Wanjiku')
-        ->assertSee('Browse live auctions');
+        ->assertSee('Browse live sales');
 });
 
 test('faqs page shows seeded questions', function () {

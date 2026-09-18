@@ -35,7 +35,7 @@
                         <div class="text-sm font-bold text-navy sm:text-lg">{{ Money::kes($auction->retail_value) }}</div>
                     </div>
                     <div>
-                        <div class="text-[10px] text-muted-foreground sm:text-xs">Bid range</div>
+                        <div class="text-[10px] text-muted-foreground sm:text-xs">Amount range</div>
                         <div class="text-xs font-semibold tabular-nums text-zinc-900 sm:text-sm">
                             {{ Money::kes($auction->min_bid) }} – {{ Money::kes($auction->max_bid) }}
                         </div>
@@ -43,10 +43,10 @@
                 </div>
 
             <div class="flex items-center justify-between gap-2 border-t border-border pt-2">
-                <div class="text-[10px] text-muted-foreground sm:text-xs">{{ number_format($auction->bids_count) }} bids</div>
+                <div class="text-[10px] text-muted-foreground sm:text-xs">{{ number_format($auction->bids_count) }} entries</div>
                 <span class="inline-flex items-center gap-1 rounded-md bg-gold px-2 py-1 text-[10px] font-semibold text-gold-foreground sm:px-2.5 sm:text-xs">
                     <flux:icon.scale class="size-3 sm:size-3.5" />
-                    Bid
+                    Enter
                 </span>
             </div>
         </div>
