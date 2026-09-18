@@ -422,7 +422,7 @@ class LogisticsService
         $guestLines = $order->items
             ->filter(fn ($item): bool => $item->seller_user_id !== null)
             ->map(function ($item): string {
-                $seller = $item->seller?->name ?? 'guest seller';
+                $seller = $item->seller->name ?? 'guest seller';
 
                 return $item->product_name.' (seller: '.$seller.')';
             })

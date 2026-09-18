@@ -123,7 +123,7 @@ class AdminAttentionService
                         'type' => 'guest_listing',
                         'id' => $listing->id,
                         'title' => $listing->name,
-                        'subtitle' => ($listing->seller?->name ?? 'Guest seller').' · '.Money::kes($listing->price),
+                        'subtitle' => ($listing->seller->name ?? 'Guest seller').' · '.Money::kes($listing->price),
                         'created_at' => $listing->created_at?->diffForHumans() ?? '',
                         'sort_at' => $listing->created_at,
                     ]);
