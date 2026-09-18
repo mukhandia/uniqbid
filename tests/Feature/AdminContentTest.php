@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Faq;
+use App\Models\LegalClause;
 use App\Models\LegalSection;
 use App\Models\Testimonial;
 use App\Models\User;
@@ -117,7 +118,7 @@ test('public testimonials only show published items', function () {
 });
 
 test('re-running content seeder syncs the promotions privacy clause without failing', function () {
-    $clause = \App\Models\LegalClause::query()
+    $clause = LegalClause::query()
         ->where('reference', '3.3–3.6 Purpose, payments and sharing')
         ->firstOrFail();
 
