@@ -36,7 +36,6 @@ test('self excluded customers cannot place bids', function () {
     Livewire::actingAs($user)
         ->test('pages::auctions.show', ['auction' => $auction])
         ->set('name', $user->name)
-        ->set('email', $user->email)
         ->set('phone', '0712345678')
         ->set('amount', '15')
         ->set('rulesConsent', true)
@@ -84,7 +83,6 @@ test('participation fee limit blocks bids that would exceed it', function () {
     Livewire::actingAs($user)
         ->test('pages::auctions.show', ['auction' => $auction])
         ->set('name', $user->name)
-        ->set('email', $user->email)
         ->set('phone', '0712345678')
         ->set('amount', '15')
         ->set('rulesConsent', true)
@@ -115,7 +113,5 @@ test('logged in customers see prefilled bid details on auction page', function (
     Livewire::actingAs($user)
         ->test('pages::auctions.show', ['auction' => $auction])
         ->assertSet('name', 'Jane Bidder')
-        ->assertSet('email', 'jane@example.com')
-        ->assertSet('phone', '0712345678')
-        ->assertSet('whatsappNumber', '0711222333');
+        ->assertSet('phone', '0712345678');
 });

@@ -5,20 +5,20 @@ use App\Models\Product;
 use App\Services\CartService;
 use Livewire\Livewire;
 
-test('shop pages hide the place your bid header button', function () {
+test('shop pages hide the place your amount header button', function () {
     $product = Product::factory()->create(['stock' => 5]);
 
     $this->get(route('shop.index'))
         ->assertOk()
-        ->assertDontSee('Place Your Bid');
+        ->assertDontSee('Place your amount');
 
     $this->get(route('shop.show', $product))
         ->assertOk()
-        ->assertDontSee('Place Your Bid');
+        ->assertDontSee('Place your amount');
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('Place Your Bid');
+        ->assertSee('Place your amount');
 });
 
 test('shop index filters products by category', function () {
