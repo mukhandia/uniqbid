@@ -115,3 +115,15 @@ test('public testimonials only show published items', function () {
         ->assertOk()
         ->assertDontSee($hidden->name);
 });
+
+test('re-running content seeder syncs the promotions privacy clause without failing', function () {
+    $clause = \App\Models\LegalClause::query()
+        ->where('reference', '3.3–3.6 Purpose, payments and sharing')
+        ->firstOrFail();
+
+    $clause->update(['body' => 'Stale privacy body.']);
+
+    $this->seed(ContentSeeder::class);
+
+    expect($clause->fresh()->body)->toContain('You may manage preferences later in your account.');
+});

@@ -40,7 +40,7 @@ class ContentSeeder extends Seeder
         $body = 'We process data to record sale entries, process payments, fulfil orders, prevent fraud, meet legal duties, and to send sale and promotion updates by SMS, WhatsApp, or email using the contact details you provide when you participate. By accepting the Selling Rules & Privacy Policy when you enter a sale, you agree that UniqBid may use those credentials for promotions and service messages. You may manage preferences later in your account. We receive payment confirmation data but never M-Pesa PINs. Data is shared only with payment, delivery, hosting, and legally authorised service providers.';
 
         LegalClause::query()
-            ->where('heading', '3.3–3.6 Purpose, payments and sharing')
+            ->where('reference', '3.3–3.6 Purpose, payments and sharing')
             ->update(['body' => $body]);
     }
 
