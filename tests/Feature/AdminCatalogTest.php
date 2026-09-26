@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Admin\ProductCreate;
+use App\Livewire\Admin\ProductEdit;
 use App\Models\Auction;
 use App\Models\Category;
 use App\Models\Product;
@@ -44,7 +46,7 @@ test('admin can create a product under a subcategory', function () {
         'slug' => 'earrings',
     ]);
 
-    Livewire::test('pages::admin.products.create')
+    Livewire::test(ProductCreate::class)
         ->set('name', 'Stud earring set')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -67,7 +69,7 @@ test('admin can create a product under a subcategory', function () {
 test('admin product form shows image guidance and a formatted chooser', function () {
     $this->actingAs($this->admin);
 
-    Livewire::test('pages::admin.products.create')
+    Livewire::test(ProductCreate::class)
         ->assertSee('Choose image')
         ->assertDontSee('No file chosen', false)
         ->assertSee('Square 1:1 photos display best')
@@ -88,7 +90,7 @@ test('admin can upload a jpg product image', function () {
     ]);
     $file = UploadedFile::fake()->image('dress-watch.jpg', 1024, 1024);
 
-    Livewire::test('pages::admin.products.create')
+    Livewire::test(ProductCreate::class)
         ->set('name', 'Classic leather-strap dress watch')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -116,7 +118,7 @@ test('admin product images reject formats other than jpg png or webp', function 
     $category = Category::factory()->create();
     $subcategory = Subcategory::factory()->create(['category_id' => $category->id]);
 
-    Livewire::test('pages::admin.products.create')
+    Livewire::test(ProductCreate::class)
         ->set('name', 'Animated gift')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -140,7 +142,7 @@ test('admin can create a product without gender age or price tier', function () 
         'slug' => 'decor',
     ]);
 
-    Livewire::test('pages::admin.products.create')
+    Livewire::test(ProductCreate::class)
         ->set('name', 'Plain vase')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -178,7 +180,7 @@ test('admin can edit a product on its own page', function () {
         'stock' => 4,
     ]);
 
-    Livewire::test('pages::admin.products.edit', ['product' => $product])
+    Livewire::test(ProductEdit::class, ['product' => $product])
         ->assertSet('name', 'Old earring name')
         ->set('name', 'Updated earring set')
         ->set('price', 900)

@@ -38,7 +38,7 @@ trait AdminProductForm
 
     public bool $isReturnable = true;
 
-    public $imageUpload = null;
+    public ?TemporaryUploadedFile $imageUpload = null;
 
     public string $existingImage = '';
 
@@ -78,8 +78,10 @@ trait AdminProductForm
         $product->loadMissing('subcategoryRelation.category');
 
         $this->name = $product->name;
-        $this->categoryId = (string) ($product->subcategoryRelation?->category_id ?? '');
-        $this->subcategoryId = (string) ($product->subcategory_id ?? '');
+        $this->categoryId = $product->subcategoryRelation !== null
+            ? (string) $product->subcategoryRelation->category_id
+            : '';
+        $this->subcategoryId = $product->subcategory_id !== null ? (string) $product->subcategory_id : '';
         $this->genderAge = $product->gender_age ?? '';
         $this->priceTier = $product->price_tier ?? '';
         $this->description = $product->description;

@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Admin\ProductCreate;
+use App\Livewire\Admin\ProductEdit;
 use Illuminate\Support\Facades\Route;
 
 Route::livewire('/', 'pages::home')->name('home');
@@ -38,8 +40,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('orders/{order}', 'pages::admin.order')->name('orders.show');
     Route::livewire('categories', 'pages::admin.categories')->name('categories');
     Route::livewire('products', 'pages::admin.products')->name('products');
-    Route::livewire('products/create', 'pages::admin.products.create')->name('products.create');
-    Route::livewire('products/{product}/edit', 'pages::admin.products.edit')->name('products.edit');
+    Route::livewire('products/create', ProductCreate::class)->name('products.create');
+    Route::livewire('products/{product}/edit', ProductEdit::class)->name('products.edit');
     Route::livewire('guest-listings', 'pages::admin.guest-listings')->name('guest-listings');
     Route::livewire('customers', 'pages::admin.customers')->name('customers');
     Route::livewire('customer-verifications', 'pages::admin.customer-verifications')->name('customer-verifications');
