@@ -5,20 +5,20 @@ use App\Models\Product;
 use App\Services\CartService;
 use Livewire\Livewire;
 
-test('shop pages hide the place your amount header button', function () {
+test('shop pages hide the bid now header button', function () {
     $product = Product::factory()->create(['stock' => 5]);
 
     $this->get(route('shop.index'))
         ->assertOk()
-        ->assertDontSee('Place your amount');
+        ->assertDontSee('Bid now');
 
     $this->get(route('shop.show', $product))
         ->assertOk()
-        ->assertDontSee('Place your amount');
+        ->assertDontSee('Bid now');
 
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('Place your amount');
+        ->assertSee('Bid now');
 });
 
 test('shop index filters products by category', function () {
@@ -152,7 +152,7 @@ test('shop index does not show a local product search field', function () {
         ->assertSee('Slim minimalist watch');
 });
 
-test('product quantity can be incremented and decremented within stock', function () {
+test('product quantity can be incremented and decremented without stock caps', function () {
     $product = Product::factory()->create(['stock' => 3]);
 
     Livewire::test('pages::shop.show', ['product' => $product])
@@ -162,9 +162,9 @@ test('product quantity can be incremented and decremented within stock', functio
         ->call('increment')
         ->assertSet('qty', 3)
         ->call('increment')
-        ->assertSet('qty', 3)
+        ->assertSet('qty', 4)
         ->call('decrement')
-        ->assertSet('qty', 2)
+        ->assertSet('qty', 3)
         ->call('decrement')
         ->call('decrement')
         ->assertSet('qty', 1)
@@ -230,7 +230,7 @@ test('shop product page does not show a non-returnable notice for returnable ite
         ->assertDontSee('This item is marked non-returnable under our Refund Policy.');
 });
 
-test('out of stock products cannot be added to cart', function () {
+test('out of stock products can still be added to cart without showing stock levels', function () {
     $product = Product::factory()->create([
         'name' => 'Sold Out Item',
         'stock' => 0,
@@ -240,9 +240,16 @@ test('out of stock products cannot be added to cart', function () {
         ->call('addToCart')
         ->assertOk();
 
-    expect(app(CartService::class)->count())->toBe(0);
+    expect(app(CartService::class)->count())->toBe(1);
 
     $this->get(route('shop.show', $product))
         ->assertOk()
-        ->assertSee('Out of stock');
+        ->assertDontSee('Out of stock')
+        ->assertDontSee('In stock:')
+        ->assertDontSee('Only ');
+
+    $this->get(route('shop.index'))
+        ->assertOk()
+        ->assertDontSee('Out of stock')
+        ->assertDontSee('Only ');
 });

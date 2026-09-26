@@ -162,11 +162,6 @@ class extends Component {
                         <a href="{{ route('shop.show', $product) }}" class="group overflow-hidden rounded-xl border border-border bg-card-shop shadow-sm transition hover:shadow-md" wire:key="product-{{ $product->id }}">
                             <div class="relative aspect-square overflow-hidden bg-card-shop">
                                 <img src="{{ $product->image }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition group-hover:scale-105">
-                                @if ($product->availableStock() === 0)
-                                    <span class="absolute right-2 top-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-semibold text-white">Out of stock</span>
-                                @elseif ($product->isLowStock())
-                                    <span class="absolute right-2 top-2 rounded-full bg-warning px-2 py-0.5 text-[10px] font-semibold text-warning-foreground">Only {{ $product->availableStock() }} left</span>
-                                @endif
                                 @if ($product->price_tier)
                                     <span class="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-navy">{{ $product->price_tier }}</span>
                                 @endif

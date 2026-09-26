@@ -10,7 +10,7 @@ use Livewire\WithPagination;
 
 new
 #[Layout('layouts.app')]
-#[Title('Admin: Orders')]
+#[Title('Admin: Shop Orders')]
 class extends Component {
     use WithPagination;
 
@@ -88,7 +88,7 @@ class extends Component {
 
 <div class="space-y-6">
     <div>
-        <flux:heading size="xl">Orders</flux:heading>
+        <flux:heading size="xl">Shop Orders</flux:heading>
         <flux:text class="mt-1">
             {{ $attentionCount }} shop orders waiting to pack or dispatch. Mark processing, dispatched, or delivered here.
         </flux:text>

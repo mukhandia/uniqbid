@@ -56,7 +56,7 @@ test('updating quantity below one removes the cart line', function () {
     expect(app(CartService::class)->items())->toBe([]);
 });
 
-test('cart increment cannot exceed available stock', function () {
+test('cart increment can exceed available stock', function () {
     $product = Product::factory()->create(['stock' => 2, 'reserved_stock' => 0]);
 
     app(CartService::class)->add($product->id, 2);
@@ -65,5 +65,5 @@ test('cart increment cannot exceed available stock', function () {
         ->call('increment', $product->id)
         ->assertOk();
 
-    expect(app(CartService::class)->quantityOf($product->id))->toBe(2);
+    expect(app(CartService::class)->quantityOf($product->id))->toBe(3);
 });

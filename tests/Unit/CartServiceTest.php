@@ -44,16 +44,16 @@ test('cart service ignores missing products when building lines', function () {
         ->and($cart->subtotal())->toBe(0);
 });
 
-test('cart service will not add more than available stock', function () {
+test('cart service allows adding more than available stock', function () {
     $product = Product::factory()->create(['stock' => 3, 'reserved_stock' => 1, 'price' => 1000]);
     $cart = app(CartService::class);
 
-    expect($cart->add($product->id, 5))->toBe(2)
-        ->and($cart->quantityOf($product->id))->toBe(2);
+    expect($cart->add($product->id, 5))->toBe(5)
+        ->and($cart->quantityOf($product->id))->toBe(5);
 
-    expect($cart->add($product->id, 3))->toBe(0)
-        ->and($cart->count())->toBe(2);
+    expect($cart->add($product->id, 3))->toBe(3)
+        ->and($cart->count())->toBe(8);
 
     $cart->update($product->id, 10);
-    expect($cart->quantityOf($product->id))->toBe(2);
+    expect($cart->quantityOf($product->id))->toBe(10);
 });

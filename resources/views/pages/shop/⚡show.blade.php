@@ -26,8 +26,7 @@ class extends Component {
 
     public function increment(): void
     {
-        $max = max(1, $this->remainingPurchasable());
-        $this->qty = min($max, $this->qty + 1);
+        $this->qty = $this->qty + 1;
     }
 
     public function decrement(): void
@@ -37,19 +36,11 @@ class extends Component {
 
     public function addToCart(CartService $cart): void
     {
-        $remaining = $this->remainingPurchasable($cart);
-
-        if ($remaining < 1) {
-            Flux::toast(variant: 'warning', text: 'No more stock available to add for this item.');
-
-            return;
-        }
-
-        $this->qty = min($remaining, max(1, $this->qty));
-        $added = $cart->add($this->product->id, $this->qty);
+        $qty = max(1, $this->qty);
+        $added = $cart->add($this->product->id, $qty);
 
         if ($added < 1) {
-            Flux::toast(variant: 'warning', text: 'No more stock available to add for this item.');
+            Flux::toast(variant: 'warning', text: 'Unable to add this item to cart.');
 
             return;
         }
@@ -65,19 +56,9 @@ class extends Component {
 
     public function with(): array
     {
-        $remaining = $this->remainingPurchasable();
-
         return [
-            'remaining' => $remaining,
             'inCart' => app(CartService::class)->quantityOf($this->product->id),
         ];
-    }
-
-    private function remainingPurchasable(?CartService $cart = null): int
-    {
-        $cart ??= app(CartService::class);
-
-        return max(0, $this->product->availableStock() - $cart->quantityOf($this->product->id));
     }
 }; ?>
 
@@ -111,16 +92,9 @@ class extends Component {
                 @endif
             </div>
 
-            @if ($product->availableStock() > 0)
-                <span class="mt-3 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-                    In stock: {{ $product->availableStock() }} available
-                    @if ($inCart > 0)
-                        · {{ $inCart }} in cart
-                    @endif
-                </span>
-            @else
-                <span class="mt-3 inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                    Out of stock
+            @if ($inCart > 0)
+                <span class="mt-3 inline-flex rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                    {{ $inCart }} in cart
                 </span>
             @endif
 
@@ -135,8 +109,7 @@ class extends Component {
                     <button
                         type="button"
                         wire:click="increment"
-                        class="p-2 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                        @disabled($remaining < 1 || $qty >= $remaining)
+                        class="p-2 hover:bg-muted"
                         aria-label="Increase"
                     >
                         <flux:icon.plus class="pointer-events-none size-4" />
@@ -146,7 +119,6 @@ class extends Component {
                     wire:click="addToCart"
                     icon="shopping-cart"
                     class="flex-1 bg-accent! text-accent-foreground! hover:bg-accent/90!"
-                    :disabled="$remaining < 1"
                 >
                     Add to cart
                 </flux:button>

@@ -234,7 +234,7 @@ class Product extends Model
      */
     public function scopeOutOfStock(Builder $query): Builder
     {
-        return $query->where('stock', 0);
+        return $query->where('stock', '<=', 0);
     }
 
     /**

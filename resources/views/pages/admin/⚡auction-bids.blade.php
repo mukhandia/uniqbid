@@ -7,6 +7,7 @@ use App\Services\LogisticsService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -14,6 +15,7 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 new
 #[Layout('layouts.app')]
@@ -29,6 +31,64 @@ class extends Component {
     public function mount(Auction $auction): void
     {
         $this->auction = $auction;
+    }
+
+    public function export(): StreamedResponse
+    {
+        $this->auction->loadMissing('result');
+
+        $snapshot = app(AuctionSettlementService::class)->uniquenessSnapshot($this->auction);
+        $amountCounts = $snapshot['amount_counts'];
+        $leadingBidId = $snapshot['leading_bid']?->id;
+
+        $slug = Str::slug($this->auction->slug ?: $this->auction->name);
+        $filename = 'uniqbid-sale-'.$slug.'-'.now()->timezone('Africa/Nairobi')->format('Y-m-d-His').'.csv';
+
+        $bids = $this->auction->bids()
+            ->with(['bidder', 'paymentAttempts'])
+            ->latest('id')
+            ->get();
+
+        return response()->streamDownload(function () use ($bids, $amountCounts, $leadingBidId): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Sale',
+                'Bid reference',
+                'Bidder name',
+                'Phone',
+                'Email',
+                'Amount (KES)',
+                'Status',
+                'Unique amount',
+                'Lowest unique',
+                'Paid at (EAT)',
+                'Created at (EAT)',
+            ]);
+
+            foreach ($bids as $bid) {
+                $count = (int) ($amountCounts[$bid->amount] ?? 0);
+                $phone = $bid->bidder?->phone;
+
+                fputcsv($handle, [
+                    $this->auction->name,
+                    $bid->reference,
+                    $bid->bidder?->name,
+                    filled($phone) ? "\t".$phone : null,
+                    $bid->bidder?->email,
+                    $bid->amount,
+                    $bid->status,
+                    $bid->status === 'accepted' && $count === 1 ? 'Yes' : 'No',
+                    $leadingBidId !== null && $bid->id === $leadingBidId ? 'Yes' : 'No',
+                    $bid->paid_at?->timezone('Africa/Nairobi')->format('Y-m-d H:i:s'),
+                    $bid->created_at?->timezone('Africa/Nairobi')->format('Y-m-d H:i:s'),
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function with(): array
@@ -68,7 +128,13 @@ class extends Component {
 
         $message = $result['successful_bid']
             ? 'Sale settled. Successful bid: '.Money::kes($result['successful_bid']->amount)
-            : 'Sale settled with no unique accepted bid.';
+            : (($result['advanced_round'] ?? false)
+                ? 'No unique bid — Round '.($result['auction']->current_round).' started automatically.'
+                : 'Sale settled with no unique accepted bid.');
+
+        if (($result['next_sale'] ?? null) !== null) {
+            $message .= ' Next live sale started automatically.';
+        }
 
         Flux::toast(variant: 'success', text: $message);
     }
@@ -227,6 +293,9 @@ class extends Component {
             </flux:text>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            <flux:button type="button" variant="outline" wire:click="export">
+                Export Excel (CSV)
+            </flux:button>
             @if ($isLiveOpen)
                 <flux:badge color="green">Live</flux:badge>
             @elseif ($needsSettle)

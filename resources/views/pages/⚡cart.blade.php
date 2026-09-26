@@ -2,7 +2,6 @@
 
 use App\Services\CartService;
 use App\Support\Money;
-use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -13,13 +12,7 @@ new
 class extends Component {
     public function increment(int $productId, CartService $cart): void
     {
-        $current = $cart->quantityOf($productId);
-        $cart->update($productId, $current + 1);
-
-        if ($cart->quantityOf($productId) === $current) {
-            Flux::toast(variant: 'warning', text: 'No more stock available for this item.');
-        }
-
+        $cart->update($productId, $cart->quantityOf($productId) + 1);
         $this->dispatch('cart-updated');
     }
 
@@ -67,7 +60,6 @@ class extends Component {
                     @foreach ($lines as $index => $line)
                         @php
                             $product = $line['product'];
-                            $atMax = $line['qty'] >= $product->availableStock();
                         @endphp
                         <div wire:key="cart-line-{{ $product->id }}" @class(['flex gap-4 p-4', 'border-t border-border' => $index > 0])>
                             <div class="h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
@@ -102,8 +94,7 @@ class extends Component {
                                         <button
                                             type="button"
                                             wire:click="increment({{ $product->id }})"
-                                            class="p-1.5 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
-                                            @disabled($atMax)
+                                            class="p-1.5 hover:bg-muted"
                                             aria-label="Increase quantity"
                                         >
                                             <flux:icon.plus class="pointer-events-none size-3.5" />

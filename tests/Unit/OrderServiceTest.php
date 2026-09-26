@@ -21,18 +21,20 @@ test('order service refuses empty carts', function () {
     ]))->toThrow(ValidationException::class);
 });
 
-test('order service refuses quantities above stock', function () {
+test('order service allows quantities above stock and can go negative', function () {
     $product = Product::factory()->create(['stock' => 1, 'price' => 1000]);
 
-    // CartService clamps adds; simulate a stale session line above stock.
     session(['uniqbid.cart' => [['product_id' => $product->id, 'qty' => 2]]]);
 
-    expect(fn () => app(OrderService::class)->placeFromCart([
+    $order = app(OrderService::class)->placeFromCart([
         'name' => 'Test User',
         'phone' => '0712345678',
         'delivery_method' => Order::DELIVERY_NAIROBI,
         'delivery_address' => 'Nairobi',
-    ]))->toThrow(ValidationException::class);
+    ]);
+
+    expect($order->items)->toHaveCount(1)
+        ->and($product->fresh()->stock)->toBe(-1);
 });
 
 test('delivery is not charged at checkout for any method', function () {

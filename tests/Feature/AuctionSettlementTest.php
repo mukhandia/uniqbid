@@ -108,3 +108,64 @@ test('sale can be re-offered to the next lowest unique bid', function () {
     expect($reofferedBid?->is($nextBid))->toBeTrue()
         ->and($auction->fresh()->result->sale_price)->toBe(20);
 });
+
+test('settling a successful sale decrements stock and can go negative', function () {
+    $product = \App\Models\Product::factory()->create([
+        'stock' => 0,
+        'reserved_stock' => 0,
+    ]);
+
+    $auction = app(\App\Services\CreateSaleFromProductService::class)->handle($product, [
+        'bid_fee' => 30,
+        'reserve_stock' => true,
+        'ends_in_hours' => 1,
+    ]);
+
+    $auction->update([
+        'ends_at' => now()->subMinute(),
+        'status' => 'live',
+    ]);
+
+    expect($product->fresh()->stock)->toBe(0)
+        ->and($product->fresh()->reserved_stock)->toBe(1);
+
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'amount' => 25,
+    ]);
+
+    app(AuctionSettlementService::class)->settle($auction->fresh());
+
+    $nextSale = Auction::query()
+        ->where('product_id', $product->id)
+        ->whereNull('settled_at')
+        ->where('status', 'live')
+        ->whereKeyNot($auction->id)
+        ->first();
+
+    expect($product->fresh()->stock)->toBe(-1)
+        ->and($product->fresh()->reserved_stock)->toBe(1)
+        ->and($auction->fresh()->settled_at)->not->toBeNull()
+        ->and($nextSale)->not->toBeNull()
+        ->and($nextSale->duration_hours)->toEqual(1.0)
+        ->and($nextSale->ends_at->isFuture())->toBeTrue();
+});
+
+test('settling a successful sale without a product does not auto-start another sale', function () {
+    $auction = Auction::factory()->create([
+        'product_id' => null,
+        'status' => 'live',
+        'ends_at' => now()->subMinute(),
+        'duration_hours' => 12,
+    ]);
+
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'amount' => 18,
+    ]);
+
+    $result = app(AuctionSettlementService::class)->settle($auction);
+
+    expect($result['next_sale'])->toBeNull()
+        ->and(Auction::query()->where('status', 'live')->whereKeyNot($auction->id)->count())->toBe(0);
+});

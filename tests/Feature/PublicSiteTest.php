@@ -71,7 +71,7 @@ test('home shop strip only lists featured products', function () {
 test('home page keeps licence number in the footer only', function () {
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('Licence No. AUC/2024/00847')
+        ->assertSee('L No. AUC/2024/00847')
         ->assertDontSee('Licensed Kenyan Auctioneer · Est. 2024');
 });
 
@@ -96,7 +96,7 @@ test('auction detail page is reachable by slug', function () {
     $this->get(route('auctions.show', $auction))
         ->assertOk()
         ->assertSee($auction->name)
-        ->assertSee('Place your amount');
+        ->assertSee('Bid now');
 });
 
 test('auction pages poll the server every thirty seconds for countdown labels', function () {

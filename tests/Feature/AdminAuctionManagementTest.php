@@ -11,19 +11,46 @@ use App\Services\AuctionSettlementService;
 use App\Services\CreateSaleFromProductService;
 use Livewire\Livewire;
 
-test('admins can export filtered sales as csv', function () {
+test('admins can export an individual sale as csv', function () {
     $admin = User::factory()->admin()->create();
-    Auction::factory()->create([
+    $auction = Auction::factory()->create([
         'name' => 'Exportable Motorbike Sale',
         'category' => 'Vehicles',
         'status' => 'live',
         'ends_at' => now()->addDay(),
     ]);
+    $bidder = Bidder::factory()->create([
+        'name' => 'Grace Njeri',
+        'phone' => '254755555555',
+        'email' => 'grace@example.com',
+    ]);
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 45,
+    ]);
 
-    Livewire::actingAs($admin)
-        ->test('pages::admin.auctions')
+    $response = Livewire::actingAs($admin)
+        ->test('pages::admin.auction-bids', ['auction' => $auction])
         ->call('export')
         ->assertFileDownloaded();
+
+    $content = data_get($response->effects, 'download.content');
+    $decoded = is_string($content) ? base64_decode($content) : '';
+
+    expect($decoded)
+        ->toContain('254755555555')
+        ->toContain('Grace Njeri')
+        ->toContain('grace@example.com');
+});
+
+test('all-sales page no longer offers csv export', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)
+        ->get(route('admin.auctions'))
+        ->assertSuccessful()
+        ->assertDontSee('Export Excel (CSV)');
 });
 
 test('non admins cannot access admin sales pages', function () {

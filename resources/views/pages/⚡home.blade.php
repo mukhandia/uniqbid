@@ -82,7 +82,7 @@ class extends Component {
                             href="{{ route('auctions.show', $featured) }}"
                             class="bg-accent! text-accent-foreground! hover:bg-accent/90!"
                         >
-                            Participate now
+                            Bid now
                             <flux:icon.arrow-right class="size-4" />
                         </flux:button>
                     @endif

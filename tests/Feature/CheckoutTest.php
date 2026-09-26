@@ -81,6 +81,22 @@ test('checkout places order and clears the cart', function () {
         ->and($product->fresh()->stock)->toBe(4);
 });
 
+test('checkout allows ordering when stock is zero and can go negative', function () {
+    $product = Product::factory()->create(['stock' => 0, 'price' => 900]);
+    app(CartService::class)->add($product->id, 2);
+
+    Livewire::test('pages::checkout')
+        ->set('name', 'Amina Wanjiku')
+        ->set('phone', '0712345678')
+        ->set('delivery', Order::DELIVERY_COLLECTION)
+        ->call('placeOrder')
+        ->assertHasNoErrors()
+        ->assertSet('status', 'success');
+
+    expect($product->fresh()->stock)->toBe(-2)
+        ->and(Order::query()->count())->toBe(1);
+});
+
 test('checkout accepts Safaricom 01 mobile numbers', function () {
     $product = Product::factory()->create(['stock' => 5, 'price' => 1200]);
     app(CartService::class)->add($product->id, 1);

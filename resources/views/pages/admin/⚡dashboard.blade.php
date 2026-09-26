@@ -276,7 +276,7 @@ class extends Component {
                         <li wire:key="out-stock-{{ $product->id }}" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                             <div>
                                 <div class="font-medium">{{ $product->name }}</div>
-                                <div class="text-xs text-zinc-500">0 in stock. Shop cannot sell this until you add quantity.</div>
+                                <div class="text-xs text-zinc-500">{{ $product->stock }} in stock. Overselling is allowed until you restock.</div>
                             </div>
                             <flux:badge size="sm" color="red">Out of stock</flux:badge>
                         </li>

@@ -47,7 +47,7 @@
 
                 <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold">
                     <flux:icon.shield-check class="size-4" />
-                    Licence No. AUC/2024/00847
+                    L No. AUC/2024/00847
                 </div>
 
                 <div class="mt-6 flex flex-wrap gap-3">

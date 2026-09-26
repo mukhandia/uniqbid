@@ -44,8 +44,7 @@ test('admin can create a product under a subcategory', function () {
         'slug' => 'earrings',
     ]);
 
-    Livewire::test('pages::admin.products')
-        ->call('openCreate')
+    Livewire::test('pages::admin.products.create')
         ->set('name', 'Stud earring set')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -53,7 +52,8 @@ test('admin can create a product under a subcategory', function () {
         ->set('price', 750)
         ->set('stock', 20)
         ->call('save')
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
 
     $product = Product::query()->where('name', 'Stud earring set')->first();
 
@@ -67,8 +67,7 @@ test('admin can create a product under a subcategory', function () {
 test('admin product form shows image guidance and a formatted chooser', function () {
     $this->actingAs($this->admin);
 
-    Livewire::test('pages::admin.products')
-        ->call('openCreate')
+    Livewire::test('pages::admin.products.create')
         ->assertSee('Choose image')
         ->assertDontSee('No file chosen', false)
         ->assertSee('Square 1:1 photos display best')
@@ -89,8 +88,7 @@ test('admin can upload a jpg product image', function () {
     ]);
     $file = UploadedFile::fake()->image('dress-watch.jpg', 1024, 1024);
 
-    Livewire::test('pages::admin.products')
-        ->call('openCreate')
+    Livewire::test('pages::admin.products.create')
         ->set('name', 'Classic leather-strap dress watch')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -101,7 +99,8 @@ test('admin can upload a jpg product image', function () {
         ->assertSee('dress-watch.jpg')
         ->assertSee('Replace image')
         ->call('save')
-        ->assertHasNoErrors();
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
 
     $product = Product::query()->where('name', 'Classic leather-strap dress watch')->first();
 
@@ -117,8 +116,7 @@ test('admin product images reject formats other than jpg png or webp', function 
     $category = Category::factory()->create();
     $subcategory = Subcategory::factory()->create(['category_id' => $category->id]);
 
-    Livewire::test('pages::admin.products')
-        ->call('openCreate')
+    Livewire::test('pages::admin.products.create')
         ->set('name', 'Animated gift')
         ->set('categoryId', (string) $category->id)
         ->set('subcategoryId', (string) $subcategory->id)
@@ -130,6 +128,66 @@ test('admin product images reject formats other than jpg png or webp', function 
         ->assertHasErrors(['imageUpload']);
 
     expect(Product::query()->where('name', 'Animated gift')->exists())->toBeFalse();
+});
+
+test('admin can create a product without gender age or price tier', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Home', 'slug' => 'home']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Decor',
+        'slug' => 'decor',
+    ]);
+
+    Livewire::test('pages::admin.products.create')
+        ->set('name', 'Plain vase')
+        ->set('categoryId', (string) $category->id)
+        ->set('subcategoryId', (string) $subcategory->id)
+        ->set('description', 'Simple ceramic vase.')
+        ->set('price', 1200)
+        ->set('stock', 5)
+        ->set('genderAge', '')
+        ->set('priceTier', '')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
+
+    $product = Product::query()->where('name', 'Plain vase')->first();
+
+    expect($product)->not->toBeNull()
+        ->and($product->gender_age)->toBeNull()
+        ->and($product->price_tier)->toBeNull();
+});
+
+test('admin can edit a product on its own page', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Jewellery', 'slug' => 'jewellery']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Earrings',
+        'slug' => 'earrings',
+    ]);
+    $product = Product::factory()->create([
+        'name' => 'Old earring name',
+        'subcategory_id' => $subcategory->id,
+        'category' => 'Jewellery',
+        'subcategory' => 'Earrings',
+        'price' => 500,
+        'stock' => 4,
+    ]);
+
+    Livewire::test('pages::admin.products.edit', ['product' => $product])
+        ->assertSet('name', 'Old earring name')
+        ->set('name', 'Updated earring set')
+        ->set('price', 900)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
+
+    expect($product->fresh()->name)->toBe('Updated earring set')
+        ->and($product->fresh()->price)->toBe(900);
 });
 
 test('admin can create a sale from a product as the homepage hero', function () {
@@ -145,6 +203,9 @@ test('admin can create a sale from a product as the homepage hero', function () 
 
     Livewire::test('pages::admin.products')
         ->call('openSaleForm', $product->id)
+        ->assertSet('saleBidFee', 3)
+        ->assertSet('saleMinBid', 1)
+        ->assertSet('saleMaxBid', 265)
         ->set('saleFeatureOnHomepage', true)
         ->call('createSale')
         ->assertHasNoErrors();
@@ -152,6 +213,9 @@ test('admin can create a sale from a product as the homepage hero', function () 
     $sale = Auction::query()->where('product_id', $product->id)->first();
 
     expect($sale)->not->toBeNull()
+        ->and($sale->bid_fee)->toBe(3)
+        ->and($sale->min_bid)->toBe(1)
+        ->and($sale->max_bid)->toBe(265)
         ->and($sale->is_featured)->toBeTrue()
         ->and($previous->fresh()->is_featured)->toBeFalse();
 });
@@ -210,4 +274,5 @@ test('non-admin cannot access catalog admin pages', function () {
 
     $this->get(route('admin.categories'))->assertForbidden();
     $this->get(route('admin.products'))->assertForbidden();
+    $this->get(route('admin.products.create'))->assertForbidden();
 });

@@ -37,12 +37,12 @@
                         <flux:sidebar.group :heading="__('Sales & shop')" class="grid">
                             @if ($can('auctions.view') || $can('auctions.manage'))
                                 <flux:sidebar.item icon="scale" :href="route('admin.auctions')" :current="request()->routeIs('admin.auctions*')" wire:navigate>
-                                    {{ __('Sales') }}
+                                    {{ __('Sales & Auctions') }}
                                 </flux:sidebar.item>
                             @endif
                             @if ($can('orders.view') || $can('orders.manage'))
                                 <flux:sidebar.item icon="truck" :href="route('admin.orders')" :current="request()->routeIs('admin.orders*')" wire:navigate>
-                                    {{ __('Orders') }}
+                                    {{ __('Shop Orders') }}
                                 </flux:sidebar.item>
                             @endif
                             @if ($can('products.view') || $can('products.manage'))

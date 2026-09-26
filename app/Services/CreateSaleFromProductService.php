@@ -12,8 +12,25 @@ use Illuminate\Validation\ValidationException;
 class CreateSaleFromProductService
 {
     /**
+     * Default sale pricing from product retail value:
+     * bid fee 0.1%, min bid 1, max bid 10%.
+     *
+     * @return array{bid_fee: int, min_bid: int, max_bid: int}
+     */
+    public static function pricingFromProduct(Product $product): array
+    {
+        $price = max(0, (int) $product->price);
+
+        return [
+            'bid_fee' => max(1, (int) round($price * 0.001)),
+            'min_bid' => 1,
+            'max_bid' => max(1, (int) round($price * 0.10)),
+        ];
+    }
+
+    /**
      * @param  array{
-     *     bid_fee: int,
+     *     bid_fee?: int,
      *     min_bid?: int,
      *     max_bid?: int,
      *     bid_increment?: int,
@@ -42,15 +59,11 @@ class CreateSaleFromProductService
             }
 
             $reserve = $options['reserve_stock'] ?? true;
+            $pricing = self::pricingFromProduct($product);
 
-            if ($reserve && $product->availableStock() < 1) {
-                throw ValidationException::withMessages([
-                    'product' => 'This product has no available stock to reserve for a sale.',
-                ]);
-            }
-
-            $maxBid = (int) ($options['max_bid'] ?? max(100, (int) round($product->price * 0.5)));
-            $minBid = (int) ($options['min_bid'] ?? 1);
+            $maxBid = (int) ($options['max_bid'] ?? $pricing['max_bid']);
+            $minBid = (int) ($options['min_bid'] ?? $pricing['min_bid']);
+            $bidFee = (int) ($options['bid_fee'] ?? $pricing['bid_fee']);
             $hours = (float) ($options['ends_in_hours'] ?? 24);
 
             $slugBase = Str::slug($product->name).'-sale';
@@ -70,7 +83,7 @@ class CreateSaleFromProductService
                 'name' => $product->name,
                 'category' => $product->category,
                 'description' => $product->description,
-                'bid_fee' => (int) $options['bid_fee'],
+                'bid_fee' => $bidFee,
                 'min_bid' => $minBid,
                 'max_bid' => max($minBid, $maxBid),
                 'bid_increment' => (int) ($options['bid_increment'] ?? 1),
@@ -138,6 +151,31 @@ class CreateSaleFromProductService
             }
 
             $product->decrement('reserved_stock');
+        });
+    }
+
+    /**
+     * Convert a live-sale reservation into a sold unit when a successful buy settles.
+     * Stock may go negative when inventory was already at zero (outsourced fulfilment).
+     */
+    public function consumeStockForSettledSale(Auction $auction): void
+    {
+        if ($auction->product_id === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($auction): void {
+            $product = Product::query()->lockForUpdate()->find($auction->product_id);
+
+            if ($product === null) {
+                return;
+            }
+
+            if ($product->reserved_stock >= 1) {
+                $product->decrement('reserved_stock');
+            }
+
+            $product->decrement('stock');
         });
     }
 }

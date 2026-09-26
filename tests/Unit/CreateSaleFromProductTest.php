@@ -41,6 +41,25 @@ test('creating a sale from a product reserves stock and links the auction', func
         ->and($product->fresh()->isInAuctionChannel())->toBeTrue();
 });
 
+test('sale pricing defaults to zero point one percent fee and ten percent max bid', function () {
+    $product = Product::factory()->create(['price' => 100_000]);
+
+    expect(CreateSaleFromProductService::pricingFromProduct($product))->toBe([
+        'bid_fee' => 100,
+        'min_bid' => 1,
+        'max_bid' => 10_000,
+    ]);
+
+    $auction = app(CreateSaleFromProductService::class)->handle($product, [
+        'ends_in_hours' => 24,
+        'reserve_stock' => false,
+    ]);
+
+    expect($auction->bid_fee)->toBe(100)
+        ->and($auction->min_bid)->toBe(1)
+        ->and($auction->max_bid)->toBe(10_000);
+});
+
 test('creating a featured sale from a product makes it the only homepage hero', function () {
     $previous = Auction::factory()->create(['is_featured' => true]);
     $product = Product::factory()->create([
@@ -60,16 +79,20 @@ test('creating a featured sale from a product makes it the only homepage hero', 
         ->and(Auction::query()->featured()->count())->toBe(1);
 });
 
-test('creating a sale fails when no available stock remains', function () {
+test('creating a sale is allowed when no available stock remains', function () {
     $product = Product::factory()->create([
         'stock' => 1,
         'reserved_stock' => 1,
     ]);
 
-    expect(fn () => app(CreateSaleFromProductService::class)->handle($product, [
+    $auction = app(CreateSaleFromProductService::class)->handle($product, [
         'bid_fee' => 30,
         'reserve_stock' => true,
-    ]))->toThrow(ValidationException::class);
+    ]);
+
+    expect($auction->product_id)->toBe($product->id)
+        ->and($product->fresh()->reserved_stock)->toBe(2)
+        ->and($product->fresh()->stock)->toBe(1);
 });
 
 test('voiding releases reserved stock', function () {

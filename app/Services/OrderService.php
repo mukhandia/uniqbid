@@ -55,18 +55,6 @@ class OrderService
 
                 $qty = (int) $item['qty'];
 
-                if ($product->stock < $qty) {
-                    throw ValidationException::withMessages([
-                        'cart' => "{$product->name} only has {$product->stock} left in stock.",
-                    ]);
-                }
-
-                if ($product->availableStock() < $qty) {
-                    throw ValidationException::withMessages([
-                        'cart' => "{$product->name} only has {$product->availableStock()} available (some units are reserved for live sales).",
-                    ]);
-                }
-
                 $lineTotal = $product->price * $qty;
                 $subtotal += $lineTotal;
                 $prepared[] = [

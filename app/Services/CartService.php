@@ -38,7 +38,7 @@ class CartService
     }
 
     /**
-     * Add up to available stock. Returns the quantity actually added.
+     * Add the requested quantity. Stock is not enforced — overselling is allowed.
      */
     public function add(int $productId, int $qty = 1): int
     {
@@ -48,16 +48,13 @@ class CartService
             return 0;
         }
 
-        $requested = max(0, $qty);
-        $current = $this->quantityOf($productId);
-        $maxAllowed = $product->availableStock();
-        $room = max(0, $maxAllowed - $current);
-        $toAdd = min($requested, $room);
+        $toAdd = max(0, $qty);
 
         if ($toAdd < 1) {
             return 0;
         }
 
+        $current = $this->quantityOf($productId);
         $items = $this->items();
         $found = false;
 
@@ -80,7 +77,7 @@ class CartService
     }
 
     /**
-     * Set quantity, clamped to available stock. Qty below 1 removes the line.
+     * Set quantity. Qty below 1 removes the line. Stock is not enforced.
      */
     public function update(int $productId, int $qty): void
     {
@@ -90,11 +87,7 @@ class CartService
             return;
         }
 
-        $product = Product::query()->find($productId);
-        $maxAllowed = $product?->availableStock() ?? 0;
-        $qty = min($qty, $maxAllowed);
-
-        if ($qty < 1) {
+        if (Product::query()->whereKey($productId)->doesntExist()) {
             $this->remove($productId);
 
             return;
@@ -154,11 +147,7 @@ class CartService
                     return null;
                 }
 
-                $qty = min((int) $item['qty'], $product->availableStock());
-
-                if ($qty < 1) {
-                    return null;
-                }
+                $qty = max(1, (int) $item['qty']);
 
                 return [
                     'product' => $product,

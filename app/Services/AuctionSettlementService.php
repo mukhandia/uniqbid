@@ -6,6 +6,7 @@ use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\AuctionResult;
 use App\Models\AuctionRound;
+use App\Models\Product;
 use App\Models\User;
 use App\Support\AuditLogger;
 use Illuminate\Support\Collection;
@@ -17,10 +18,11 @@ class AuctionSettlementService
 {
     public function __construct(
         private readonly NotificationPlaceholderService $notifications,
+        private readonly CreateSaleFromProductService $createSaleFromProduct,
     ) {}
 
     /**
-     * @return array{auction: Auction, successful_bid: ?AuctionBid, advanced_round: bool}
+     * @return array{auction: Auction, successful_bid: ?AuctionBid, advanced_round: bool, next_sale: ?Auction}
      */
     public function settle(Auction $auction, ?User $settledBy = null): array
     {
@@ -44,6 +46,7 @@ class AuctionSettlementService
                     'auction' => $auction,
                     'successful_bid' => $successfulBid,
                     'advanced_round' => false,
+                    'next_sale' => null,
                 ];
             }
 
@@ -72,10 +75,13 @@ class AuctionSettlementService
                     'auction' => $auction,
                     'successful_bid' => null,
                     'advanced_round' => true,
+                    'next_sale' => null,
                 ];
             }
 
             $this->closeRound($auction, AuctionRound::OUTCOME_WINNER, $successfulBid);
+
+            $durationHours = max(0.25, (float) ($auction->duration_hours ?: 24));
 
             $auction->forceFill([
                 'status' => 'closed',
@@ -102,14 +108,19 @@ class AuctionSettlementService
                 ],
             );
 
+            $this->createSaleFromProduct->consumeStockForSettledSale($auction);
+
             $this->notifications->successfulBuyer($auction, $successfulBid);
             $auction = $auction->fresh(['result', 'rounds']);
             $this->logActivity($auction, 'sale settled', 'settled');
+
+            $nextSale = $this->startNextSaleAfterSettle($auction, $durationHours);
 
             return [
                 'auction' => $auction,
                 'successful_bid' => $successfulBid,
                 'advanced_round' => false,
+                'next_sale' => $nextSale,
             ];
         });
     }
@@ -284,6 +295,31 @@ class AuctionSettlementService
         return $acceptedBids->firstWhere('amount', $lowestUnique);
     }
 
+    private function startNextSaleAfterSettle(Auction $settledAuction, float $durationHours): ?Auction
+    {
+        if ($settledAuction->product_id === null) {
+            return null;
+        }
+
+        $product = Product::query()->find($settledAuction->product_id);
+
+        if ($product === null) {
+            return null;
+        }
+
+        $nextSale = $this->createSaleFromProduct->handle($product, [
+            'ends_in_hours' => $durationHours,
+            'reserve_stock' => true,
+            'is_featured' => false,
+        ]);
+
+        $this->logActivity($nextSale, 'sale auto-started after settle', 'auto_started', [
+            'previous_sale_id' => $settledAuction->id,
+        ]);
+
+        return $nextSale;
+    }
+
     private function maskBuyer(AuctionBid $bid): string
     {
         $first = Str::of($bid->bidder->name)->trim()->before(' ')->title()->toString();
@@ -292,12 +328,15 @@ class AuctionSettlementService
         return trim($first.' '.$phoneTail.'.');
     }
 
-    private function logActivity(Auction $auction, string $description, string $event): void
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    private function logActivity(Auction $auction, string $description, string $event, array $properties = []): void
     {
-        AuditLogger::log('auctions', $description, $event, $auction, [
+        AuditLogger::log('auctions', $description, $event, $auction, array_merge([
             'auction_id' => $auction->id,
             'current_round' => $auction->current_round,
             'status' => $auction->status,
-        ]);
+        ], $properties));
     }
 }
