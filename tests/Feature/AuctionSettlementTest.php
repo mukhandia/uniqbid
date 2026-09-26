@@ -3,7 +3,9 @@
 use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Bidder;
+use App\Models\Product;
 use App\Services\AuctionSettlementService;
+use App\Services\CreateSaleFromProductService;
 use Illuminate\Support\Facades\Log;
 
 test('lowest unique accepted bid becomes the successful buy', function () {
@@ -110,12 +112,12 @@ test('sale can be re-offered to the next lowest unique bid', function () {
 });
 
 test('settling a successful sale decrements stock and can go negative', function () {
-    $product = \App\Models\Product::factory()->create([
+    $product = Product::factory()->create([
         'stock' => 0,
         'reserved_stock' => 0,
     ]);
 
-    $auction = app(\App\Services\CreateSaleFromProductService::class)->handle($product, [
+    $auction = app(CreateSaleFromProductService::class)->handle($product, [
         'bid_fee' => 30,
         'reserve_stock' => true,
         'ends_in_hours' => 1,
