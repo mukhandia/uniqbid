@@ -3,6 +3,9 @@ set -euo pipefail
 
 # Runs on the CloudPanel server after rsync.
 # Keeps downtime short: maintenance mode only around migrate/optimize.
+# Ships code and schema only. Never add seeders or data-repair commands here:
+# they run on every push and overwrite admin edits. Use a migration (runs once)
+# or run the command manually over SSH. First-time setup: scripts/server-bootstrap.sh
 
 APP_PATH="${1:?App path required}"
 PHP_BIN="${PHP_BIN:-php}"
@@ -26,6 +29,7 @@ mkdir -p \
   storage/framework/{cache,sessions,views} \
   storage/logs \
   storage/app/public \
+  storage/app/private \
   bootstrap/cache
 
 echo "==> Installing PHP dependencies (production)"
@@ -42,31 +46,7 @@ MAINTENANCE_ON=1
 
 echo "==> Running migrations"
 $PHP_BIN artisan migrate --force --no-interaction
-
-echo "==> Ensuring site settings row exists (idempotent)"
-$PHP_BIN artisan db:seed --class=SiteSettingSeeder --force --no-interaction
-
-echo "==> Seeding CMS content (skipped if content already exists)"
-$PHP_BIN artisan db:seed --class=ContentSeeder --force --no-interaction
-
-echo "==> Seeding roles and permissions (idempotent; includes guest-listings.*)"
-$PHP_BIN artisan db:seed --class=RolePermissionSeeder --force --no-interaction
 $PHP_BIN artisan permission:cache-reset || true
-
-echo "==> Syncing catalogue categories and subcategories (idempotent)"
-$PHP_BIN artisan db:seed --class=SyncCatalogueTaxonomySeeder --force --no-interaction
-
-echo "==> Seeding launch auction catalogue (idempotent; titles + images)"
-$PHP_BIN artisan db:seed --class=LaunchAuctionCatalogueSeeder --force --no-interaction
-
-echo "==> Syncing catalogue product images (idempotent)"
-$PHP_BIN artisan db:seed --class=SyncCatalogueProductImagesSeeder --force --no-interaction
-
-echo "==> Ensuring admin user exists"
-$PHP_BIN artisan uniqbid:ensure-admin --no-interaction
-
-echo "==> Syncing live auction catalogue (orphan / non-auction-channel sales)"
-$PHP_BIN artisan uniqbid:sync-live-catalogue --no-interaction
 
 echo "==> Ensuring storage symlink"
 $PHP_BIN artisan storage:link --force || true

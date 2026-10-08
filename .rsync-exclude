@@ -15,6 +15,9 @@ public/hot
 .env.production
 .env.local
 .env.staging
+storage/app/public/*
+storage/app/private/*
+public/storage
 storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
