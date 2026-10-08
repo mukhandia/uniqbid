@@ -101,6 +101,9 @@ class extends Component {
         $this->saleEndsInHours = 24;
         $this->saleReserveStock = true;
         $this->saleFeatureOnHomepage = false;
+        $this->resetValidation();
+
+        $this->modal('create-sale')->show();
     }
 
     public function createSale(CreateSaleFromProductService $service): void
@@ -148,16 +151,6 @@ class extends Component {
             'channel' => $product->fresh()->channel,
         ]);
         Flux::toast(variant: 'success', text: 'Product is listed in the shop'.($product->isInAuctionChannel() ? ' and remains available for auction.' : '.'));
-    }
-
-    public function moveToAuctionChannel(int $productId): void
-    {
-        $product = Product::query()->findOrFail($productId);
-        $product->assignToAuctionChannel();
-        AuditLogger::log('products', 'product added to auction channel', 'channel_auction', $product->fresh(), [
-            'channel' => $product->fresh()->channel,
-        ]);
-        Flux::toast(variant: 'success', text: 'Product is ready for auction'.($product->isInShop() ? ' and remains listed in the shop.' : '. Create a sale when you want it live.'));
     }
 
     public function removeFromShop(int $productId): void
@@ -247,16 +240,14 @@ class extends Component {
         </flux:text>
     </div>
 
-    @if ($saleProduct)
-        <form wire:submit="createSale" class="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950/30">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <h2 class="font-semibold">Create sale from product</h2>
-                    <p class="text-sm text-zinc-600 dark:text-zinc-300">{{ $saleProduct->name }} · {{ $saleProduct->stock }} in stock · {{ $saleProduct->reserved_stock }} reserved · retail {{ Money::kes($saleProduct->price) }}</p>
-                </div>
-                <flux:button type="button" variant="ghost" wire:click="cancelSaleForm">Cancel</flux:button>
+    <flux:modal name="create-sale" wire:close="cancelSaleForm" class="w-full md:max-w-2xl">
+        @if ($saleProduct)
+        <form wire:submit="createSale" class="space-y-5">
+            <div>
+                <flux:heading size="lg">Create sale from product</flux:heading>
+                <flux:text class="mt-1">{{ $saleProduct->name }} · {{ $saleProduct->stock }} in stock · {{ $saleProduct->reserved_stock }} reserved · retail {{ Money::kes($saleProduct->price) }}</flux:text>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-4 sm:grid-cols-2">
                 <div class="rounded-lg border border-amber-200/80 bg-white/70 px-3 py-2 dark:border-amber-900 dark:bg-zinc-900/50">
                     <div class="text-xs text-zinc-500">Bid fee (0.1%)</div>
                     <div class="mt-1 text-sm font-semibold tabular-nums">{{ Money::kes($saleBidFee) }}</div>
@@ -277,9 +268,15 @@ class extends Component {
             </div>
             <flux:checkbox wire:model="saleReserveStock" label="Reserve 1 unit of shop stock while the sale is live" />
             <flux:checkbox wire:model="saleFeatureOnHomepage" label="Show as homepage hero (replaces any current homepage sale)" />
-            <flux:button type="submit" class="bg-accent! text-accent-foreground!">Create live sale</flux:button>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" class="bg-accent! text-accent-foreground!">Create live sale</flux:button>
+            </div>
         </form>
-    @endif
+        @endif
+    </flux:modal>
 
     <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
@@ -341,15 +338,11 @@ class extends Component {
                                         Remove shop
                                     </flux:button>
                                 @endunless
-                                @unless ($product->isInAuctionChannel())
-                                    <flux:button size="sm" variant="outline" wire:click="moveToAuctionChannel({{ $product->id }})">
-                                        Add to auction
-                                    </flux:button>
-                                @else
+                                @if ($product->isInAuctionChannel() && $product->currentSale === null)
                                     <flux:button size="sm" variant="ghost" wire:click="removeFromAuctionChannel({{ $product->id }})">
                                         Remove auction
                                     </flux:button>
-                                @endunless
+                                @endif
                                 @if ($product->currentSale?->isOpenLive())
                                     <flux:button size="sm" variant="outline" href="{{ route('admin.auction-bids', $product->currentSale) }}">
                                         View sale

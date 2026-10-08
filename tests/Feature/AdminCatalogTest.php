@@ -192,6 +192,199 @@ test('admin can edit a product on its own page', function () {
         ->and($product->fresh()->price)->toBe(900);
 });
 
+test('changing a product image updates its open sale but not settled sales', function () {
+    $this->actingAs($this->admin);
+    Storage::fake('public');
+
+    $category = Category::factory()->create(['name' => 'Electronics', 'slug' => 'electronics-img']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Phones',
+        'slug' => 'phones-img',
+    ]);
+    $product = Product::factory()->forAuction()->create([
+        'subcategory_id' => $subcategory->id,
+        'image' => '/images/auctions/iphone-16.png',
+    ]);
+
+    $settled = Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'closed',
+        'ends_at' => now()->subDay(),
+        'settled_at' => now()->subDay(),
+    ]);
+    $live = Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+    $originalSaleImage = $settled->images()->value('url');
+
+    Livewire::test(ProductEdit::class, ['product' => $product])
+        ->set('imageUpload', UploadedFile::fake()->image('new-phone.jpg', 1024, 1024))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $newImage = $product->fresh()->image;
+
+    expect($newImage)->toStartWith('/storage/products/')
+        ->and($live->images()->value('url'))->toBe($newImage)
+        ->and($live->images()->count())->toBe(1)
+        ->and($settled->images()->value('url'))->toBe($originalSaleImage);
+});
+
+test('renaming a product keeps its shop url and updates the open sale title only', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Home', 'slug' => 'home-rename']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Energy',
+        'slug' => 'energy-rename',
+    ]);
+    $product = Product::factory()->create([
+        'name' => 'Solar Kit',
+        'slug' => 'solar-kit',
+        'subcategory_id' => $subcategory->id,
+        'channel' => Product::CHANNEL_BOTH,
+    ]);
+    $settled = Auction::factory()->create([
+        'product_id' => $product->id,
+        'name' => 'Solar Kit',
+        'slug' => 'solar-kit-sale',
+        'status' => 'closed',
+        'ends_at' => now()->subDay(),
+        'settled_at' => now()->subDay(),
+    ]);
+    $live = Auction::factory()->create([
+        'product_id' => $product->id,
+        'name' => 'Solar Kit',
+        'slug' => 'solar-kit-sale-1',
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test(ProductEdit::class, ['product' => $product])
+        ->set('name', 'Solar Kit Pro')
+        ->set('description', 'Upgraded panel and battery.')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($product->fresh()->name)->toBe('Solar Kit Pro')
+        ->and($product->fresh()->slug)->toBe('solar-kit')
+        ->and($live->fresh()->name)->toBe('Solar Kit Pro')
+        ->and($live->fresh()->description)->toBe('Upgraded panel and battery.')
+        ->and($live->fresh()->slug)->toBe('solar-kit-sale-1')
+        ->and($settled->fresh()->name)->toBe('Solar Kit');
+
+    $this->get(route('shop.show', 'solar-kit'))->assertOk()->assertSee('Solar Kit Pro');
+});
+
+test('new products still get a unique slug from their name', function () {
+    $this->actingAs($this->admin);
+
+    Product::factory()->create(['slug' => 'twin-vase']);
+    $category = Category::factory()->create(['name' => 'Decor', 'slug' => 'decor-slug']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Vases',
+        'slug' => 'vases-slug',
+    ]);
+
+    Livewire::test(ProductCreate::class)
+        ->set('name', 'Twin Vase')
+        ->set('categoryId', (string) $category->id)
+        ->set('subcategoryId', (string) $subcategory->id)
+        ->set('description', 'Second vase.')
+        ->set('price', 900)
+        ->set('stock', 2)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Product::query()->where('name', 'Twin Vase')->value('slug'))->toBe('twin-vase-1');
+});
+
+test('admin can rename an oversold product that has a live sale', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Electronics', 'slug' => 'electronics']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Phones',
+        'slug' => 'phones',
+    ]);
+    $product = Product::factory()->forAuction()->create([
+        'name' => 'Oversold phone',
+        'subcategory_id' => $subcategory->id,
+        'stock' => -2,
+        'reserved_stock' => 1,
+    ]);
+    Auction::factory()->create([
+        'product_id' => $product->id,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test(ProductEdit::class, ['product' => $product])
+        ->assertSet('stock', -2)
+        ->set('name', 'Renamed oversold phone')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
+
+    expect($product->fresh()->name)->toBe('Renamed oversold phone')
+        ->and($product->fresh()->stock)->toBe(-2)
+        ->and($product->fresh()->reserved_stock)->toBe(1);
+});
+
+test('admin can set stock below reserved units and the change is saved', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Home', 'slug' => 'home']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Energy',
+        'slug' => 'energy',
+    ]);
+    $product = Product::factory()->create([
+        'subcategory_id' => $subcategory->id,
+        'stock' => 3,
+        'reserved_stock' => 1,
+    ]);
+
+    Livewire::test(ProductEdit::class, ['product' => $product])
+        ->set('stock', -1)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
+
+    expect($product->fresh()->stock)->toBe(-1);
+});
+
+test('admin can create a product with negative stock', function () {
+    $this->actingAs($this->admin);
+
+    $category = Category::factory()->create(['name' => 'Decor', 'slug' => 'decor-negative']);
+    $subcategory = Subcategory::factory()->create([
+        'category_id' => $category->id,
+        'name' => 'Vases',
+        'slug' => 'vases',
+    ]);
+
+    Livewire::test(ProductCreate::class)
+        ->set('name', 'Backordered vase')
+        ->set('categoryId', (string) $category->id)
+        ->set('subcategoryId', (string) $subcategory->id)
+        ->set('description', 'Owed to two buyers.')
+        ->set('price', 1500)
+        ->set('stock', -2)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('admin.products'));
+
+    expect(Product::query()->where('name', 'Backordered vase')->value('stock'))->toBe(-2);
+});
+
 test('admin can create a sale from a product as the homepage hero', function () {
     $this->actingAs($this->admin);
 
@@ -220,6 +413,44 @@ test('admin can create a sale from a product as the homepage hero', function () 
         ->and($sale->max_bid)->toBe(265)
         ->and($sale->is_featured)->toBeTrue()
         ->and($previous->fresh()->is_featured)->toBeFalse();
+});
+
+test('create sale opens in a modal and closing it resets the form', function () {
+    $this->actingAs($this->admin);
+
+    $product = Product::factory()->create(['name' => 'Modal Sale Watch', 'stock' => 3]);
+
+    Livewire::test('pages::admin.products')
+        ->assertDontSee('Add to auction')
+        ->call('openSaleForm', $product->id)
+        ->assertSet('saleProductId', $product->id)
+        ->assertDispatched('modal-show', name: 'create-sale')
+        ->assertSee('Create sale from product')
+        ->call('cancelSaleForm')
+        ->assertSet('saleProductId', null)
+        ->assertDontSee('Create sale from product');
+});
+
+test('remove auction is only offered when the product has no active sale', function () {
+    $this->actingAs($this->admin);
+
+    $idle = Product::factory()->forAuction()->create(['name' => 'Idle Auction Product']);
+    $busy = Product::factory()->forAuction()->create(['name' => 'Busy Auction Product', 'reserved_stock' => 1]);
+    Auction::factory()->create([
+        'product_id' => $busy->id,
+        'name' => $busy->name,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->set('search', 'Idle Auction Product')
+        ->assertSee('Remove auction');
+
+    Livewire::test('pages::admin.products')
+        ->set('search', 'Busy Auction Product')
+        ->assertSee('View sale')
+        ->assertDontSee('Remove auction');
 });
 
 test('admin products page points to the live sale instead of creating another', function () {

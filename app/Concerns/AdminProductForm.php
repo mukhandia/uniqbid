@@ -2,6 +2,7 @@
 
 namespace App\Concerns;
 
+use App\Models\Auction;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Subcategory;
@@ -106,26 +107,13 @@ trait AdminProductForm
             'priceTier' => ['nullable', 'string', 'max:40'],
             'description' => ['required', 'string'],
             'price' => ['required', 'integer', 'min:1'],
-            'stock' => ['required', 'integer', 'min:0'],
+            'stock' => ['required', 'integer'],
             'isFeatured' => ['boolean'],
             'isReturnable' => ['boolean'],
             'imageUpload' => $this->imageUploadRules(),
         ], ProductImageRules::messages());
 
         $subcategory = Subcategory::query()->with('category')->findOrFail((int) $validated['subcategoryId']);
-        $slugBase = Str::slug($validated['name']);
-        $slug = $slugBase;
-        $i = 1;
-
-        while (
-            Product::query()
-                ->where('slug', $slug)
-                ->when($existing !== null, fn ($q) => $q->whereKeyNot($existing->id))
-                ->exists()
-        ) {
-            $slug = $slugBase.'-'.$i;
-            $i++;
-        }
 
         $imagePath = $this->existingImage !== '' ? $this->existingImage : '/images/products/leather-cardholder.png';
 
@@ -136,7 +124,6 @@ trait AdminProductForm
 
         $payload = [
             'subcategory_id' => $subcategory->id,
-            'slug' => $slug,
             'name' => $validated['name'],
             'category' => $subcategory->category->name,
             'subcategory' => $subcategory->name,
@@ -151,24 +138,33 @@ trait AdminProductForm
         ];
 
         if ($existing !== null) {
-            if ($validated['stock'] < $existing->reserved_stock) {
-                Flux::toast(variant: 'danger', text: 'Stock cannot be lower than reserved units ('.$existing->reserved_stock.').');
-
-                return null;
-            }
+            $stockLoweredBelowReserved = $validated['stock'] !== $existing->stock
+                && $validated['stock'] < $existing->reserved_stock;
+            $imageChanged = $imagePath !== $existing->image;
+            $detailsChanged = $payload['name'] !== $existing->name
+                || $payload['description'] !== $existing->description
+                || $payload['category'] !== $existing->category;
 
             $existing->update($payload);
             $product = $existing->fresh();
             AuditLogger::log('products', 'product updated', 'updated', $product, [
                 'name' => $product->name,
             ]);
-            Flux::toast(variant: 'success', text: 'Product updated.');
+
+            $this->syncOpenSales($product, $detailsChanged, $imageChanged);
+
+            if ($stockLoweredBelowReserved) {
+                Flux::toast(variant: 'warning', text: 'Product updated. Stock is below the '.$product->reserved_stock.' unit(s) reserved for live sales, so those will be oversold until you restock.');
+            } else {
+                Flux::toast(variant: 'success', text: 'Product updated.');
+            }
 
             return $product;
         }
 
         $product = Product::query()->create([
             ...$payload,
+            'slug' => $this->uniqueSlug($validated['name']),
             'channel' => Product::CHANNEL_NONE,
         ]);
         AuditLogger::log('products', 'product created', 'created', $product, [
@@ -177,6 +173,53 @@ trait AdminProductForm
         Flux::toast(variant: 'success', text: 'Product created. Move it to Shop or Auction when ready.');
 
         return $product;
+    }
+
+    /**
+     * Slugs are set once at creation so shared links keep working after a rename.
+     */
+    private function uniqueSlug(string $name): string
+    {
+        $slugBase = Str::slug($name);
+        $slug = $slugBase;
+        $i = 1;
+
+        while (Product::query()->where('slug', $slug)->exists()) {
+            $slug = $slugBase.'-'.$i;
+            $i++;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Sales copy product details when created; settled and voided sales keep theirs as history.
+     * Sale slugs and pricing are left unchanged while bidders are participating.
+     */
+    private function syncOpenSales(Product $product, bool $detailsChanged, bool $imageChanged): void
+    {
+        if (! $detailsChanged && ! $imageChanged) {
+            return;
+        }
+
+        $product->auctions()
+            ->blockingNewSale()
+            ->each(function (Auction $sale) use ($product, $detailsChanged, $imageChanged): void {
+                if ($detailsChanged) {
+                    $sale->forceFill([
+                        'name' => $product->name,
+                        'description' => $product->description,
+                        'category' => $product->category,
+                    ])->save();
+                }
+
+                if ($imageChanged) {
+                    $sale->images()->updateOrCreate(
+                        ['sort_order' => 0],
+                        ['url' => $product->image, 'label' => $product->name],
+                    );
+                }
+            });
     }
 
     /**

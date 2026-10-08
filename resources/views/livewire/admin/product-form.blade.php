@@ -41,7 +41,8 @@
     </flux:field>
     <flux:field>
         <flux:label>Stock {!! $requiredMark !!}</flux:label>
-        <flux:input type="number" wire:model="stock" min="0" required />
+        <flux:input type="number" wire:model="stock" required />
+        <flux:description>Negative means oversold: units owed to buyers. Restock to bring it back to zero or above.</flux:description>
         <flux:error name="stock" />
     </flux:field>
     <flux:field class="md:col-span-2">

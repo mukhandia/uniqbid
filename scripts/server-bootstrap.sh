@@ -13,7 +13,7 @@ PHP_BIN="${PHP_BIN:-php}"
 
 cd "$APP_PATH"
 
-echo "This seeds a fresh database (settings, roles, content, catalogue, launch auctions, admin)."
+echo "This seeds a fresh database (settings, roles, content, shop catalogue, launch auctions, admin)."
 read -r -p "Continue on $(hostname) in $APP_PATH? [y/N] " answer
 if [[ "${answer,,}" != "y" ]]; then
   echo "Aborted."
@@ -29,9 +29,8 @@ seed SiteSettingSeeder
 seed RolePermissionSeeder
 $PHP_BIN artisan permission:cache-reset || true
 seed ContentSeeder
-seed SyncCatalogueTaxonomySeeder
+seed ShopCatalogueSeeder
 seed LaunchAuctionCatalogueSeeder
-seed SyncCatalogueProductImagesSeeder
 
 echo "==> Ensuring admin user exists"
 $PHP_BIN artisan uniqbid:ensure-admin --no-interaction
