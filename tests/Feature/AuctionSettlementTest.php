@@ -47,7 +47,7 @@ test('lowest unique accepted bid becomes the successful buy', function () {
         ->and($auction->fresh()->result->sale_price)->toBe(22)
         ->and($auction->fresh()->result->buyer_display)->toContain('Brian');
 
-    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'notification_placeholder'
+    Log::shouldNotHaveReceived('info', fn (string $message, array $context): bool => $message === 'notification_placeholder'
         && ($context['template'] ?? null) === 'successful_buyer');
 });
 

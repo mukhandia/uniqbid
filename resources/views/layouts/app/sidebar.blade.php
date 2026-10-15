@@ -70,11 +70,11 @@
 
                     @if ($can('customers.view') || $can('customers.manage'))
                         <flux:sidebar.group :heading="__('People')" class="grid">
-                            <flux:sidebar.item icon="users" :href="route('admin.customers')" :current="request()->routeIs('admin.customers') || request()->routeIs('admin.customer-verifications')" wire:navigate>
+                            <flux:sidebar.item icon="users" :href="route('admin.customers')" :current="request()->routeIs('admin.customers', 'admin.customers.show')" wire:navigate>
                                 {{ __('Customers') }}
                             </flux:sidebar.item>
-                            <flux:sidebar.item icon="megaphone" :href="route('admin.subscribers')" :current="request()->routeIs('admin.subscribers')" wire:navigate>
-                                {{ __('Subscribers') }}
+                            <flux:sidebar.item icon="identification" :href="route('admin.customer-verifications')" :current="request()->routeIs('admin.customer-verifications')" wire:navigate>
+                                {{ __('Customer verification') }}
                             </flux:sidebar.item>
                         </flux:sidebar.group>
 

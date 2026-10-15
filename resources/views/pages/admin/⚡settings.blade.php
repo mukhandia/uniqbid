@@ -26,6 +26,8 @@ class extends Component {
 
     public int $guestShopCommissionPercent = 10;
 
+    public string $licenceNumber = '';
+
     public function mount(): void
     {
         $settings = SiteSetting::current();
@@ -37,6 +39,7 @@ class extends Component {
         $this->hours = $settings->hours;
         $this->mapUrl = (string) $settings->map_url;
         $this->guestShopCommissionPercent = $settings->guestShopCommissionPercent();
+        $this->licenceNumber = (string) $settings->licence_number;
     }
 
     public function save(): void
@@ -53,6 +56,7 @@ class extends Component {
                 }
             }],
             'guestShopCommissionPercent' => ['required', 'integer', 'min:0', 'max:90'],
+            'licenceNumber' => ['required', 'string', 'max:100'],
         ]);
 
         $settings = SiteSetting::current();
@@ -64,6 +68,7 @@ class extends Component {
             'hours' => $validated['hours'],
             'map_url' => filled($validated['mapUrl'] ?? null) ? $validated['mapUrl'] : null,
             'guest_shop_commission_percent' => $validated['guestShopCommissionPercent'],
+            'licence_number' => trim($validated['licenceNumber']),
         ]);
 
         $this->guestShopCommissionPercent = (int) $validated['guestShopCommissionPercent'];
@@ -120,6 +125,12 @@ class extends Component {
                 <flux:input wire:model.live.debounce.400ms="mapUrl" placeholder="https://maps.app.goo.gl/… or Google Maps embed URL" />
                 <flux:description>Paste a Google Maps or OpenStreetMap share link, or the iframe embed HTML. Short links still show a map using the office address.</flux:description>
                 <flux:error name="mapUrl" />
+            </flux:field>
+            <flux:field class="sm:col-span-2">
+                <flux:label>Auctioneer licence number</flux:label>
+                <flux:input wire:model="licenceNumber" placeholder="2026/0010/008895" />
+                <flux:description>Shown in the site footer as "L No. …".</flux:description>
+                <flux:error name="licenceNumber" />
             </flux:field>
             <flux:field class="sm:col-span-2">
                 <flux:label>Guest shop commission (%)</flux:label>

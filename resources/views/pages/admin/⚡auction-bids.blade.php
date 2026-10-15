@@ -2,7 +2,10 @@
 
 use App\Models\Auction;
 use App\Models\AuctionResult;
+use App\Models\Bidder;
+use App\Models\BidderMessage;
 use App\Services\AuctionSettlementService;
+use App\Services\BidderMessageService;
 use App\Services\LogisticsService;
 use App\Support\Money;
 use Flux\Flux;
@@ -28,9 +31,57 @@ class extends Component {
 
     public $buyerImageUpload = null;
 
+    public ?int $messageBidderId = null;
+
+    public string $messageBody = '';
+
     public function mount(Auction $auction): void
     {
         $this->auction = $auction;
+    }
+
+    public function openMessage(int $bidderId): void
+    {
+        $bidder = $this->bidderOnSale($bidderId);
+
+        $this->messageBidderId = $bidder->id;
+        $this->messageBody = '';
+        $this->resetValidation();
+
+        $this->modal('message-bidder')->show();
+    }
+
+    public function cancelMessage(): void
+    {
+        $this->reset('messageBidderId', 'messageBody');
+        $this->resetValidation();
+    }
+
+    public function sendMessage(BidderMessageService $messages): void
+    {
+        $this->validate([
+            'messageBidderId' => ['required', 'integer'],
+            'messageBody' => ['required', 'string', 'max:'.BidderMessage::MAX_LENGTH],
+        ], [
+            'messageBody.required' => 'Type a message to send.',
+            'messageBody.max' => 'Keep the message under '.BidderMessage::MAX_LENGTH.' characters.',
+        ]);
+
+        $bidder = $this->bidderOnSale($this->messageBidderId);
+
+        $messages->send($this->auction, $bidder, $this->messageBody, auth()->user());
+
+        $this->messageBody = '';
+
+        Flux::toast(variant: 'success', text: 'Message to '.$bidder->name.' saved as pending. It will send once SMS is connected.');
+    }
+
+    private function bidderOnSale(int $bidderId): Bidder
+    {
+        return Bidder::query()
+            ->whereKey($bidderId)
+            ->whereHas('bids', fn ($query) => $query->where('auction_id', $this->auction->id))
+            ->firstOrFail();
     }
 
     public function export(): StreamedResponse
@@ -108,6 +159,20 @@ class extends Component {
             'amountCounts' => $snapshot['amount_counts'],
             'successfulBid' => $this->auction->result?->auctionBid,
             'shipment' => $this->auction->result?->activeShipment(),
+            'messageCounts' => BidderMessage::query()
+                ->where('auction_id', $this->auction->id)
+                ->selectRaw('bidder_id, count(*) as total')
+                ->groupBy('bidder_id')
+                ->pluck('total', 'bidder_id'),
+            'messageBidder' => $this->messageBidderId !== null ? Bidder::query()->find($this->messageBidderId) : null,
+            'messageHistory' => $this->messageBidderId !== null
+                ? BidderMessage::query()
+                    ->with('sender:id,name')
+                    ->where('auction_id', $this->auction->id)
+                    ->where('bidder_id', $this->messageBidderId)
+                    ->latest('id')
+                    ->get()
+                : collect(),
         ];
     }
 
@@ -353,6 +418,9 @@ class extends Component {
                         @if ($successfulBidder)
                             <div class="text-zinc-500">{{ $successfulBidder->phone }}</div>
                             <div class="text-zinc-500">{{ $successfulBidder->email }}</div>
+                            <flux:button size="sm" variant="outline" icon="chat-bubble-left-ellipsis" class="mt-2" wire:click="openMessage({{ $successfulBidder->id }})">
+                                Message bidder
+                            </flux:button>
                         @endif
                         <div class="mt-2 text-xs text-zinc-500">Public result listing: {{ $result->buyer_display }}</div>
                     </div>
@@ -463,6 +531,61 @@ class extends Component {
         </section>
     @endif
 
+    <flux:modal name="message-bidder" wire:close="cancelMessage" class="w-full md:max-w-lg">
+        @if ($messageBidder)
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Message {{ $messageBidder->name }}</flux:heading>
+                    <flux:text class="mt-1">{{ $messageBidder->phone }} · {{ $auction->name }}</flux:text>
+                </div>
+
+                <form wire:submit="sendMessage" class="space-y-3">
+                    <flux:field>
+                        <flux:label>Message</flux:label>
+                        <flux:textarea wire:model="messageBody" rows="4" maxlength="{{ BidderMessage::MAX_LENGTH }}" placeholder="Type your message to the bidder…" data-test="message-body" />
+                        <flux:error name="messageBody" />
+                    </flux:field>
+                    <flux:text class="text-xs">SMS is not connected yet, so messages are saved as Pending until it is.</flux:text>
+                    <div class="flex justify-end gap-2">
+                        <flux:modal.close>
+                            <flux:button type="button" variant="ghost">Close</flux:button>
+                        </flux:modal.close>
+                        <flux:button type="submit" icon="paper-airplane" class="bg-accent! text-accent-foreground!" wire:loading.attr="disabled" wire:target="sendMessage">
+                            Send
+                        </flux:button>
+                    </div>
+                </form>
+
+                <div>
+                    <h3 class="text-xs font-semibold uppercase tracking-wide text-zinc-500">Messages on this sale</h3>
+                    @if ($messageHistory->isEmpty())
+                        <p class="mt-2 text-sm text-zinc-500">No messages sent to this bidder yet.</p>
+                    @else
+                        <ul class="mt-2 max-h-64 space-y-2 overflow-y-auto">
+                            @foreach ($messageHistory as $message)
+                                <li wire:key="bidder-message-{{ $message->id }}" class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <p class="whitespace-pre-line text-sm text-zinc-800 dark:text-zinc-200">{{ $message->body }}</p>
+                                        <flux:badge size="sm" :color="$message->statusColor()">{{ $message->statusLabel() }}</flux:badge>
+                                    </div>
+                                    <div class="mt-1 text-xs text-zinc-500">
+                                        {{ $message->created_at?->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                                        @if ($message->sender)
+                                            · by {{ $message->sender->name }}
+                                        @endif
+                                        @if ($message->failure_reason)
+                                            · <span class="text-red-600">{{ $message->failure_reason }}</span>
+                                        @endif
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
+                </div>
+            </div>
+        @endif
+    </flux:modal>
+
     <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
             <h2 class="font-medium">Incoming bids</h2>
@@ -505,7 +628,23 @@ class extends Component {
                             {{ $bid->created_at?->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
                         </td>
                         <td class="px-4 py-3">
-                            <div class="font-medium">{{ $bid->bidder->name }}</div>
+                            <div class="flex items-center gap-2">
+                                <div class="font-medium">{{ $bid->bidder->name }}</div>
+                                @php($bidderMessageCount = (int) ($messageCounts[$bid->bidder_id] ?? 0))
+                                <button
+                                    type="button"
+                                    wire:click="openMessage({{ $bid->bidder_id }})"
+                                    class="relative inline-flex size-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                    title="Message {{ $bid->bidder->name }}"
+                                    aria-label="Message {{ $bid->bidder->name }}"
+                                    data-test="message-bidder-{{ $bid->bidder_id }}"
+                                >
+                                    <flux:icon.chat-bubble-left-ellipsis class="size-4" />
+                                    @if ($bidderMessageCount > 0)
+                                        <span class="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-zinc-700 px-1 text-[10px] font-semibold leading-4 text-white">{{ $bidderMessageCount }}</span>
+                                    @endif
+                                </button>
+                            </div>
                             <div class="text-xs text-zinc-500">{{ $bid->bidder->phone }} · {{ $bid->bidder->email }}</div>
                             <div class="text-xs text-zinc-500">Ref {{ $bid->reference }} · Marketing {{ $bid->bidder->marketing_consent ? 'Yes' : 'No' }}</div>
                         </td>

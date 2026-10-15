@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\CustomerVerificationDocument;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -16,22 +17,22 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new
 #[Layout('layouts.site')]
 #[Title('My Account: UniqBid')]
 class extends Component {
+    use WithFileUploads;
+
+    /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
+    public array $verificationFiles = [];
+
     public string $name = '';
 
     public string $email = '';
 
     public string $whatsappNumber = '';
-
-    public bool $marketingConsent = false;
-
-    public bool $smsNotifications = true;
-
-    public bool $whatsappNotifications = false;
 
     public ?int $participationFeeLimit = null;
 
@@ -50,35 +51,8 @@ class extends Component {
         $this->name = $user->name;
         $this->email = $user->email ?? '';
         $this->whatsappNumber = $this->displayPhone($user->bidder?->whatsapp_number);
-        $this->marketingConsent = (bool) $user->marketing_consent;
-        $this->smsNotifications = $this->marketingConsent && (bool) $user->sms_notifications;
-        $this->whatsappNotifications = $this->marketingConsent && (bool) $user->whatsapp_notifications;
         $this->participationFeeLimit = $user->customerControl?->participation_fee_limit;
         $this->limitPeriod = $user->customerControl?->limit_period;
-    }
-
-    public function updatedMarketingConsent(bool $enabled): void
-    {
-        if ($enabled) {
-            return;
-        }
-
-        $this->smsNotifications = false;
-        $this->whatsappNotifications = false;
-    }
-
-    public function updatedSmsNotifications(): void
-    {
-        if (! $this->marketingConsent) {
-            $this->smsNotifications = false;
-        }
-    }
-
-    public function updatedWhatsappNotifications(): void
-    {
-        if (! $this->marketingConsent) {
-            $this->whatsappNotifications = false;
-        }
     }
 
     #[Computed]
@@ -156,11 +130,8 @@ class extends Component {
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique(User::class)->ignore($user->id)],
             'whatsappNumber' => ['nullable', 'string'],
-            'marketingConsent' => ['boolean'],
-            'smsNotifications' => ['boolean'],
-            'whatsappNotifications' => ['boolean'],
         ]);
 
         $whatsapp = null;
@@ -169,26 +140,107 @@ class extends Component {
             $whatsapp = app(AuctionBidService::class)->normalizeKenyanPhone($validated['whatsappNumber']);
         }
 
+        $email = filled($validated['email']) ? $validated['email'] : null;
+
         $user->update([
             'name' => $validated['name'],
-            'email' => $validated['email'],
-            'marketing_consent' => $validated['marketingConsent'],
-            'marketing_consented_at' => $validated['marketingConsent'] ? now() : null,
-            'sms_notifications' => $validated['marketingConsent'] && $validated['smsNotifications'],
-            'whatsapp_notifications' => $validated['marketingConsent'] && $validated['whatsappNotifications'],
+            'email' => $email,
         ]);
 
         if ($bidder = $user->bidder) {
             $bidder->update([
                 'name' => $validated['name'],
-                'email' => $validated['email'],
+                'email' => $email,
                 'whatsapp_number' => $whatsapp,
-                'marketing_consent' => $validated['marketingConsent'],
-                'marketing_consented_at' => $validated['marketingConsent'] ? now() : null,
             ]);
         }
 
         Flux::toast(variant: 'success', text: 'Profile updated.');
+    }
+
+    #[Computed]
+    public function verificationDocuments(): Collection
+    {
+        $user = Auth::user();
+
+        if ($user === null || $user->is_admin) {
+            return collect();
+        }
+
+        return $user->verificationDocuments()->get();
+    }
+
+    public function submitVerification(): void
+    {
+        $user = Auth::user();
+        abort_if($user === null || $user->is_admin, 403);
+
+        $control = app(CustomerAccountService::class)->ensureControl($user);
+
+        if ($control->verification_status === 'verified') {
+            Flux::toast(variant: 'success', text: 'Your account is already verified.');
+
+            return;
+        }
+
+        $remaining = CustomerVerificationDocument::MAX_FILES - $user->verificationDocuments()->count();
+
+        $this->validate([
+            'verificationFiles' => ['required', 'array', 'min:1', 'max:'.max(0, $remaining)],
+            'verificationFiles.*' => ['file', 'mimes:'.implode(',', CustomerVerificationDocument::MIMES), 'max:'.CustomerVerificationDocument::MAX_KILOBYTES],
+        ], [
+            'verificationFiles.required' => 'Choose at least one file to upload.',
+            'verificationFiles.max' => $remaining > 0
+                ? 'You can upload '.$remaining.' more file(s). Remove an older file to add more.'
+                : 'You already have '.CustomerVerificationDocument::MAX_FILES.' files. Remove one to upload another.',
+            'verificationFiles.*.mimes' => 'Upload a PDF or an image (JPG, PNG or WEBP).',
+            'verificationFiles.*.max' => 'Each file must be 5 MB or smaller.',
+        ]);
+
+        foreach ($this->verificationFiles as $file) {
+            $user->verificationDocuments()->create([
+                'path' => $file->store('verification-documents/'.$user->id, CustomerVerificationDocument::DISK),
+                'original_name' => mb_substr($file->getClientOriginalName(), 0, 255),
+                'mime_type' => (string) $file->getMimeType(),
+                'size' => (int) $file->getSize(),
+            ]);
+        }
+
+        $control->update([
+            'verification_status' => 'submitted',
+            'verification_submitted_at' => now(),
+        ]);
+        $user->setRelation('customerControl', $control);
+
+        $this->reset('verificationFiles');
+        unset($this->verificationDocuments);
+
+        Flux::toast(variant: 'success', text: 'Documents submitted. We will review them and update your status.');
+    }
+
+    public function removeVerificationDocument(int $documentId): void
+    {
+        $user = Auth::user();
+        abort_if($user === null || $user->is_admin, 403);
+
+        $control = $user->customerControl()->first();
+        $user->setRelation('customerControl', $control);
+
+        if ($control?->verification_status === 'verified') {
+            return;
+        }
+
+        $user->verificationDocuments()->whereKey($documentId)->firstOrFail()->delete();
+        unset($this->verificationDocuments);
+
+        if ($control?->verification_status === 'submitted' && ! $user->verificationDocuments()->exists()) {
+            $control->update([
+                'verification_status' => $control->verification_requested_at !== null ? 'requested' : 'not_requested',
+                'verification_submitted_at' => null,
+            ]);
+        }
+
+        Flux::toast(variant: 'success', text: 'File removed.');
     }
 
     public function saveSpendLimit(): void
@@ -260,7 +312,7 @@ class extends Component {
 
         @guest
             <p class="mt-2 text-center text-sm text-muted-foreground">
-                Sign in with your mobile number to view entry history, spending controls, and communication preferences.
+                Sign in with your mobile number to view entry history, spending controls, and your profile.
             </p>
             <div class="mt-6 flex flex-wrap justify-center gap-2">
                 <flux:button href="{{ route('mobile-login') }}" class="bg-accent! text-accent-foreground!">
@@ -306,19 +358,11 @@ class extends Component {
 
                 <div class="mt-8 space-y-10">
                     <section>
-                        <h2 class="text-lg font-semibold text-navy">Profile &amp; preferences</h2>
+                        <h2 class="text-lg font-semibold text-navy">Profile</h2>
                         <form wire:submit="saveProfile" class="mt-4 space-y-4">
                             <flux:input wire:model="name" label="Full name" required />
-                            <flux:input wire:model="email" type="email" label="Email" required />
+                            <flux:input wire:model="email" type="email" label="Email (optional)" />
                             <flux:input wire:model="whatsappNumber" label="WhatsApp number (optional)" placeholder="07XX or 01XX XXX XXX" />
-                            <div class="space-y-2">
-                                <flux:checkbox wire:model.live="marketingConsent" label="Receive UniqBid updates and offers" />
-                                <flux:checkbox wire:model="smsNotifications" :disabled="! $marketingConsent" label="Send sale and account updates by SMS" />
-                                <flux:checkbox wire:model="whatsappNotifications" :disabled="! $marketingConsent" label="Send sale and account updates by WhatsApp" />
-                                @unless ($marketingConsent)
-                                    <p class="text-xs text-muted-foreground">Tick Receive UniqBid updates and offers first to choose SMS or WhatsApp.</p>
-                                @endunless
-                            </div>
                             <flux:button type="submit" class="bg-accent! text-accent-foreground!">Save profile</flux:button>
                         </form>
                     </section>
@@ -361,14 +405,74 @@ class extends Component {
                     </section>
 
                     @php($verificationStatus = Auth::user()->customerControl?->verification_status ?? 'not_requested')
-                    @if ($verificationStatus !== 'not_requested')
-                        <section>
+                    <section data-test="verification-section">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
                             <h2 class="text-lg font-semibold text-navy">ID / KRA verification</h2>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                Status: <span class="font-medium capitalize text-zinc-900">{{ str_replace('_', ' ', $verificationStatus) }}</span>
-                            </p>
-                        </section>
-                    @endif
+                            <flux:badge size="sm" :color="match ($verificationStatus) {
+                                'verified' => 'green',
+                                'submitted', 'requested' => 'amber',
+                                'rejected' => 'red',
+                                default => 'zinc',
+                            }">
+                                {{ match ($verificationStatus) {
+                                    'not_requested' => 'Not submitted',
+                                    'requested' => 'Requested by UniqBid',
+                                    'submitted' => 'Submitted, awaiting review',
+                                    'verified' => 'Verified',
+                                    'rejected' => 'Rejected, please upload again',
+                                    default => ucfirst(str_replace('_', ' ', $verificationStatus)),
+                                } }}
+                            </flux:badge>
+                        </div>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Upload a clear copy of your National ID or passport and your KRA PIN certificate. PDF, JPG, PNG or WEBP, up to 5 MB each, {{ CustomerVerificationDocument::MAX_FILES }} files at most. Only UniqBid staff can see them.
+                        </p>
+
+                        @if ($this->verificationDocuments->isNotEmpty())
+                            <ul class="mt-4 divide-y divide-border rounded-xl border border-border">
+                                @foreach ($this->verificationDocuments as $document)
+                                    <li wire:key="verification-document-{{ $document->id }}" class="flex items-center gap-3 px-4 py-3 text-sm">
+                                        @if ($document->isPdf())
+                                            <flux:icon.document-text class="size-5 shrink-0 text-navy" />
+                                        @else
+                                            <flux:icon.photo class="size-5 shrink-0 text-navy" />
+                                        @endif
+                                        <div class="min-w-0 flex-1">
+                                            <div class="truncate font-medium text-zinc-900">{{ $document->original_name }}</div>
+                                            <div class="text-xs text-muted-foreground">{{ $document->humanSize() }} · uploaded {{ $document->created_at?->timezone(config('app.timezone'))->format('j M Y') }}</div>
+                                        </div>
+                                        @if ($verificationStatus !== 'verified')
+                                            <flux:button size="sm" variant="ghost" wire:click="removeVerificationDocument({{ $document->id }})" wire:confirm="Remove {{ $document->original_name }}?">
+                                                Remove
+                                            </flux:button>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+
+                        @if ($verificationStatus !== 'verified')
+                            <form wire:submit="submitVerification" class="mt-4 space-y-3">
+                                <flux:field>
+                                    <flux:label>Documents</flux:label>
+                                    <input
+                                        type="file"
+                                        wire:model="verificationFiles"
+                                        multiple
+                                        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                                        class="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium"
+                                        data-test="verification-files"
+                                    />
+                                    <div wire:loading wire:target="verificationFiles" class="text-xs text-muted-foreground">Uploading…</div>
+                                    <flux:error name="verificationFiles" />
+                                    <flux:error name="verificationFiles.*" />
+                                </flux:field>
+                                <flux:button type="submit" class="bg-accent! text-accent-foreground!" wire:loading.attr="disabled" wire:target="verificationFiles,submitVerification">
+                                    Submit for verification
+                                </flux:button>
+                            </form>
+                        @endif
+                    </section>
 
                     <section>
                         <div class="flex items-center justify-between gap-3">

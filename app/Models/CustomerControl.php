@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $self_excluded_until
  * @property string $verification_status
  * @property Carbon|null $verification_requested_at
+ * @property Carbon|null $verification_submitted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
     'self_excluded_until',
     'verification_status',
     'verification_requested_at',
+    'verification_submitted_at',
 ])]
 class CustomerControl extends Model
 {
@@ -34,6 +36,7 @@ class CustomerControl extends Model
             'participation_fee_limit' => 'integer',
             'self_excluded_until' => 'datetime',
             'verification_requested_at' => 'datetime',
+            'verification_submitted_at' => 'datetime',
         ];
     }
 

@@ -55,6 +55,14 @@ class Bidder extends Model
     }
 
     /**
+     * @return HasMany<BidderMessage, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(BidderMessage::class);
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo

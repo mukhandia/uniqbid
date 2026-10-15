@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
  * @property string $auction_display_mode
  * @property int $auction_shuffle_interval_seconds
  * @property int $guest_shop_commission_percent
+ * @property string $licence_number
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -32,6 +33,7 @@ use Illuminate\Support\Str;
     'auction_display_mode',
     'auction_shuffle_interval_seconds',
     'guest_shop_commission_percent',
+    'licence_number',
 ])]
 class SiteSetting extends Model
 {
@@ -50,6 +52,7 @@ class SiteSetting extends Model
             'auction_display_mode' => 'auto',
             'auction_shuffle_interval_seconds' => 5,
             'guest_shop_commission_percent' => 10,
+            'licence_number' => '2026/0010/008895',
         ];
     }
 

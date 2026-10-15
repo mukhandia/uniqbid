@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\CustomerVerificationDocumentController;
 use App\Livewire\Admin\ProductCreate;
 use App\Livewire\Admin\ProductEdit;
 use Illuminate\Support\Facades\Route;
@@ -44,8 +45,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::livewire('products/{product}/edit', ProductEdit::class)->name('products.edit');
     Route::livewire('guest-listings', 'pages::admin.guest-listings')->name('guest-listings');
     Route::livewire('customers', 'pages::admin.customers')->name('customers');
+    Route::livewire('customers/{bidder}', 'pages::admin.customer')->name('customers.show');
     Route::livewire('customer-verifications', 'pages::admin.customer-verifications')->name('customer-verifications');
-    Route::livewire('subscribers', 'pages::admin.subscribers')->name('subscribers');
+    Route::get('verification-documents/{document}', CustomerVerificationDocumentController::class)->name('verification-documents.show');
     Route::livewire('tickets', 'pages::admin.tickets')->name('tickets');
     Route::livewire('tickets/{ticket}', 'pages::admin.ticket')->name('tickets.show');
     Route::livewire('reports', 'pages::admin.reports')->name('reports');

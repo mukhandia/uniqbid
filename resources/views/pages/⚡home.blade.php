@@ -28,7 +28,8 @@ class extends Component {
     $featured = Auction::query()->with('images')->liveOnAuctionChannel()->featured()->orderBy('ends_at')->first()
         ?? $ordering->orderedLive(1)->first();
 
-    $grid = $ordering->orderedLive(10);
+    $liveAuctions = $ordering->orderedLive();
+    $grid = $liveAuctions->take(10);
     $recentSales = AuctionResult::query()->orderByDesc('sold_on')->limit(10)->get();
     $featuredProducts = Product::query()->inShop()->featured()->orderBy('name')->limit(10)->get();
 
@@ -52,7 +53,7 @@ class extends Component {
 @endphp
 
 <div>
-    <section class="relative min-h-[70vh] overflow-hidden bg-navy text-navy-foreground md:min-h-[78vh]">
+    <section class="relative overflow-hidden bg-navy text-navy-foreground">
         <div class="absolute inset-0" aria-hidden="true">
             @if ($featured)
                 <img
@@ -68,9 +69,9 @@ class extends Component {
             <div class="absolute inset-0 bg-gradient-to-t from-navy/70 via-transparent to-navy/30"></div>
         </div>
 
-        <div class="relative z-10 mx-auto grid min-h-[70vh] max-w-7xl items-center gap-10 px-4 py-16 md:min-h-[78vh] md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-10 md:py-24 lg:gap-14">
+        <div class="relative z-10 mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] md:gap-10 md:py-12 lg:gap-14">
             <div class="max-w-xl">
-                <h1 class="mt-4 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
+                <h1 class="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
                     The lowest <span class="text-gold">unique amount</span> secures the item.
                 </h1>
                 <p class="mt-4 max-w-md text-base opacity-90">
@@ -79,7 +80,7 @@ class extends Component {
                 <div class="mt-6 flex flex-wrap gap-3">
                     @if ($featured)
                         <flux:button
-                            href="{{ route('auctions.show', $featured) }}"
+                            href="{{ route('auctions.index') }}"
                             class="bg-accent! text-accent-foreground! hover:bg-accent/90!"
                         >
                             Bid now
@@ -94,7 +95,7 @@ class extends Component {
                         How it works
                     </flux:button>
                 </div>
-                <div class="mt-8 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+                <div class="mt-6 grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
                     @foreach ([
                         ['icon' => 'shield-check', 'label' => 'Licensed'],
                         ['icon' => 'check-badge', 'label' => 'Transparent'],
@@ -111,19 +112,19 @@ class extends Component {
 
             @if ($featured)
                 <a
-                    href="{{ route('auctions.show', $featured) }}"
-                    class="group relative mx-auto hidden w-full max-w-md md:mx-0 md:block md:max-w-none"
-                    aria-label="View {{ $featured->name }}"
+                    href="{{ route('auctions.index') }}"
+                    class="group relative hidden w-full max-w-sm justify-self-end md:block"
+                    aria-label="View live auctions featuring {{ $featured->name }}"
                 >
                     <img
                         src="{{ $featured->primaryImageUrl() }}"
                         alt="{{ $featured->name }}"
-                        class="aspect-[4/5] w-full rounded-2xl border border-white/20 object-cover transition duration-500 group-hover:scale-[1.02]"
+                        class="aspect-[4/3] w-full rounded-2xl border border-white/20 object-cover transition duration-500 group-hover:scale-[1.02]"
                     >
-                    <div class="mt-4">
+                    <div class="mt-3">
                         <div class="text-lg font-semibold leading-snug">{{ $featured->name }}</div>
                         <div class="mt-1 text-sm opacity-80">
-                            Value {{ Money::kes($featured->retail_value) }} · Range {{ Money::kes($featured->min_bid) }}–{{ Money::kes($featured->max_bid) }} · Closes {{ $featured->ends_at?->timezone('Africa/Nairobi')->format('d M, H:i') }} EAT
+                            Value {{ Money::kes($featured->retail_value) }} · Range {{ Money::kes($featured->min_bid) }}–{{ Money::kes($featured->max_bid) }}
                         </div>
                     </div>
                 </a>
@@ -139,7 +140,12 @@ class extends Component {
             </div>
             <a href="{{ route('auctions.index') }}" class="hidden text-sm font-medium text-navy hover:underline sm:inline">See all →</a>
         </div>
-        <x-scroll-row class="mt-6">
+        <div class="mt-6 grid grid-cols-2 gap-3 md:hidden" data-test="home-live-grid">
+            @foreach ($liveAuctions as $auction)
+                <x-auction-card :auction="$auction" class="h-full" wire:key="home-live-grid-{{ $auction->id }}" />
+            @endforeach
+        </div>
+        <x-scroll-row class="mt-6 hidden md:block">
             @foreach ($grid as $auction)
                 <x-scroll-row-item>
                     <x-auction-card :auction="$auction" class="h-full" />

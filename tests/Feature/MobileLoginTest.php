@@ -19,16 +19,13 @@ test('new customers can register through the mobile OTP flow', function () {
         ->assertSet('step', 'profile')
         ->set('name', 'Jane Bidder')
         ->set('email', 'jane@example.com')
-        ->set('marketingConsent', true)
         ->call('completeRegistration')
         ->assertRedirect(route('account', absolute: false));
 
     $user = User::query()->where('phone', '254712345678')->firstOrFail();
 
     expect($user->name)->toBe('Jane Bidder')
-        ->and($user->marketing_consent)->toBeTrue()
-        ->and($user->sms_notifications)->toBeFalse()
-        ->and($user->whatsapp_notifications)->toBeFalse()
+        ->and($user->email)->toBe('jane@example.com')
         ->and($user->phone_verified_at)->not->toBeNull()
         ->and(Bidder::query()->where('user_id', $user->id)->exists())->toBeTrue()
         ->and(MobileLoginCode::query()->where('phone', $user->phone)->whereNotNull('consumed_at')->exists())->toBeTrue();
@@ -119,7 +116,7 @@ test('new customers must enter a valid code before the profile step', function (
         ->assertSet('phoneVerified', false);
 });
 
-test('new customers cannot enable sms or whatsapp updates without offers consent', function () {
+test('new customers can register without an email', function () {
     $component = Livewire::test('pages::auth.mobile-login')
         ->set('phone', '0712 345 678')
         ->call('requestCode');
@@ -128,19 +125,37 @@ test('new customers cannot enable sms or whatsapp updates without offers consent
         ->set('code', $component->get('placeholderCode'))
         ->call('verifyCode')
         ->assertSet('step', 'profile')
-        ->set('name', 'No Offers')
-        ->set('email', 'no-offers@example.com')
-        ->set('marketingConsent', false)
-        ->set('smsNotifications', true)
-        ->assertSet('smsNotifications', false)
-        ->set('whatsappNotifications', true)
-        ->assertSet('whatsappNotifications', false)
+        ->assertSee('Email address (optional)')
+        ->assertDontSee('I agree to receive UniqBid updates and offers')
+        ->set('name', 'No Email')
         ->call('completeRegistration')
+        ->assertHasNoErrors()
         ->assertRedirect(route('account', absolute: false));
 
     $user = User::query()->where('phone', '254712345678')->firstOrFail();
 
-    expect($user->marketing_consent)->toBeFalse()
-        ->and($user->sms_notifications)->toBeFalse()
-        ->and($user->whatsapp_notifications)->toBeFalse();
+    expect($user->email)->toBeNull()
+        ->and($user->name)->toBe('No Email');
+    $this->assertAuthenticatedAs($user);
+});
+
+test('mobile sign in keeps the consent a bidder gave when bidding', function () {
+    Bidder::factory()->create([
+        'phone' => '254712345678',
+        'marketing_consent' => true,
+        'marketing_consented_at' => now(),
+    ]);
+
+    $component = Livewire::test('pages::auth.mobile-login')
+        ->set('phone', '0712 345 678')
+        ->call('requestCode');
+
+    $component
+        ->set('code', $component->get('placeholderCode'))
+        ->call('verifyCode')
+        ->set('name', 'Returning Guest')
+        ->call('completeRegistration')
+        ->assertHasNoErrors();
+
+    expect(Bidder::query()->where('phone', '254712345678')->sole()->marketing_consent)->toBeTrue();
 });

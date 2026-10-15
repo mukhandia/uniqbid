@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Order;
 use App\Models\Product;
@@ -39,23 +38,6 @@ class NotificationPlaceholderService
             template: 'bid_payment_failed',
             message: "UniqBid: Payment for {$bid->auction->name} was not completed. No fee was charged. You can try again from the sale page.",
             context: [
-                'bid_id' => $bid->id,
-                'email' => $bid->bidder->email,
-            ],
-        );
-    }
-
-    public function successfulBuyer(Auction $auction, AuctionBid $bid): void
-    {
-        $bid->loadMissing('bidder');
-
-        $this->send(
-            channel: 'sms_whatsapp_placeholder',
-            to: $bid->bidder->phone,
-            template: 'successful_buyer',
-            message: 'UniqBid: Your bid of '.Money::kes($bid->amount)." secured {$auction->name}. Pay this bid amount on collection/delivery within 7 days. Contact support for pickup instructions.",
-            context: [
-                'auction_id' => $auction->id,
                 'bid_id' => $bid->id,
                 'email' => $bid->bidder->email,
             ],

@@ -45,8 +45,38 @@ test('home hero prefers the featured live sale over the soonest closing sale', f
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('Chosen Homepage Hero')
-        ->assertSee('View Chosen Homepage Hero')
-        ->assertDontSee('View Soonest Closing Sale');
+        ->assertSee('View live auctions featuring Chosen Homepage Hero')
+        ->assertDontSee('View live auctions featuring Soonest Closing Sale');
+});
+
+test('home hero bid now and featured product link to the live auctions page', function () {
+    $featured = Auction::query()->liveOnAuctionChannel()->featured()->first()
+        ?? Auction::query()->liveOnAuctionChannel()->first();
+
+    $response = $this->get(route('home'))->assertOk();
+
+    $response->assertSee('href="'.route('auctions.index').'"', false);
+
+    $hero = str($response->getContent())->betweenFirst('<section class="relative overflow-hidden bg-navy', '</section>');
+
+    expect((string) $hero)
+        ->toContain('Bid now')
+        ->not->toContain(route('auctions.show', $featured));
+});
+
+test('home live now shows every live auction in a mobile grid', function () {
+    Auction::factory()->count(12)->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    $liveCount = Auction::query()->liveOnAuctionChannel()->count();
+
+    $html = $this->get(route('home'))->assertOk()->getContent();
+    $grid = (string) str($html)->after('data-test="home-live-grid"')->before('hidden md:block');
+
+    expect($liveCount)->toBeGreaterThan(10)
+        ->and(substr_count($grid, 'href="'.url('auctions').'/'))->toBe($liveCount);
 });
 
 test('home shop strip only lists featured products', function () {
@@ -71,7 +101,7 @@ test('home shop strip only lists featured products', function () {
 test('home page keeps licence number in the footer only', function () {
     $this->get(route('home'))
         ->assertOk()
-        ->assertSee('L No. AUC/2024/00847')
+        ->assertSee('L No. 2026/0010/008895')
         ->assertDontSee('Licensed Kenyan Auctioneer · Est. 2024');
 });
 

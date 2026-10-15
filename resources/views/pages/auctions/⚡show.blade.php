@@ -40,6 +40,8 @@ class extends Component {
 
     public ?int $paymentAttemptId = null;
 
+    public bool $accountCreated = false;
+
     public function mount(Auction $auction): void
     {
         abort_unless($auction->status === 'live', 404);
@@ -165,7 +167,6 @@ class extends Component {
             'name' => $this->name,
             'email' => $user?->email,
             'phone' => $this->phone,
-            'whatsapp_number' => $this->phone,
             'marketing_consent' => true,
         ]);
 
@@ -180,9 +181,19 @@ class extends Component {
             return;
         }
 
-        app(AuctionBidService::class)->markSucceeded(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
+        $bid = app(AuctionBidService::class)->markSucceeded(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
         $this->formState = 'success';
         $this->refreshLiveSnapshot();
+
+        $account = $bid->bidder->user;
+
+        if (! Auth::check() && $account !== null && ! $account->canAccessAdmin()) {
+            Auth::login($account);
+            session()->regenerate();
+            $this->fillFromCustomer($account);
+            $this->bidStep = 'details';
+            $this->accountCreated = true;
+        }
 
         Flux::toast(
             variant: 'success',
@@ -202,6 +213,7 @@ class extends Component {
     public function resetForm(): void
     {
         $this->formState = 'idle';
+        $this->accountCreated = false;
         $this->reference = '';
         $this->paymentAttemptId = null;
     }
@@ -292,8 +304,7 @@ class extends Component {
                             <div class="text-xs text-muted-foreground">Product value</div>
                             <div class="text-xl font-bold text-navy sm:text-2xl">{{ Money::kes($auction->retail_value) }}</div>
                         </div>
-                        <div class="sm:text-right">
-                            <div class="text-xs text-muted-foreground">Closes in</div>
+                        <div class="flex items-center sm:justify-end">
                             <x-countdown
                                 :auction="$auction"
                                 @class(['text-base font-bold sm:text-lg', 'text-red-600' => $closingSoon, 'text-navy' => ! $closingSoon])
@@ -331,6 +342,12 @@ class extends Component {
                                 <div class="mt-1 flex justify-between"><dt class="text-muted-foreground">Fee paid now</dt><dd class="font-semibold">{{ Money::kes($auction->bid_fee) }}</dd></div>
                             </dl>
                             <p class="mt-3 text-xs text-muted-foreground">If this amount is the lowest unique at close, you will pay {{ Money::kes((int) $amount) }} on collection or delivery.</p>
+                            @if ($accountCreated)
+                                <div class="mt-3 rounded-lg border border-border bg-surface px-3 py-2 text-left text-xs text-zinc-800" data-test="account-created">
+                                    We created your UniqBid account for {{ $phone }}. Track your bids in
+                                    <a href="{{ route('account') }}" class="font-medium text-navy underline" wire:navigate>My Account</a>.
+                                </div>
+                            @endif
                             <div class="mt-4 flex gap-2">
                                 <flux:button wire:click="resetForm" class="flex-1 bg-accent! text-accent-foreground!">Enter another amount</flux:button>
                                 <flux:button href="{{ route('auctions.index') }}" variant="outline" class="flex-1">Browse sales</flux:button>

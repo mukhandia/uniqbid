@@ -45,10 +45,12 @@
                     Transparent lowest-unique sales and a curated shop. Genuine items, clear rules, and M-Pesa-ready checkout.
                 </p>
 
-                <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold">
-                    <flux:icon.shield-check class="size-4" />
-                    L No. AUC/2024/00847
-                </div>
+                @if (filled($settings->licence_number))
+                    <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold">
+                        <flux:icon.shield-check class="size-4" />
+                        L No. {{ $settings->licence_number }}
+                    </div>
+                @endif
 
                 <div class="mt-6 flex flex-wrap gap-3">
                     <flux:button href="{{ route('auctions.index') }}" size="sm" class="bg-accent! text-accent-foreground! hover:bg-accent/90!">

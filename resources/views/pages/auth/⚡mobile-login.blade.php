@@ -27,12 +27,6 @@ class extends Component {
 
     public string $email = '';
 
-    public bool $marketingConsent = false;
-
-    public bool $smsNotifications = false;
-
-    public bool $whatsappNotifications = false;
-
     public string $step = 'phone';
 
     public bool $requiresProfile = false;
@@ -42,30 +36,6 @@ class extends Component {
     public string $placeholderCode = '';
 
     public bool $phoneVerified = false;
-
-    public function updatedMarketingConsent(bool $enabled): void
-    {
-        if ($enabled) {
-            return;
-        }
-
-        $this->smsNotifications = false;
-        $this->whatsappNotifications = false;
-    }
-
-    public function updatedSmsNotifications(): void
-    {
-        if (! $this->marketingConsent) {
-            $this->smsNotifications = false;
-        }
-    }
-
-    public function updatedWhatsappNotifications(): void
-    {
-        if (! $this->marketingConsent) {
-            $this->whatsappNotifications = false;
-        }
-    }
 
     public function requestCode(): void
     {
@@ -109,7 +79,7 @@ class extends Component {
 
         $this->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique(User::class)],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique(User::class)],
         ]);
 
         $this->completeLogin();
@@ -126,13 +96,9 @@ class extends Component {
             ['phone' => $this->normalizedPhone],
             [
                 'name' => $this->name,
-                'email' => $this->email,
+                'email' => filled($this->email) ? $this->email : null,
                 'password' => Hash::make(str()->random(40)),
                 'phone_verified_at' => now(),
-                'marketing_consent' => $this->marketingConsent,
-                'marketing_consented_at' => $this->marketingConsent ? now() : null,
-                'sms_notifications' => $this->marketingConsent && $this->smsNotifications,
-                'whatsapp_notifications' => $this->marketingConsent && $this->whatsappNotifications,
             ],
         );
 
@@ -142,11 +108,17 @@ class extends Component {
         $bidder->fill([
             'user_id' => $user->id,
             'name' => $user->name,
-            'email' => $user->email,
-            'whatsapp_number' => $bidder->whatsapp_number ?: $this->normalizedPhone,
-            'marketing_consent' => $user->marketing_consent,
-            'marketing_consented_at' => $user->marketing_consented_at,
-        ])->save();
+            'email' => $user->email ?? $bidder->email,
+        ]);
+
+        if (! $bidder->exists) {
+            $bidder->fill([
+                'marketing_consent' => (bool) $user->marketing_consent,
+                'marketing_consented_at' => $user->marketing_consented_at,
+            ]);
+        }
+
+        $bidder->save();
 
         Auth::login($user);
         session()->regenerate();
@@ -200,13 +172,7 @@ class extends Component {
                 Your mobile number is verified. Complete your profile once to continue.
             </div>
             <flux:input wire:model="name" :label="__('Full name')" autocomplete="name" autofocus />
-            <flux:input wire:model="email" :label="__('Email address')" type="email" autocomplete="email" />
-            <flux:checkbox wire:model.live="marketingConsent" :label="__('I agree to receive UniqBid updates and offers')" />
-            <flux:checkbox wire:model="smsNotifications" :disabled="! $marketingConsent" :label="__('Send me sale and account updates by SMS')" />
-            <flux:checkbox wire:model="whatsappNotifications" :disabled="! $marketingConsent" :label="__('Send me sale and account updates by WhatsApp')" />
-            @unless ($marketingConsent)
-                <p class="text-xs text-muted-foreground">{{ __('Tick updates and offers first to choose SMS or WhatsApp.') }}</p>
-            @endunless
+            <flux:input wire:model="email" :label="__('Email address (optional)')" type="email" autocomplete="email" />
             <flux:button type="submit" variant="primary" class="w-full">
                 Create account
             </flux:button>

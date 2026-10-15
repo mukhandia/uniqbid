@@ -47,18 +47,43 @@ new class extends Component {
 
 <div
     class="relative inline-flex"
-    x-data="{ open: false }"
+    x-data="{
+        open: false,
+        placement: @js($placement),
+        panelStyle: '',
+        toggle() {
+            this.open = ! this.open;
+            if (this.open) this.position();
+        },
+        position() {
+            const gap = 8;
+            const edge = 8;
+            const rect = this.$refs.trigger.getBoundingClientRect();
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const width = Math.min(352, vw - edge * 2);
+            const left = vw < 640
+                ? edge
+                : Math.min(Math.max(this.placement === 'up' ? rect.left : rect.right - width, edge), vw - width - edge);
+            const vertical = this.placement === 'up'
+                ? `bottom: ${vh - rect.top + gap}px; max-height: ${rect.top - gap - edge}px;`
+                : `top: ${rect.bottom + gap}px; max-height: ${vh - rect.bottom - gap - edge}px;`;
+            this.panelStyle = `left: ${left}px; width: ${vw < 640 ? vw - edge * 2 : width}px; ${vertical}`;
+        },
+    }"
     @keydown.escape.window="open = false"
+    @resize.window="open && position()"
     wire:poll.3s.visible
 >
     <button
         type="button"
+        x-ref="trigger"
         class="relative inline-flex size-10 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
         aria-label="{{ $ariaLabel }}"
         aria-expanded="false"
         x-bind:aria-expanded="open.toString()"
         data-test="admin-attention-bell"
-        @click="open = !open"
+        @click="toggle()"
     >
         <flux:icon.bell class="size-5" />
         @if ($totalCount > 0)
@@ -78,19 +103,20 @@ new class extends Component {
         x-transition:leave-start="opacity-100 scale-100"
         x-transition:leave-end="opacity-0 scale-95"
         @click.outside="open = false"
+        x-bind:style="panelStyle"
         @class([
-            'absolute z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900',
-            'bottom-full left-0 mb-2 origin-bottom-left' => $placement === 'up',
-            'top-full right-0 mt-2 origin-top-right' => $placement === 'down',
+            'fixed z-50 flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900',
+            'origin-bottom-left' => $placement === 'up',
+            'origin-top-right' => $placement === 'down',
         ])
         data-test="admin-attention-panel"
     >
-        <div class="border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
+        <div class="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
             <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Needs attention</div>
             <div class="text-xs text-zinc-500">Open an item to mark it as seen.</div>
         </div>
 
-        <ul class="max-h-80 divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
+        <ul class="min-h-0 max-h-80 flex-1 divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
             @forelse ($items as $item)
                 <li wire:key="attention-{{ $item['type'] }}-{{ $item['id'] }}">
                     <button
@@ -115,7 +141,7 @@ new class extends Component {
         </ul>
 
         @if ($canViewTickets || $canViewGuestListings)
-            <div class="flex flex-wrap gap-2 border-t border-zinc-200 px-3 py-2 dark:border-zinc-700">
+            <div class="flex shrink-0 flex-wrap gap-2 border-t border-zinc-200 px-3 py-2 dark:border-zinc-700">
                 @if ($canViewTickets)
                     <a href="{{ route('admin.tickets') }}" wire:navigate class="text-xs font-medium text-navy hover:underline dark:text-sky-300" @click="open = false">
                         All tickets

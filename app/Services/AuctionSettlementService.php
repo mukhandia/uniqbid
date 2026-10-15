@@ -17,7 +17,6 @@ use Illuminate\Validation\ValidationException;
 class AuctionSettlementService
 {
     public function __construct(
-        private readonly NotificationPlaceholderService $notifications,
         private readonly CreateSaleFromProductService $createSaleFromProduct,
     ) {}
 
@@ -110,7 +109,6 @@ class AuctionSettlementService
 
             $this->createSaleFromProduct->consumeStockForSettledSale($auction);
 
-            $this->notifications->successfulBuyer($auction, $successfulBid);
             $auction = $auction->fresh(['result', 'rounds']);
             $this->logActivity($auction, 'sale settled', 'settled');
 
@@ -181,8 +179,6 @@ class AuctionSettlementService
                 'buyer_display' => $this->maskBuyer($nextBid),
                 'sold_on' => now()->toDateString(),
             ]);
-
-            $this->notifications->successfulBuyer($auction, $nextBid);
 
             $this->logActivity($auction->fresh(), 'sale re-offered', 'reoffered');
 

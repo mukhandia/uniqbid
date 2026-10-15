@@ -31,6 +31,17 @@ class extends Component {
 
     public int $shuffleIntervalSeconds = 5;
 
+    /** @var array<string, int> */
+    private const EXTEND_UNITS = ['minutes' => 1, 'hours' => 60, 'days' => 1440];
+
+    private const MAX_EXTENSION_MINUTES = 43200;
+
+    public ?int $extendAuctionId = null;
+
+    public string $extendAmount = '1';
+
+    public string $extendUnit = 'hours';
+
     public function mount(): void
     {
         $this->shuffleIntervalSeconds = SiteSetting::current()->auctionShuffleIntervalSeconds();
@@ -96,7 +107,16 @@ class extends Component {
             ->latest('ends_at')
             ->paginate(20);
 
+        $extendAuction = $this->extendAuctionId !== null ? Auction::query()->find($this->extendAuctionId) : null;
+        $extendMinutes = ctype_digit($this->extendAmount) && isset(self::EXTEND_UNITS[$this->extendUnit])
+            ? (int) $this->extendAmount * self::EXTEND_UNITS[$this->extendUnit]
+            : 0;
+
         return [
+            'extendAuction' => $extendAuction,
+            'extendPreview' => $extendAuction !== null && $extendMinutes > 0 && $extendMinutes <= self::MAX_EXTENSION_MINUTES
+                ? max($extendAuction->ends_at, now())->addMinutes($extendMinutes)
+                : null,
             'auctions' => $auctions,
             'categories' => Auction::query()->distinct()->orderBy('category')->pluck('category'),
             'hasActiveFilters' => $this->search !== '' || $this->status !== 'all' || $this->category !== '',
@@ -123,22 +143,83 @@ class extends Component {
         Flux::toast(variant: 'success', text: $message);
     }
 
-    public function extend(int $auctionId): void
+    public function openExtend(int $auctionId): void
     {
         $auction = Auction::query()->findOrFail($auctionId);
+
+        if ($auction->status !== 'live') {
+            Flux::toast(variant: 'danger', text: 'Only live sales can be extended.');
+
+            return;
+        }
+
+        $this->extendAuctionId = $auction->id;
+        $this->extendAmount = '1';
+        $this->extendUnit = 'hours';
+        $this->resetValidation();
+
+        $this->modal('extend-sale')->show();
+    }
+
+    public function cancelExtend(): void
+    {
+        $this->reset('extendAuctionId', 'extendAmount', 'extendUnit');
+        $this->resetValidation();
+    }
+
+    public function extend(): void
+    {
+        $validated = $this->validate([
+            'extendAuctionId' => ['required', 'integer', 'exists:auctions,id'],
+            'extendAmount' => ['required', 'integer', 'min:1'],
+            'extendUnit' => ['required', 'in:'.implode(',', array_keys(self::EXTEND_UNITS))],
+        ], [
+            'extendAmount.required' => 'Enter how long to extend the sale by.',
+            'extendAmount.min' => 'Enter at least 1.',
+        ]);
+
+        $minutes = (int) $validated['extendAmount'] * self::EXTEND_UNITS[$validated['extendUnit']];
+
+        if ($minutes > self::MAX_EXTENSION_MINUTES) {
+            $this->addError('extendAmount', 'An extension can be at most 30 days.');
+
+            return;
+        }
+
+        $auction = Auction::query()->findOrFail($validated['extendAuctionId']);
+
+        if ($auction->status !== 'live') {
+            Flux::toast(variant: 'danger', text: 'Only live sales can be extended.');
+
+            return;
+        }
+
         $auction->update([
-            'ends_at' => max($auction->ends_at, now())->addMinutes($auction->extension_minutes),
+            'ends_at' => max($auction->ends_at, now())->addMinutes($minutes),
             'status' => 'live',
             'settled_at' => null,
             'settled_by' => null,
         ]);
 
+        $label = $this->extensionLabel((int) $validated['extendAmount'], $validated['extendUnit']);
+
         AuditLogger::log('auctions', 'sale extended', 'extended', $auction->fresh(), [
-            'extension_minutes' => $auction->extension_minutes,
+            'extension_minutes' => $minutes,
+            'extension' => $label,
             'ends_at' => $auction->fresh()->ends_at?->toIso8601String(),
         ]);
 
-        Flux::toast(variant: 'success', text: "Sale extended by {$auction->extension_minutes} minutes.");
+        $this->modal('extend-sale')->close();
+        $this->cancelExtend();
+
+        Flux::toast(variant: 'success', text: "Sale extended by {$label}.");
+    }
+
+    public function extensionLabel(int $amount, string $unit): string
+    {
+        $singular = rtrim($unit, 's');
+
+        return $amount.' '.($amount === 1 ? $singular : $unit);
     }
 
     public function void(int $auctionId): void
@@ -228,7 +309,7 @@ class extends Component {
 <div class="space-y-6">
     <div>
         <flux:heading size="xl">Sales & Auctions</flux:heading>
-        <flux:text class="mt-1">Click a sale name to open incoming bids and processing. That page refreshes every 3 minutes. When a sale ends with no unique bid, the next round starts automatically for the full duration (rounds are for admin audit only). Extend can add time while a sale is still live. Re-offer moves an unpaid successful buy to the next unique bidder. Delete a mistaken sale only when no participation fee has been paid — that returns stock and removes the sale. Use Void when bidders have already paid, so bid history remains for refunds.</flux:text>
+        <flux:text class="mt-1">Click a sale name to open incoming bids and processing. That page refreshes every 3 minutes. When a sale ends with no unique bid, the next round starts automatically for the full duration (rounds are for admin audit only). Extend lets you add the time you choose (minutes, hours or days) while a sale is still live. Re-offer moves an unpaid successful buy to the next unique bidder. Delete a mistaken sale only when no participation fee has been paid — that returns stock and removes the sale. Use Void when bidders have already paid, so bid history remains for refunds.</flux:text>
     </div>
 
     <div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
@@ -285,6 +366,51 @@ class extends Component {
         </flux:text>
     </div>
 
+    <flux:modal name="extend-sale" wire:close="cancelExtend" class="w-full md:max-w-md">
+        @if ($extendAuction)
+            <form wire:submit="extend" class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Extend sale</flux:heading>
+                    <flux:text class="mt-1">
+                        {{ $extendAuction->name }} · currently closes
+                        {{ $extendAuction->ends_at->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT
+                    </flux:text>
+                </div>
+
+                <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                    <flux:field>
+                        <flux:label>Extend by</flux:label>
+                        <flux:input type="number" min="1" wire:model.live.debounce.300ms="extendAmount" data-test="extend-amount" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Unit</flux:label>
+                        <flux:select wire:model.live="extendUnit" data-test="extend-unit">
+                            <flux:select.option value="minutes">Minutes</flux:select.option>
+                            <flux:select.option value="hours">Hours</flux:select.option>
+                            <flux:select.option value="days">Days</flux:select.option>
+                        </flux:select>
+                    </flux:field>
+                </div>
+                <flux:error name="extendAmount" />
+                <flux:error name="extendUnit" />
+
+                @if ($extendPreview)
+                    <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800">
+                        New closing time:
+                        <span class="font-semibold">{{ $extendPreview->timezone('Africa/Nairobi')->format('d M Y, H:i') }} EAT</span>
+                    </div>
+                @endif
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">Cancel</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" class="bg-accent! text-accent-foreground!">Extend sale</flux:button>
+                </div>
+            </form>
+        @endif
+    </flux:modal>
+
     <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900" wire:poll.180s.visible>
         <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
             <thead class="bg-zinc-50 text-left dark:bg-zinc-800">
@@ -326,7 +452,7 @@ class extends Component {
                                 {{ $auction->name }}
                             </a>
                             <div class="mt-0.5 text-xs text-zinc-500">
-                                {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · round {{ $auction->current_round }} · {{ rtrim(rtrim(number_format((float) $auction->duration_hours, 2, '.', ''), '0'), '.') }}h rounds · extend {{ $auction->extension_minutes }} min
+                                {{ $auction->category }} · fee {{ Money::kes($auction->bid_fee) }} · round {{ $auction->current_round }} · {{ rtrim(rtrim(number_format((float) $auction->duration_hours, 2, '.', ''), '0'), '.') }}h rounds
                             </div>
                             @if ($auction->is_featured && $auction->isOpenLive())
                                 <div class="mt-1.5">
@@ -388,7 +514,7 @@ class extends Component {
                                     </flux:button>
                                 @endif
                                 @if ($auction->status === 'live')
-                                    <flux:button size="sm" variant="outline" wire:click="extend({{ $auction->id }})" wire:confirm="Extend this sale?">
+                                    <flux:button size="sm" variant="outline" wire:click="openExtend({{ $auction->id }})">
                                         Extend
                                     </flux:button>
                                     <flux:button size="sm" variant="outline" wire:click="void({{ $auction->id }})" wire:confirm="Void this sale?">

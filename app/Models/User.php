@@ -19,7 +19,7 @@ use Spatie\Permission\Traits\HasRoles;
 /**
  * @property int $id
  * @property string $name
- * @property string $email
+ * @property string|null $email
  * @property string|null $phone
  * @property Carbon|null $email_verified_at
  * @property Carbon|null $phone_verified_at
@@ -86,6 +86,14 @@ class User extends Authenticatable
     public function customerControl(): HasOne
     {
         return $this->hasOne(CustomerControl::class);
+    }
+
+    /**
+     * @return HasMany<CustomerVerificationDocument, $this>
+     */
+    public function verificationDocuments(): HasMany
+    {
+        return $this->hasMany(CustomerVerificationDocument::class)->latest('id');
     }
 
     /**

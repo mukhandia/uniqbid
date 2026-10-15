@@ -9,6 +9,8 @@ use App\Models\PaymentAttempt;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuctionBidService
@@ -34,10 +36,9 @@ class AuctionBidService
             }
 
             $phone = $this->normalizeKenyanPhone($details['phone']);
-            $whatsappSource = filled($details['whatsapp_number'] ?? null)
-                ? (string) $details['whatsapp_number']
-                : $details['phone'];
-            $whatsapp = $this->normalizeKenyanPhone($whatsappSource);
+            $whatsapp = filled($details['whatsapp_number'] ?? null)
+                ? $this->normalizeKenyanPhone((string) $details['whatsapp_number'])
+                : null;
             $consent = (bool) ($details['marketing_consent'] ?? true);
             $email = filled($details['email'] ?? null) ? (string) $details['email'] : null;
             $user = User::query()->where('phone', $phone)->first();
@@ -57,7 +58,7 @@ class AuctionBidService
                 'user_id' => $user?->id,
                 'name' => $details['name'],
                 'email' => $email ?? $bidder->email,
-                'whatsapp_number' => $whatsapp,
+                'whatsapp_number' => $whatsapp ?? $bidder->whatsapp_number,
                 'marketing_consent' => $consent,
                 'marketing_consented_at' => $consent ? ($bidder->marketing_consented_at ?? now()) : null,
             ])->save();
@@ -114,7 +115,9 @@ class AuctionBidService
             $bid->update(['status' => 'accepted', 'paid_at' => now()]);
             $bid->auction()->increment('bids_count');
 
-            return $bid->fresh(['auction', 'bidder']);
+            $this->ensureCustomerAccount($bid->bidder()->lockForUpdate()->firstOrFail());
+
+            return $bid->fresh(['auction', 'bidder.user']);
         });
 
         $this->notifications->paymentSucceeded($bid);
@@ -165,6 +168,44 @@ class AuctionBidService
         }
 
         return $digits;
+    }
+
+    /**
+     * A bidder's first paid participation fee proves the mobile number, so the account is created then.
+     */
+    public function ensureCustomerAccount(Bidder $bidder): ?User
+    {
+        if ($bidder->user_id !== null && ($linked = User::query()->find($bidder->user_id)) !== null) {
+            return $linked;
+        }
+
+        $user = User::query()->where('phone', $bidder->phone)->first();
+
+        if ($user?->canAccessAdmin()) {
+            return null;
+        }
+
+        if ($user === null) {
+            $email = filled($bidder->email) && ! User::query()->where('email', $bidder->email)->exists()
+                ? $bidder->email
+                : null;
+
+            $user = User::query()->create([
+                'name' => $bidder->name,
+                'email' => $email,
+                'phone' => $bidder->phone,
+                'password' => Hash::make(Str::random(40)),
+                'marketing_consent' => $bidder->marketing_consent,
+                'marketing_consented_at' => $bidder->marketing_consent ? ($bidder->marketing_consented_at ?? now()) : null,
+                'sms_notifications' => $bidder->marketing_consent,
+                'whatsapp_notifications' => $bidder->marketing_consent,
+            ]);
+            $user->forceFill(['phone_verified_at' => now()])->save();
+        }
+
+        $bidder->forceFill(['user_id' => $user->id])->save();
+
+        return $user;
     }
 
     private function reference(string $prefix): string

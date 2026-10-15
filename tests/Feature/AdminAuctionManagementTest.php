@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\AuctionSettlementService;
 use App\Services\CreateSaleFromProductService;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 test('admins can export an individual sale as csv', function () {
     $admin = User::factory()->admin()->create();
@@ -418,4 +419,93 @@ test('admins cannot delete a sale after a participation fee has been paid', func
         ->call('delete', $auction->id);
 
     expect(Auction::query()->whereKey($auction->id)->exists())->toBeTrue();
+});
+
+test('admins extend a live sale by the duration they enter', function (string $amount, string $unit, int $minutes, string $label) {
+    $this->freezeSecond();
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHours(3),
+        'extension_minutes' => 60,
+    ]);
+    $originalEnd = $auction->ends_at->copy();
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('openExtend', $auction->id)
+        ->assertSet('extendAuctionId', $auction->id)
+        ->set('extendAmount', $amount)
+        ->set('extendUnit', $unit)
+        ->assertSee('New closing time')
+        ->call('extend')
+        ->assertHasNoErrors()
+        ->assertSet('extendAuctionId', null);
+
+    expect($auction->fresh()->ends_at->equalTo($originalEnd->copy()->addMinutes($minutes)))->toBeTrue();
+
+    $activity = Activity::query()->where('event', 'extended')->latest('id')->first();
+
+    expect($activity->properties['extension_minutes'])->toBe($minutes)
+        ->and($activity->properties['extension'])->toBe($label);
+})->with([
+    'minutes' => ['45', 'minutes', 45, '45 minutes'],
+    'one hour' => ['1', 'hours', 60, '1 hour'],
+    'hours' => ['5', 'hours', 300, '5 hours'],
+    'days' => ['2', 'days', 2880, '2 days'],
+]);
+
+test('extending a sale that already passed its end time counts from now', function () {
+    $this->freezeSecond();
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->subHour(),
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('openExtend', $auction->id)
+        ->set('extendAmount', '2')
+        ->set('extendUnit', 'hours')
+        ->call('extend')
+        ->assertHasNoErrors();
+
+    expect($auction->fresh()->ends_at->equalTo(now()->addHours(2)))->toBeTrue();
+});
+
+test('sale extension rejects empty, zero and over 30 day durations', function (string $amount, string $unit) {
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+    ]);
+    $originalEnd = $auction->ends_at->copy();
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('openExtend', $auction->id)
+        ->set('extendAmount', $amount)
+        ->set('extendUnit', $unit)
+        ->call('extend')
+        ->assertHasErrors(['extendAmount']);
+
+    expect($auction->fresh()->ends_at->equalTo($originalEnd))->toBeTrue();
+})->with([
+    'empty' => ['', 'hours'],
+    'zero' => ['0', 'minutes'],
+    'over 30 days' => ['31', 'days'],
+]);
+
+test('only live sales can be opened for extension', function () {
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'status' => 'voided',
+        'ends_at' => now()->subHour(),
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auctions')
+        ->call('openExtend', $auction->id)
+        ->assertSet('extendAuctionId', null);
 });

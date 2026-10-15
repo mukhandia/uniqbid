@@ -52,6 +52,22 @@ test('admin can update contact details used on the public site', function () {
         ->assertSee('hello@uniqbid.co.ke');
 });
 
+test('admin can update the licence number shown in the footer', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test('pages::admin.settings')
+        ->assertSet('licenceNumber', '2026/0010/008895')
+        ->set('licenceNumber', '2027/0011/009999')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(SiteSetting::query()->first()->licence_number)->toBe('2027/0011/009999');
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('L No. 2027/0011/009999');
+});
+
 test('admin settings rejects a map url from an unknown host', function () {
     $this->actingAs($this->admin);
 

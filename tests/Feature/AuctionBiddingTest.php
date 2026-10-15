@@ -3,6 +3,7 @@
 use App\Models\Auction;
 use App\Models\Bidder;
 use App\Models\User;
+use App\Services\AuctionBidService;
 use Livewire\Livewire;
 
 test('non live auctions return not found', function () {
@@ -182,8 +183,36 @@ test('a direct guest entry saves the bidder profile before payment confirmation'
 
     expect($bidder->name)->toBe('Amina Wanjiku')
         ->and($bidder->email)->toBeNull()
-        ->and($bidder->whatsapp_number)->toBe('254712345678')
+        ->and($bidder->whatsapp_number)->toBeNull()
         ->and($bidder->marketing_consent)->toBeTrue();
+});
+
+test('bidding keeps a whatsapp number the customer saved themselves', function () {
+    $user = User::factory()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+    ]);
+    Bidder::factory()->create([
+        'user_id' => $user->id,
+        'phone' => $user->phone,
+        'whatsapp_number' => '254799888777',
+    ]);
+    $auction = Auction::factory()->create([
+        'min_bid' => 10,
+        'max_bid' => 1000,
+        'bid_increment' => 5,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::auctions.show', ['auction' => $auction])
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->assertHasNoErrors();
+
+    expect(Bidder::query()->where('phone', '254712345678')->sole()->whatsapp_number)->toBe('254799888777');
 });
 
 test('an unauthenticated visitor cannot submit an entry using an existing customer number', function () {
@@ -273,4 +302,103 @@ test('image selection updates active image index', function () {
         ->assertSet('activeImage', 0)
         ->call('selectImage', 1)
         ->assertSet('activeImage', 1);
+});
+
+test('a new number gets an account and is signed in once the first participation fee is paid', function () {
+    $auction = Auction::factory()->create([
+        'min_bid' => 10,
+        'max_bid' => 1000,
+        'bid_increment' => 5,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('phone', '0712345678')
+        ->call('continueWithPhone')
+        ->assertSet('bidStep', 'details')
+        ->set('name', 'Amina Wanjiku')
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->assertHasNoErrors();
+
+    expect(User::query()->where('phone', '254712345678')->exists())->toBeFalse();
+    $this->assertGuest();
+
+    $component->call('simulateStkPushSuccess')
+        ->assertSet('formState', 'success')
+        ->assertSet('accountCreated', true)
+        ->assertSee('We created your UniqBid account');
+
+    $user = User::query()->where('phone', '254712345678')->sole();
+
+    expect($user->name)->toBe('Amina Wanjiku')
+        ->and($user->email)->toBeNull()
+        ->and($user->is_admin)->toBeFalse()
+        ->and($user->phone_verified_at)->not->toBeNull()
+        ->and($user->marketing_consent)->toBeTrue()
+        ->and(Bidder::query()->where('phone', '254712345678')->sole()->user_id)->toBe($user->id);
+
+    $this->assertAuthenticatedAs($user);
+});
+
+test('a failed participation fee does not create an account', function () {
+    $auction = Auction::factory()->create([
+        'min_bid' => 10,
+        'max_bid' => 1000,
+        'bid_increment' => 5,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('name', 'Amina Wanjiku')
+        ->set('phone', '0712345678')
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->call('simulateStkPushFailure')
+        ->assertSet('formState', 'failure');
+
+    expect(User::query()->where('phone', '254712345678')->exists())->toBeFalse();
+    $this->assertGuest();
+});
+
+test('after the account is created the same number needs the sign in code to bid again', function () {
+    $auction = Auction::factory()->create([
+        'min_bid' => 10,
+        'max_bid' => 1000,
+        'bid_increment' => 5,
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('name', 'Amina Wanjiku')
+        ->set('phone', '0712345678')
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->call('simulateStkPushSuccess');
+
+    auth()->logout();
+
+    Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('phone', '0712345678')
+        ->call('continueWithPhone')
+        ->assertSet('bidStep', 'account');
+});
+
+test('a guest bidder email is reused for the new account only when it is free', function () {
+    User::factory()->create(['email' => 'taken@example.com']);
+    $bidder = Bidder::factory()->create([
+        'phone' => '254733333333',
+        'email' => 'taken@example.com',
+    ]);
+
+    $user = app(AuctionBidService::class)->ensureCustomerAccount($bidder);
+
+    expect($user->email)->toBeNull()
+        ->and($bidder->fresh()->user_id)->toBe($user->id);
 });
