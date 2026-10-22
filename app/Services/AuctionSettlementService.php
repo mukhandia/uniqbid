@@ -123,6 +123,34 @@ class AuctionSettlementService
         });
     }
 
+    /**
+     * End a running sale immediately and settle it with the same rules as the timer.
+     *
+     * @return array{auction: Auction, successful_bid: ?AuctionBid, advanced_round: bool, next_sale: ?Auction}
+     */
+    public function closeNow(Auction $auction, ?User $closedBy = null): array
+    {
+        $auction = DB::transaction(function () use ($auction): Auction {
+            $auction = Auction::query()->lockForUpdate()->findOrFail($auction->id);
+
+            if (! $auction->isOpenLive()) {
+                throw ValidationException::withMessages([
+                    'auction' => 'Only a sale that is still running can be closed early.',
+                ]);
+            }
+
+            $auction->forceFill([
+                'ends_at' => now()->subSecond(),
+            ])->save();
+
+            $this->logActivity($auction, 'sale closed before the timer', 'closed_early');
+
+            return $auction;
+        });
+
+        return $this->settle($auction->fresh(), $closedBy);
+    }
+
     public function settleEnded(): int
     {
         $ended = Auction::query()

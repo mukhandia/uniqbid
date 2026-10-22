@@ -4,9 +4,12 @@ use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\Bidder;
 use App\Models\Product;
+use App\Models\User;
 use App\Services\AuctionSettlementService;
 use App\Services\CreateSaleFromProductService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 
 test('lowest unique accepted bid becomes the successful buy', function () {
     Log::spy();
@@ -151,6 +154,82 @@ test('settling a successful sale decrements stock and can go negative', function
         ->and($nextSale)->not->toBeNull()
         ->and($nextSale->duration_hours)->toEqual(1.0)
         ->and($nextSale->ends_at->isFuture())->toBeTrue();
+});
+
+test('closing a running sale settles the lowest unique bid immediately', function () {
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHours(5),
+        'duration_hours' => 5,
+    ]);
+
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'amount' => 9,
+    ]);
+
+    $result = app(AuctionSettlementService::class)->closeNow($auction);
+
+    expect($result['successful_bid']?->amount)->toBe(9)
+        ->and($result['advanced_round'])->toBeFalse()
+        ->and($auction->fresh()->settled_at)->not->toBeNull()
+        ->and($auction->fresh()->result->sale_price)->toBe(9)
+        ->and($auction->fresh()->ends_at->isPast())->toBeTrue();
+});
+
+test('closing a running sale with no unique bid starts the next round', function () {
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->addHours(8),
+        'current_round' => 1,
+        'duration_hours' => 8,
+    ]);
+
+    AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 4]);
+    AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 4]);
+
+    $result = app(AuctionSettlementService::class)->closeNow($auction);
+    $fresh = $auction->fresh();
+
+    expect($result['advanced_round'])->toBeTrue()
+        ->and($result['successful_bid'])->toBeNull()
+        ->and($fresh->status)->toBe('live')
+        ->and($fresh->settled_at)->toBeNull()
+        ->and($fresh->current_round)->toBe(2)
+        ->and($fresh->ends_at->isFuture())->toBeTrue();
+});
+
+test('a sale that has already ended cannot be closed early', function () {
+    $auction = Auction::factory()->create([
+        'status' => 'live',
+        'ends_at' => now()->subMinute(),
+    ]);
+
+    expect(fn () => app(AuctionSettlementService::class)->closeNow($auction))
+        ->toThrow(ValidationException::class);
+});
+
+test('an admin can close a running sale from the sale page', function () {
+    $admin = User::factory()->admin()->create();
+    $auction = Auction::factory()->create([
+        'name' => 'Early Close Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHours(5),
+    ]);
+
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'amount' => 12,
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test('pages::admin.auction-bids', ['auction' => $auction])
+        ->assertSee('Close sale now')
+        ->call('closeNow')
+        ->assertHasNoErrors();
+
+    expect($auction->fresh()->settled_at)->not->toBeNull()
+        ->and($auction->fresh()->result->sale_price)->toBe(12);
 });
 
 test('settling a successful sale without a product does not auto-start another sale', function () {

@@ -189,7 +189,33 @@ class extends Component {
             return;
         }
 
+        $this->finishSettlement($result);
+    }
+
+    public function closeNow(AuctionSettlementService $settlement): void
+    {
+        try {
+            $result = $settlement->closeNow($this->auction, auth()->user());
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: $exception->errors()['auction'][0] ?? 'This sale cannot be closed yet.',
+            );
+
+            return;
+        }
+
+        $this->finishSettlement($result);
+    }
+
+    /**
+     * @param  array{auction: \App\Models\Auction, successful_bid: ?\App\Models\AuctionBid, advanced_round: bool, next_sale: ?\App\Models\Auction}  $result
+     */
+    private function finishSettlement(array $result): void
+    {
         $this->auction = $result['auction']->load(['result.auctionBid.bidder']);
+
+        Auction::ensureHomepageHero();
 
         $message = $result['successful_bid']
             ? 'Sale settled. Successful bid: '.Money::kes($result['successful_bid']->amount)
@@ -384,7 +410,7 @@ class extends Component {
                         @if ($leadingBid && $leadingBidder)
                             Lowest unique accepted bid is {{ Money::kes($leadingBid->amount) }} from {{ $leadingBidder->name }}.
                         @else
-                            There is no unique accepted bid yet. Settling will close the sale without a successful buyer.
+                            There is no unique accepted bid. Settling starts the next round.
                         @endif
                     </p>
                 </div>
@@ -514,6 +540,24 @@ class extends Component {
             This sale was settled without a unique accepted bid. Re-offer or re-run it from the sales list if you still want to sell the item.
         </flux:callout>
     @elseif ($isLiveOpen)
+        <flux:callout icon="clock">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="font-medium">This sale is still running.</div>
+                    <p class="mt-1 text-sm">
+                        Close it now to run the same settlement the timer uses.
+                        @if ($leadingBid && $leadingBidder)
+                            The lowest unique accepted bid is {{ Money::kes($leadingBid->amount) }} from {{ $leadingBidder->name }}.
+                        @else
+                            There is no unique accepted bid. Closing now starts the next round.
+                        @endif
+                    </p>
+                </div>
+                <flux:button class="w-full sm:w-auto" wire:click="closeNow" wire:confirm="Close this sale now? Settlement runs immediately, the same way it does when the timer ends.">
+                    Close sale now
+                </flux:button>
+            </div>
+        </flux:callout>
         <section class="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:heading size="lg">Current lowest unique</flux:heading>
             @if ($leadingBid && $leadingBidder)

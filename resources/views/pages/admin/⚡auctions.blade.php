@@ -126,7 +126,45 @@ class extends Component {
     public function settle(int $auctionId): void
     {
         $auction = Auction::query()->findOrFail($auctionId);
-        $result = app(AuctionSettlementService::class)->settle($auction, auth()->user());
+
+        try {
+            $result = app(AuctionSettlementService::class)->settle($auction, auth()->user());
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: $exception->errors()['auction'][0] ?? 'This sale cannot be settled yet.',
+            );
+
+            return;
+        }
+
+        $this->finishSettlement($result);
+    }
+
+    public function closeNow(int $auctionId): void
+    {
+        $auction = Auction::query()->findOrFail($auctionId);
+
+        try {
+            $result = app(AuctionSettlementService::class)->closeNow($auction, auth()->user());
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: $exception->errors()['auction'][0] ?? 'This sale cannot be closed yet.',
+            );
+
+            return;
+        }
+
+        $this->finishSettlement($result);
+    }
+
+    /**
+     * @param  array{auction: Auction, successful_bid: ?\App\Models\AuctionBid, advanced_round: bool, next_sale: ?Auction}  $result
+     */
+    private function finishSettlement(array $result): void
+    {
+        Auction::ensureHomepageHero();
 
         $message = $result['successful_bid']
             ? 'Sale settled. Successful bid: '.Money::kes($result['successful_bid']->amount)
@@ -137,8 +175,6 @@ class extends Component {
         if (($result['next_sale'] ?? null) !== null) {
             $message .= ' Next live sale started automatically.';
         }
-
-        Auction::ensureHomepageHero();
 
         Flux::toast(variant: 'success', text: $message);
     }
@@ -506,6 +542,9 @@ class extends Component {
                                 @elseif ($auction->status === 'live' && $auction->ends_at->isFuture())
                                     <flux:button size="sm" variant="outline" wire:click="toggleHomepageHero({{ $auction->id }})" wire:confirm="Set this sale as the homepage hero? This replaces any current homepage hero.">
                                         Set as homepage hero
+                                    </flux:button>
+                                    <flux:button size="sm" wire:click="closeNow({{ $auction->id }})" wire:confirm="Close this sale now? Settlement runs immediately, the same way it does when the timer ends.">
+                                        Close now
                                     </flux:button>
                                 @endif
                                 @if (! $auction->settled_at && $auction->ends_at->isPast())
