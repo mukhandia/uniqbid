@@ -13,6 +13,13 @@ use Throwable;
 
 class DarajaStkService
 {
+    /**
+     * Safaricom result codes that will not change. 4999 means the payment is still processing.
+     *
+     * @var list<int>
+     */
+    private const FINAL_FAILURE_CODES = [1, 1001, 1019, 1025, 1032, 1037, 2001];
+
     public function __construct(
         private readonly AuctionBidService $bids,
     ) {}
@@ -155,6 +162,16 @@ class DarajaStkService
 
         if ($resultCode === 0) {
             $this->bids->markSucceeded($attempt->fresh(), $stored);
+
+            return;
+        }
+
+        if (! in_array($resultCode, self::FINAL_FAILURE_CODES, true)) {
+            Log::info('daraja.stk.query.pending', [
+                'attempt_id' => $attempt->id,
+                'result_code' => $resultCode,
+                'result_desc' => $resultDesc,
+            ]);
 
             return;
         }

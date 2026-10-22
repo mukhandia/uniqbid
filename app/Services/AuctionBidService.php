@@ -109,7 +109,7 @@ class AuctionBidService
                 return $bid->load(['auction', 'bidder']);
             }
 
-            if ($attempt->status !== 'initiated') {
+            if (! in_array($attempt->status, ['initiated', 'failed'], true)) {
                 throw ValidationException::withMessages([
                     'payment' => 'This payment attempt can no longer be completed.',
                 ]);
@@ -117,10 +117,14 @@ class AuctionBidService
 
             $attempt->update([
                 'status' => 'succeeded',
+                'failure_reason' => null,
                 'response_payload' => $responsePayload ?? ['status' => 'stk_push_simulated_success'],
             ]);
-            $bid->update(['status' => 'accepted', 'paid_at' => now()]);
-            $bid->auction()->increment('bids_count');
+
+            if ($bid->status !== 'accepted') {
+                $bid->update(['status' => 'accepted', 'paid_at' => now()]);
+                $bid->auction()->increment('bids_count');
+            }
 
             $this->ensureCustomerAccount($bid->bidder()->lockForUpdate()->firstOrFail());
 

@@ -234,6 +234,63 @@ test('an stk status check keeps waiting when safaricom has no result yet', funct
         ->and($attempt->fresh()->auctionBid->status)->toBe('pending_payment');
 });
 
+test('an stk status check keeps waiting when safaricom says the payment is still processing', function () {
+    configureDaraja();
+    Http::preventStrayRequests();
+    Http::fake([
+        '*/oauth/v1/generate*' => Http::response([
+            'access_token' => 'token-1',
+            'expires_in' => 3599,
+        ]),
+        '*/mpesa/stkpushquery/v1/query' => Http::response([
+            'ResultCode' => '4999',
+            'ResultDesc' => 'The transaction is still under processing',
+        ]),
+    ]);
+
+    $attempt = participationAttempt(darajaAuction());
+    $attempt->update(['checkout_request_id' => 'ws_CO_processing']);
+
+    app(DarajaStkService::class)->queryPayment($attempt->fresh());
+
+    expect($attempt->fresh()->status)->toBe('initiated')
+        ->and($attempt->fresh()->failure_reason)->toBeNull()
+        ->and($attempt->fresh()->auctionBid->status)->toBe('pending_payment');
+});
+
+test('a success callback still records the fee after a premature failure', function () {
+    $attempt = participationAttempt(darajaAuction());
+    $attempt->update(['checkout_request_id' => 'ws_CO_late']);
+    app(AuctionBidService::class)->markFailed($attempt, 'The transaction is still under processing', [
+        'source' => 'stk_query',
+        'result_code' => 4999,
+        'result_desc' => 'The transaction is still under processing',
+    ]);
+
+    $this->postJson(route('mpesa.stk.callback'), [
+        'Body' => [
+            'stkCallback' => [
+                'CheckoutRequestID' => 'ws_CO_late',
+                'ResultCode' => 0,
+                'ResultDesc' => 'The service request is processed successfully.',
+                'CallbackMetadata' => [
+                    'Item' => [
+                        ['Name' => 'Amount', 'Value' => 15],
+                        ['Name' => 'MpesaReceiptNumber', 'Value' => 'UJMFCBJXMF'],
+                    ],
+                ],
+            ],
+        ],
+    ])->assertSuccessful();
+
+    $attempt->refresh();
+
+    expect($attempt->status)->toBe('succeeded')
+        ->and($attempt->mpesa_receipt)->toBe('UJMFCBJXMF')
+        ->and($attempt->failure_reason)->toBeNull()
+        ->and($attempt->auctionBid->status)->toBe('accepted');
+});
+
 test('an stk status check records a cancelled prompt', function () {
     configureDaraja();
     Http::preventStrayRequests();
