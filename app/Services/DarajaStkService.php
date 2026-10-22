@@ -150,6 +150,7 @@ class DarajaStkService
     }
 
     /**
+     * @param  array<string, mixed>  $callback
      * @return array<string, mixed>
      */
     private function metadata(array $callback): array
