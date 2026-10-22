@@ -40,9 +40,7 @@ class DarajaStkService
             ]);
         }
 
-        $timestamp = now()->timezone('Africa/Nairobi')->format('YmdHis');
-        $shortcode = (string) config('mpesa.shortcode');
-        $password = base64_encode($shortcode.config('mpesa.passkey').$timestamp);
+        $credentials = $this->passwordFields();
 
         try {
             $token = $this->accessToken();
@@ -56,13 +54,11 @@ class DarajaStkService
             $response = $this->http()
                 ->withToken($token)
                 ->post('/mpesa/stkpush/v1/processrequest', [
-                    'BusinessShortCode' => $shortcode,
-                    'Password' => $password,
-                    'Timestamp' => $timestamp,
+                    ...$credentials,
                     'TransactionType' => 'CustomerPayBillOnline',
                     'Amount' => $attempt->amount,
                     'PartyA' => $phone,
-                    'PartyB' => $shortcode,
+                    'PartyB' => $credentials['BusinessShortCode'],
                     'PhoneNumber' => $phone,
                     'CallBackURL' => config('mpesa.callback_url'),
                     'AccountReference' => $this->accountReference($attempt),
@@ -95,6 +91,75 @@ class DarajaStkService
             'merchant_request_id' => $body['MerchantRequestID'] ?? null,
             'request_payload' => $payload,
         ]);
+    }
+
+    /**
+     * Ask Safaricom for the STK result when the callback has not arrived yet.
+     * A query error leaves the attempt open so the waiting page can try again.
+     */
+    public function queryPayment(PaymentAttempt $attempt): void
+    {
+        $attempt->refresh();
+
+        if ($attempt->status !== 'initiated' || blank($attempt->checkout_request_id) || ! $this->isReady()) {
+            return;
+        }
+
+        if (! Cache::add('daraja.stk.query.'.$attempt->id, true, 8)) {
+            return;
+        }
+
+        try {
+            $response = $this->http()
+                ->withToken($this->accessToken())
+                ->post('/mpesa/stkpushquery/v1/query', [
+                    ...$this->passwordFields(),
+                    'CheckoutRequestID' => $attempt->checkout_request_id,
+                ]);
+        } catch (ConnectionException $exception) {
+            Log::warning('daraja.stk.query.unreachable', [
+                'attempt_id' => $attempt->id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return;
+        } catch (ValidationException $exception) {
+            Log::warning('daraja.stk.query.unreachable', [
+                'attempt_id' => $attempt->id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
+
+        $decoded = $response->json();
+        /** @var array<string, mixed> $body */
+        $body = is_array($decoded) ? $decoded : [];
+
+        if (! array_key_exists('ResultCode', $body)) {
+            Log::info('daraja.stk.query.pending', [
+                'attempt_id' => $attempt->id,
+                'error_code' => $body['errorCode'] ?? null,
+            ]);
+
+            return;
+        }
+
+        $resultCode = (int) $body['ResultCode'];
+        $resultDesc = (string) ($body['ResultDesc'] ?? 'Payment was not completed.');
+        $stored = [
+            'result_code' => $resultCode,
+            'result_desc' => $resultDesc,
+            'source' => 'stk_query',
+        ];
+
+        if ($resultCode === 0) {
+            $this->bids->markSucceeded($attempt->fresh(), $stored);
+
+            return;
+        }
+
+        $this->bids->markFailed($attempt, $resultDesc, $stored);
     }
 
     /**
@@ -204,6 +269,21 @@ class DarajaStkService
         Cache::put($cacheKey, $token, $ttl);
 
         return $token;
+    }
+
+    /**
+     * @return array{BusinessShortCode: string, Password: string, Timestamp: string}
+     */
+    private function passwordFields(): array
+    {
+        $timestamp = now()->timezone('Africa/Nairobi')->format('YmdHis');
+        $shortcode = (string) config('mpesa.shortcode');
+
+        return [
+            'BusinessShortCode' => $shortcode,
+            'Password' => base64_encode($shortcode.config('mpesa.passkey').$timestamp),
+            'Timestamp' => $timestamp,
+        ];
     }
 
     private function accountReference(PaymentAttempt $attempt): string

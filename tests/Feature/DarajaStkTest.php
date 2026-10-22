@@ -182,6 +182,115 @@ test('an unknown stk callback is accepted without changing a payment', function 
     expect(PaymentAttempt::query()->count())->toBe(0);
 });
 
+test('an stk status check completes the fee when the callback has not arrived', function () {
+    configureDaraja();
+    Http::preventStrayRequests();
+    Http::fake([
+        '*/oauth/v1/generate*' => Http::response([
+            'access_token' => 'token-1',
+            'expires_in' => 3599,
+        ]),
+        '*/mpesa/stkpushquery/v1/query' => Http::response([
+            'ResponseCode' => '0',
+            'ResponseDescription' => 'The service request has been accepted successfully',
+            'CheckoutRequestID' => 'ws_CO_query',
+            'ResultCode' => '0',
+            'ResultDesc' => 'The service request is processed successfully.',
+        ]),
+    ]);
+
+    $auction = darajaAuction();
+    $attempt = participationAttempt($auction);
+    $attempt->update(['checkout_request_id' => 'ws_CO_query']);
+
+    app(DarajaStkService::class)->queryPayment($attempt);
+
+    expect($attempt->fresh()->status)->toBe('succeeded')
+        ->and($attempt->fresh()->auctionBid->status)->toBe('accepted')
+        ->and($auction->fresh()->bids_count)->toBe(1);
+});
+
+test('an stk status check keeps waiting when safaricom has no result yet', function () {
+    configureDaraja();
+    Http::preventStrayRequests();
+    Http::fake([
+        '*/oauth/v1/generate*' => Http::response([
+            'access_token' => 'token-1',
+            'expires_in' => 3599,
+        ]),
+        '*/mpesa/stkpushquery/v1/query' => Http::response([
+            'requestId' => 'ws_CO_wait',
+            'errorCode' => '500.001.1001',
+            'errorMessage' => 'The transaction is being processed',
+        ], 500),
+    ]);
+
+    $attempt = participationAttempt(darajaAuction());
+    $attempt->update(['checkout_request_id' => 'ws_CO_wait']);
+
+    app(DarajaStkService::class)->queryPayment($attempt);
+
+    expect($attempt->fresh()->status)->toBe('initiated')
+        ->and($attempt->fresh()->auctionBid->status)->toBe('pending_payment');
+});
+
+test('an stk status check records a cancelled prompt', function () {
+    configureDaraja();
+    Http::preventStrayRequests();
+    Http::fake([
+        '*/oauth/v1/generate*' => Http::response([
+            'access_token' => 'token-1',
+            'expires_in' => 3599,
+        ]),
+        '*/mpesa/stkpushquery/v1/query' => Http::response([
+            'ResultCode' => '1032',
+            'ResultDesc' => 'Request cancelled by user',
+        ]),
+    ]);
+
+    $attempt = participationAttempt(darajaAuction());
+    $attempt->update(['checkout_request_id' => 'ws_CO_cancel_query']);
+
+    app(DarajaStkService::class)->queryPayment($attempt);
+
+    expect($attempt->fresh()->status)->toBe('failed')
+        ->and($attempt->fresh()->failure_reason)->toBe('Request cancelled by user');
+});
+
+test('the waiting page asks safaricom when the callback has not arrived', function () {
+    configureDaraja();
+    Http::preventStrayRequests();
+    Http::fake([
+        '*/oauth/v1/generate*' => Http::response([
+            'access_token' => 'token-1',
+            'expires_in' => 3599,
+        ]),
+        '*/mpesa/stkpushquery/v1/query' => Http::response([
+            'ResultCode' => '0',
+            'ResultDesc' => 'The service request is processed successfully.',
+        ]),
+    ]);
+
+    $auction = darajaAuction();
+
+    $component = Livewire::test('pages::auctions.show', ['auction' => $auction])
+        ->set('phone', '0712345678')
+        ->call('continueWithPhone')
+        ->set('name', 'Amina Wanjiku')
+        ->set('amount', '15')
+        ->set('rulesConsent', true)
+        ->call('submitBid')
+        ->assertSet('formState', 'pending');
+
+    PaymentAttempt::query()->firstOrFail()->update(['checkout_request_id' => 'ws_CO_page']);
+
+    $component->call('refreshPayment')
+        ->assertSet('formState', 'success')
+        ->assertSet('accountCreated', true);
+
+    $this->assertAuthenticated();
+});
+
 test('the sale page completes when safaricom has already confirmed the fee', function () {
     $auction = darajaAuction();
 

@@ -230,6 +230,11 @@ class extends Component {
             return;
         }
 
+        if ($attempt->status === 'initiated' && filled($attempt->checkout_request_id)) {
+            app(DarajaStkService::class)->queryPayment($attempt);
+            $attempt->refresh()->load('auctionBid.bidder.user');
+        }
+
         if ($attempt->status === 'succeeded') {
             $this->finishSuccessfulPayment($attempt->auctionBid);
 
@@ -430,7 +435,7 @@ class extends Component {
                             </p>
                             @if ($awaitsMpesa)
                                 <p class="mt-2 text-sm text-navy">Check {{ $phone }} for the M-Pesa prompt and enter your PIN.</p>
-                                <p class="mt-1 text-xs text-muted-foreground">This page updates when Safaricom confirms the payment. Keep it open.</p>
+                                <p class="mt-1 text-xs text-muted-foreground">This page checks with Safaricom until the payment is confirmed. Keep it open.</p>
                                 @if ($failureReason !== '')
                                     <p class="mt-2 text-xs text-amber-800">{{ $failureReason }}</p>
                                 @endif
