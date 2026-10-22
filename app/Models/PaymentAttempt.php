@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $auction_bid_id
  * @property string $provider
  * @property string $reference
+ * @property string|null $checkout_request_id
+ * @property string|null $merchant_request_id
+ * @property string|null $mpesa_receipt
  * @property int $amount
  * @property string $status
  * @property string|null $failure_reason
@@ -23,6 +26,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'auction_bid_id',
     'provider',
     'reference',
+    'checkout_request_id',
+    'merchant_request_id',
+    'mpesa_receipt',
     'amount',
     'status',
     'failure_reason',

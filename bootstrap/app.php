@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'redirect-non-admin' => RedirectNonAdminToAccount::class,
         ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'mpesa/stk/callback',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

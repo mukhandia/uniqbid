@@ -92,13 +92,20 @@ class AuctionBidService
         });
     }
 
-    public function markSucceeded(PaymentAttempt $attempt): AuctionBid
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function markSucceeded(PaymentAttempt $attempt, ?array $responsePayload = null): AuctionBid
     {
-        $bid = DB::transaction(function () use ($attempt): AuctionBid {
+        $alreadySettled = false;
+
+        $bid = DB::transaction(function () use ($attempt, $responsePayload, &$alreadySettled): AuctionBid {
             $attempt = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
             $bid = AuctionBid::query()->lockForUpdate()->findOrFail($attempt->auction_bid_id);
 
             if ($attempt->status === 'succeeded') {
+                $alreadySettled = true;
+
                 return $bid->load(['auction', 'bidder']);
             }
 
@@ -110,7 +117,7 @@ class AuctionBidService
 
             $attempt->update([
                 'status' => 'succeeded',
-                'response_payload' => ['status' => 'stk_push_simulated_success'],
+                'response_payload' => $responsePayload ?? ['status' => 'stk_push_simulated_success'],
             ]);
             $bid->update(['status' => 'accepted', 'paid_at' => now()]);
             $bid->auction()->increment('bids_count');
@@ -120,25 +127,34 @@ class AuctionBidService
             return $bid->fresh(['auction', 'bidder.user']);
         });
 
-        $this->notifications->paymentSucceeded($bid);
+        if (! $alreadySettled) {
+            $this->notifications->paymentSucceeded($bid);
+        }
 
         return $bid;
     }
 
-    public function markFailed(PaymentAttempt $attempt): void
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function markFailed(PaymentAttempt $attempt, ?string $reason = null, ?array $responsePayload = null): void
     {
-        $bid = DB::transaction(function () use ($attempt): AuctionBid {
+        $alreadySettled = false;
+
+        $bid = DB::transaction(function () use ($attempt, $reason, $responsePayload, &$alreadySettled): AuctionBid {
             $attempt = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
             $bid = AuctionBid::query()->lockForUpdate()->findOrFail($attempt->auction_bid_id);
 
-            if ($attempt->status === 'failed') {
+            if (in_array($attempt->status, ['failed', 'succeeded'], true)) {
+                $alreadySettled = true;
+
                 return $bid->load(['auction', 'bidder']);
             }
 
             $attempt->update([
                 'status' => 'failed',
-                'failure_reason' => 'Payment was not completed.',
-                'response_payload' => ['status' => 'stk_push_simulated_failure'],
+                'failure_reason' => str($reason ?: 'Payment was not completed.')->limit(250, ''),
+                'response_payload' => $responsePayload ?? ['status' => 'stk_push_simulated_failure'],
             ]);
 
             $bid->update(['status' => 'failed']);
@@ -146,7 +162,9 @@ class AuctionBidService
             return $bid->fresh(['auction', 'bidder']);
         });
 
-        $this->notifications->paymentFailed($bid);
+        if (! $alreadySettled) {
+            $this->notifications->paymentFailed($bid);
+        }
     }
 
     public function normalizeKenyanPhone(string $phone): string

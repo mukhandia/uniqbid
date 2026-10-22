@@ -1,0 +1,234 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\PaymentAttempt;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Throwable;
+
+class DarajaStkService
+{
+    public function __construct(
+        private readonly AuctionBidService $bids,
+    ) {}
+
+    public function isReady(): bool
+    {
+        return filled(config('mpesa.consumer_key'))
+            && filled(config('mpesa.consumer_secret'))
+            && filled(config('mpesa.passkey'))
+            && filled(config('mpesa.shortcode'))
+            && filled(config('mpesa.callback_url'));
+    }
+
+    /**
+     * Ask Safaricom to show the M-Pesa PIN prompt for a participation fee.
+     * A rejected request fails the attempt. A timeout leaves it open so a late callback can still complete it.
+     */
+    public function requestPayment(PaymentAttempt $attempt): void
+    {
+        $phone = (string) ($attempt->request_payload['phone'] ?? '');
+
+        if ($phone === '' || $attempt->amount < 1) {
+            throw ValidationException::withMessages([
+                'payment' => 'This payment cannot be sent to M-Pesa.',
+            ]);
+        }
+
+        $timestamp = now()->timezone('Africa/Nairobi')->format('YmdHis');
+        $shortcode = (string) config('mpesa.shortcode');
+        $password = base64_encode($shortcode.config('mpesa.passkey').$timestamp);
+
+        try {
+            $token = $this->accessToken();
+        } catch (ValidationException $exception) {
+            $this->bids->markFailed($attempt, 'M-Pesa could not be reached. Try again.');
+
+            throw $exception;
+        }
+
+        try {
+            $response = $this->http()
+                ->withToken($token)
+                ->post('/mpesa/stkpush/v1/processrequest', [
+                    'BusinessShortCode' => $shortcode,
+                    'Password' => $password,
+                    'Timestamp' => $timestamp,
+                    'TransactionType' => 'CustomerPayBillOnline',
+                    'Amount' => $attempt->amount,
+                    'PartyA' => $phone,
+                    'PartyB' => $shortcode,
+                    'PhoneNumber' => $phone,
+                    'CallBackURL' => config('mpesa.callback_url'),
+                    'AccountReference' => $this->accountReference($attempt),
+                    'TransactionDesc' => 'Participation',
+                ]);
+        } catch (ConnectionException $exception) {
+            Log::warning('daraja.stk.unreachable', ['message' => $exception->getMessage()]);
+
+            throw ValidationException::withMessages([
+                'payment_pending' => 'M-Pesa did not respond in time. If a prompt arrived on your phone, enter your PIN and keep this page open.',
+            ]);
+        }
+
+        $body = $response->json() ?? [];
+
+        if (! $response->successful() || (string) ($body['ResponseCode'] ?? '') !== '0') {
+            $message = (string) ($body['errorMessage'] ?? $body['ResponseDescription'] ?? 'M-Pesa rejected the payment prompt.');
+            $this->bids->markFailed($attempt, $message, is_array($body) ? $body : null);
+
+            throw ValidationException::withMessages([
+                'payment' => $message,
+            ]);
+        }
+
+        $payload = $attempt->request_payload ?? [];
+        $payload['stk_response'] = $body;
+
+        $attempt->update([
+            'checkout_request_id' => $body['CheckoutRequestID'] ?? null,
+            'merchant_request_id' => $body['MerchantRequestID'] ?? null,
+            'request_payload' => $payload,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function handleCallback(array $payload): void
+    {
+        try {
+            $callback = $payload['Body']['stkCallback'] ?? null;
+
+            if (! is_array($callback)) {
+                Log::warning('daraja.stk.callback.unrecognised');
+
+                return;
+            }
+
+            $checkoutRequestId = (string) ($callback['CheckoutRequestID'] ?? '');
+            $attempt = $checkoutRequestId === ''
+                ? null
+                : PaymentAttempt::query()->where('checkout_request_id', $checkoutRequestId)->first();
+
+            if ($attempt === null) {
+                Log::info('daraja.stk.callback.unknown', ['checkout_request_id' => $checkoutRequestId]);
+
+                return;
+            }
+
+            $resultCode = (int) ($callback['ResultCode'] ?? 1);
+            $resultDesc = (string) ($callback['ResultDesc'] ?? 'Payment was not completed.');
+            $metadata = $this->metadata($callback);
+            $stored = [
+                'result_code' => $resultCode,
+                'result_desc' => $resultDesc,
+                'metadata' => $metadata,
+            ];
+
+            if ($resultCode === 0) {
+                $receipt = isset($metadata['MpesaReceiptNumber']) ? (string) $metadata['MpesaReceiptNumber'] : null;
+
+                if ($receipt !== null) {
+                    $attempt->update(['mpesa_receipt' => $receipt]);
+                }
+
+                $this->bids->markSucceeded($attempt->fresh(), $stored);
+
+                return;
+            }
+
+            $this->bids->markFailed($attempt, $resultDesc, $stored);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metadata(array $callback): array
+    {
+        $items = $callback['CallbackMetadata']['Item'] ?? [];
+        $metadata = [];
+
+        if (! is_array($items)) {
+            return $metadata;
+        }
+
+        foreach ($items as $item) {
+            if (is_array($item) && isset($item['Name'])) {
+                $metadata[(string) $item['Name']] = $item['Value'] ?? null;
+            }
+        }
+
+        return $metadata;
+    }
+
+    private function accessToken(): string
+    {
+        $cacheKey = 'daraja.token.'.sha1((string) config('mpesa.consumer_key'));
+        $cached = Cache::get($cacheKey);
+
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+
+        try {
+            $response = $this->http()
+                ->withBasicAuth((string) config('mpesa.consumer_key'), (string) config('mpesa.consumer_secret'))
+                ->get('/oauth/v1/generate', ['grant_type' => 'client_credentials']);
+        } catch (ConnectionException $exception) {
+            Log::warning('daraja.oauth.unreachable', ['message' => $exception->getMessage()]);
+
+            throw ValidationException::withMessages([
+                'payment' => 'M-Pesa could not be reached. Try again.',
+            ]);
+        }
+
+        $token = (string) $response->json('access_token');
+
+        if (! $response->successful() || $token === '') {
+            throw ValidationException::withMessages([
+                'payment' => 'M-Pesa could not be reached. Try again.',
+            ]);
+        }
+
+        $ttl = max(60, ((int) $response->json('expires_in', 3600)) - 60);
+        Cache::put($cacheKey, $token, $ttl);
+
+        return $token;
+    }
+
+    private function accountReference(PaymentAttempt $attempt): string
+    {
+        $reference = preg_replace('/[^A-Za-z0-9]/', '', $attempt->reference) ?? '';
+
+        return substr($reference, 0, 12);
+    }
+
+    private function http(): PendingRequest
+    {
+        $request = Http::baseUrl((string) config('mpesa.base_url'))
+            ->acceptJson()
+            ->timeout((int) config('mpesa.timeout'))
+            ->connectTimeout(5);
+
+        // PHP on Windows does not use the Windows certificate store unless asked.
+        // Without this, Safaricom's certificate chain is rejected on this machine.
+        if (PHP_OS_FAMILY === 'Windows' && defined('CURLSSLOPT_NATIVE_CA')) {
+            $request = $request->withOptions([
+                'curl' => [
+                    CURLOPT_SSL_OPTIONS => CURLSSLOPT_NATIVE_CA,
+                ],
+            ]);
+        }
+
+        return $request;
+    }
+}

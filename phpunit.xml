@@ -32,5 +32,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="MPESA_CONSUMER_KEY" value=""/>
+        <env name="MPESA_CONSUMER_SECRET" value=""/>
+        <env name="MPESA_PASSKEY" value=""/>
+        <env name="MPESA_CALLBACK_URL" value=""/>
     </php>
 </phpunit>

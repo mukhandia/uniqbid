@@ -1,13 +1,16 @@
 <?php
 
 use App\Models\Auction;
+use App\Models\AuctionBid;
 use App\Models\PaymentAttempt;
 use App\Models\User;
 use App\Services\AuctionBidService;
+use App\Services\DarajaStkService;
 use App\Services\MobileOtpService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -41,6 +44,10 @@ class extends Component {
     public ?int $paymentAttemptId = null;
 
     public bool $accountCreated = false;
+
+    public bool $awaitsMpesa = false;
+
+    public string $failureReason = '';
 
     public function mount(Auction $auction): void
     {
@@ -172,6 +179,32 @@ class extends Component {
 
         $this->paymentAttemptId = $attempt->id;
         $this->reference = $attempt->auctionBid->reference;
+        $this->failureReason = '';
+
+        $daraja = app(DarajaStkService::class);
+
+        if ($daraja->isReady() && ! app()->runningUnitTests()) {
+            try {
+                $daraja->requestPayment($attempt);
+                $this->awaitsMpesa = true;
+            } catch (ValidationException $exception) {
+                $pending = $exception->errors()['payment_pending'][0] ?? null;
+
+                if (is_string($pending)) {
+                    $this->awaitsMpesa = true;
+                    $this->failureReason = $pending;
+                    $this->formState = 'pending';
+
+                    return;
+                }
+
+                $this->formState = 'failure';
+                $this->failureReason = (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not start the payment.');
+
+                return;
+            }
+        }
+
         $this->formState = 'pending';
     }
 
@@ -182,7 +215,57 @@ class extends Component {
         }
 
         $bid = app(AuctionBidService::class)->markSucceeded(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
+        $this->finishSuccessfulPayment($bid);
+    }
+
+    public function refreshPayment(): void
+    {
+        if ($this->formState !== 'pending' || ! $this->paymentAttemptId) {
+            return;
+        }
+
+        $attempt = PaymentAttempt::query()->with('auctionBid.bidder.user')->find($this->paymentAttemptId);
+
+        if ($attempt === null) {
+            return;
+        }
+
+        if ($attempt->status === 'succeeded') {
+            $this->finishSuccessfulPayment($attempt->auctionBid);
+
+            return;
+        }
+
+        if ($attempt->status === 'failed') {
+            $this->formState = 'failure';
+            $this->failureReason = (string) ($attempt->failure_reason ?? '');
+        }
+    }
+
+    public function simulateStkPushFailure(): void
+    {
+        if ($this->paymentAttemptId) {
+            app(AuctionBidService::class)->markFailed(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
+        }
+
+        $this->formState = 'failure';
+    }
+
+    public function resetForm(): void
+    {
+        $this->formState = 'idle';
+        $this->accountCreated = false;
+        $this->awaitsMpesa = false;
+        $this->failureReason = '';
+        $this->reference = '';
+        $this->paymentAttemptId = null;
+    }
+
+    private function finishSuccessfulPayment(AuctionBid $bid): void
+    {
+        $bid->loadMissing('bidder.user');
         $this->formState = 'success';
+        $this->reference = $bid->reference;
         $this->refreshLiveSnapshot();
 
         $account = $bid->bidder->user;
@@ -199,23 +282,6 @@ class extends Component {
             variant: 'success',
             text: 'Participation fee paid for reference '.$this->reference.'.',
         );
-    }
-
-    public function simulateStkPushFailure(): void
-    {
-        if ($this->paymentAttemptId) {
-            app(AuctionBidService::class)->markFailed(PaymentAttempt::query()->findOrFail($this->paymentAttemptId));
-        }
-
-        $this->formState = 'failure';
-    }
-
-    public function resetForm(): void
-    {
-        $this->formState = 'idle';
-        $this->accountCreated = false;
-        $this->reference = '';
-        $this->paymentAttemptId = null;
     }
 
     public function refreshLiveSnapshot(): void
@@ -354,7 +420,7 @@ class extends Component {
                             </div>
                         </div>
                     @elseif ($formState === 'pending')
-                        <div class="py-3 text-center">
+                        <div @if ($awaitsMpesa) wire:poll.3s.visible="refreshPayment" @endif class="py-3 text-center">
                             <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy/10">
                                 <flux:icon.device-phone-mobile class="size-6 text-navy" />
                             </div>
@@ -362,11 +428,19 @@ class extends Component {
                             <p class="mt-1 text-sm text-muted-foreground">
                                 This confirms your amount of {{ Money::kes((int) $amount) }}. It is not the product value and is not credited against a later successful-buy payment.
                             </p>
-                            <p class="mt-2 text-xs text-muted-foreground">M-Pesa STK Push will send the payment prompt once Daraja credentials are connected. Use the simulated controls below during development.</p>
-                            <div class="mt-5 grid gap-2 sm:grid-cols-2">
-                                <flux:button wire:click="simulateStkPushSuccess" class="bg-accent! text-accent-foreground!">Simulate STK approval</flux:button>
-                                <flux:button wire:click="simulateStkPushFailure" variant="outline">Simulate STK cancellation</flux:button>
-                            </div>
+                            @if ($awaitsMpesa)
+                                <p class="mt-2 text-sm text-navy">Check {{ $phone }} for the M-Pesa prompt and enter your PIN.</p>
+                                <p class="mt-1 text-xs text-muted-foreground">This page updates when Safaricom confirms the payment. Keep it open.</p>
+                                @if ($failureReason !== '')
+                                    <p class="mt-2 text-xs text-amber-800">{{ $failureReason }}</p>
+                                @endif
+                            @else
+                                <p class="mt-2 text-xs text-muted-foreground">M-Pesa STK Push will send the payment prompt once Daraja credentials are connected. Use the simulated controls below during development.</p>
+                                <div class="mt-5 grid gap-2 sm:grid-cols-2">
+                                    <flux:button wire:click="simulateStkPushSuccess" class="bg-accent! text-accent-foreground!">Simulate STK approval</flux:button>
+                                    <flux:button wire:click="simulateStkPushFailure" variant="outline">Simulate STK cancellation</flux:button>
+                                </div>
+                            @endif
                         </div>
                     @elseif ($formState === 'failure')
                         <div class="text-center">
@@ -374,7 +448,7 @@ class extends Component {
                                 <flux:icon.exclamation-triangle class="size-6 text-red-600" />
                             </div>
                             <h3 class="mt-3 text-lg font-bold">Participation fee not paid</h3>
-                            <p class="mt-1 text-sm text-muted-foreground">No money was deducted and this entry was not counted. You can try again.</p>
+                            <p class="mt-1 text-sm text-muted-foreground">{{ $failureReason !== '' ? $failureReason : 'No money was deducted and this entry was not counted. You can try again.' }}</p>
                             <div class="mt-4 flex flex-col gap-2 sm:flex-row">
                                 <flux:button wire:click="resetForm" class="flex-1 bg-accent! text-accent-foreground!">Edit and retry</flux:button>
                                 <flux:button href="{{ route('contact') }}" variant="outline" class="flex-1">Contact support</flux:button>

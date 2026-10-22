@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\CustomerVerificationDocumentController;
+use App\Http\Controllers\MpesaStkCallbackController;
 use App\Livewire\Admin\ProductCreate;
 use App\Livewire\Admin\ProductEdit;
 use Illuminate\Support\Facades\Route;
+
+Route::post('mpesa/stk/callback', MpesaStkCallbackController::class)->name('mpesa.stk.callback');
 
 Route::livewire('/', 'pages::home')->name('home');
 
