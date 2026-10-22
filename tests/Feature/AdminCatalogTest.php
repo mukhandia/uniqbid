@@ -415,6 +415,40 @@ test('admin can create a sale from a product as the homepage hero', function () 
         ->and($previous->fresh()->is_featured)->toBeFalse();
 });
 
+test('a sale uses a typed bid fee and falls back to 0.1 percent when the fee is left blank', function () {
+    $this->actingAs($this->admin);
+
+    $typed = Product::factory()->create([
+        'name' => 'Typed fee watch',
+        'price' => 2650,
+        'stock' => 2,
+        'reserved_stock' => 0,
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->call('openSaleForm', $typed->id)
+        ->set('saleBidFee', 8)
+        ->call('createSale')
+        ->assertHasNoErrors();
+
+    expect(Auction::query()->where('product_id', $typed->id)->value('bid_fee'))->toBe(8);
+
+    $blank = Product::factory()->create([
+        'name' => 'Blank fee watch',
+        'price' => 2650,
+        'stock' => 2,
+        'reserved_stock' => 0,
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->call('openSaleForm', $blank->id)
+        ->set('saleBidFee', null)
+        ->call('createSale')
+        ->assertHasNoErrors();
+
+    expect(Auction::query()->where('product_id', $blank->id)->value('bid_fee'))->toBe(3);
+});
+
 test('create sale opens in a modal and closing it resets the form', function () {
     $this->actingAs($this->admin);
 

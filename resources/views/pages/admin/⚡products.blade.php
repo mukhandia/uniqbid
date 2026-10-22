@@ -26,7 +26,7 @@ class extends Component {
 
     public ?int $saleProductId = null;
 
-    public int $saleBidFee = 50;
+    public ?int $saleBidFee = null;
 
     public int $saleMinBid = 1;
 
@@ -110,6 +110,7 @@ class extends Component {
     {
         $this->validate([
             'saleProductId' => ['required', 'exists:products,id'],
+            'saleBidFee' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'saleEndsInHours' => ['required', 'integer', 'min:1', 'max:168'],
             'saleReserveStock' => ['boolean'],
             'saleFeatureOnHomepage' => ['boolean'],
@@ -120,7 +121,7 @@ class extends Component {
 
         try {
             $auction = $service->handle($product, [
-                'bid_fee' => $pricing['bid_fee'],
+                'bid_fee' => $this->saleBidFee ?? $pricing['bid_fee'],
                 'min_bid' => $pricing['min_bid'],
                 'max_bid' => $pricing['max_bid'],
                 'ends_in_hours' => $this->saleEndsInHours,
@@ -248,10 +249,12 @@ class extends Component {
                 <flux:text class="mt-1">{{ $saleProduct->name }} · {{ $saleProduct->stock }} in stock · {{ $saleProduct->reserved_stock }} reserved · retail {{ Money::kes($saleProduct->price) }}</flux:text>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
-                <div class="rounded-lg border border-amber-200/80 bg-white/70 px-3 py-2 dark:border-amber-900 dark:bg-zinc-900/50">
-                    <div class="text-xs text-zinc-500">Bid fee (0.1%)</div>
-                    <div class="mt-1 text-sm font-semibold tabular-nums">{{ Money::kes($saleBidFee) }}</div>
-                </div>
+                <flux:field class="sm:col-span-2">
+                    <flux:label>Bid fee</flux:label>
+                    <flux:input type="number" wire:model="saleBidFee" min="1" inputmode="numeric" />
+                    <flux:description>Leave blank to use 0.1% of the product price ({{ Money::kes(CreateSaleFromProductService::pricingFromProduct($saleProduct)['bid_fee']) }}).</flux:description>
+                    <flux:error name="saleBidFee" />
+                </flux:field>
                 <div class="rounded-lg border border-amber-200/80 bg-white/70 px-3 py-2 dark:border-amber-900 dark:bg-zinc-900/50">
                     <div class="text-xs text-zinc-500">Min bid</div>
                     <div class="mt-1 text-sm font-semibold tabular-nums">{{ Money::kes($saleMinBid) }}</div>
