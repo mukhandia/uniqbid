@@ -399,9 +399,9 @@ class extends Component {
                 <div>
                     <flux:heading size="lg">Successful bidder</flux:heading>
                     <flux:text class="mt-1">
-                        Pay the sale price by
+                        The buyer pays {{ Money::kes($result->sale_price) }} from My Account with M-Pesa by
                         {{ $result->fulfilment_due_at?->timezone('Africa/Nairobi')->format('d M Y H:i') ?? 'the agreed deadline' }}
-                        EAT, then mark whether the product was picked up.
+                        EAT. Mark sale paid only after you have confirmed money that did not come through that prompt.
                     </flux:text>
                 </div>
                 <div class="flex flex-wrap gap-2">

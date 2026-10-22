@@ -148,6 +148,24 @@ test('an stk success callback accepts the entry once', function () {
         ->and(User::query()->where('phone', '254712345678')->count())->toBe(1);
 });
 
+test('an unfinished stk callback leaves the fee open', function () {
+    $attempt = participationAttempt(darajaAuction());
+    $attempt->update(['checkout_request_id' => 'ws_CO_busy']);
+
+    $this->postJson(route('mpesa.stk.callback'), [
+        'Body' => [
+            'stkCallback' => [
+                'CheckoutRequestID' => 'ws_CO_busy',
+                'ResultCode' => 1001,
+                'ResultDesc' => 'Unable to lock subscriber, a transaction is already in process',
+            ],
+        ],
+    ])->assertSuccessful();
+
+    expect($attempt->fresh()->status)->toBe('initiated')
+        ->and($attempt->fresh()->auctionBid->status)->toBe('pending_payment');
+});
+
 test('an stk cancellation callback fails the entry', function () {
     $attempt = participationAttempt(darajaAuction());
     $attempt->update(['checkout_request_id' => 'ws_CO_cancel']);

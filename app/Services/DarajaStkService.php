@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\PaymentAttempt;
+use App\Support\DarajaStkResult;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
@@ -13,15 +14,9 @@ use Throwable;
 
 class DarajaStkService
 {
-    /**
-     * Safaricom result codes that will not change. 4999 means the payment is still processing.
-     *
-     * @var list<int>
-     */
-    private const FINAL_FAILURE_CODES = [1, 1001, 1019, 1025, 1032, 1037, 2001];
-
     public function __construct(
         private readonly AuctionBidService $bids,
+        private readonly RedeemBidService $sales,
     ) {}
 
     public function isReady(): bool
@@ -52,7 +47,7 @@ class DarajaStkService
         try {
             $token = $this->accessToken();
         } catch (ValidationException $exception) {
-            $this->bids->markFailed($attempt, 'M-Pesa could not be reached. Try again.');
+            $this->failAttempt($attempt, 'M-Pesa could not be reached. Try again.');
 
             throw $exception;
         }
@@ -69,7 +64,7 @@ class DarajaStkService
                     'PhoneNumber' => $phone,
                     'CallBackURL' => config('mpesa.callback_url'),
                     'AccountReference' => $this->accountReference($attempt),
-                    'TransactionDesc' => 'Participation',
+                    'TransactionDesc' => $this->transactionDescription($attempt),
                 ]);
         } catch (ConnectionException $exception) {
             Log::warning('daraja.stk.unreachable', ['message' => $exception->getMessage()]);
@@ -83,7 +78,7 @@ class DarajaStkService
 
         if (! $response->successful() || (string) ($body['ResponseCode'] ?? '') !== '0') {
             $message = (string) ($body['errorMessage'] ?? $body['ResponseDescription'] ?? 'M-Pesa rejected the payment prompt.');
-            $this->bids->markFailed($attempt, $message, is_array($body) ? $body : null);
+            $this->failAttempt($attempt, $message, is_array($body) ? $body : null);
 
             throw ValidationException::withMessages([
                 'payment' => $message,
@@ -160,23 +155,7 @@ class DarajaStkService
             'source' => 'stk_query',
         ];
 
-        if ($resultCode === 0) {
-            $this->bids->markSucceeded($attempt->fresh(), $stored);
-
-            return;
-        }
-
-        if (! in_array($resultCode, self::FINAL_FAILURE_CODES, true)) {
-            Log::info('daraja.stk.query.pending', [
-                'attempt_id' => $attempt->id,
-                'result_code' => $resultCode,
-                'result_desc' => $resultDesc,
-            ]);
-
-            return;
-        }
-
-        $this->bids->markFailed($attempt, $resultDesc, $stored);
+        $this->applyResult($attempt, $resultCode, $resultDesc, $stored);
     }
 
     /**
@@ -204,7 +183,16 @@ class DarajaStkService
                 return;
             }
 
-            $resultCode = (int) ($callback['ResultCode'] ?? 1);
+            if (! array_key_exists('ResultCode', $callback)) {
+                Log::info('daraja.stk.callback.pending', [
+                    'attempt_id' => $attempt->id,
+                    'checkout_request_id' => $checkoutRequestId,
+                ]);
+
+                return;
+            }
+
+            $resultCode = (int) $callback['ResultCode'];
             $resultDesc = (string) ($callback['ResultDesc'] ?? 'Payment was not completed.');
             $metadata = $this->metadata($callback);
             $stored = [
@@ -213,22 +201,76 @@ class DarajaStkService
                 'metadata' => $metadata,
             ];
 
-            if ($resultCode === 0) {
+            if (DarajaStkResult::classify($resultCode) === DarajaStkResult::SUCCESS) {
                 $receipt = isset($metadata['MpesaReceiptNumber']) ? (string) $metadata['MpesaReceiptNumber'] : null;
 
                 if ($receipt !== null) {
                     $attempt->update(['mpesa_receipt' => $receipt]);
                 }
+            }
 
-                $this->bids->markSucceeded($attempt->fresh(), $stored);
+            $this->applyResult($attempt->fresh(), $resultCode, $resultDesc, $stored);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $stored
+     */
+    private function applyResult(PaymentAttempt $attempt, int $resultCode, string $resultDesc, array $stored): void
+    {
+        $outcome = DarajaStkResult::classify($resultCode);
+
+        if ($outcome === DarajaStkResult::SUCCESS) {
+            if ($this->isSuccessfulBuy($attempt)) {
+                $this->sales->confirmSalePayment($attempt->fresh(), $stored);
 
                 return;
             }
 
-            $this->bids->markFailed($attempt, $resultDesc, $stored);
-        } catch (Throwable $exception) {
-            report($exception);
+            $this->bids->markSucceeded($attempt->fresh(), $stored);
+
+            return;
         }
+
+        if ($outcome === DarajaStkResult::PENDING) {
+            Log::info('daraja.stk.pending', [
+                'attempt_id' => $attempt->id,
+                'result_code' => $resultCode,
+                'result_desc' => $resultDesc,
+            ]);
+
+            return;
+        }
+
+        $this->failAttempt($attempt, $resultDesc, $stored);
+    }
+
+    private function isSuccessfulBuy(PaymentAttempt $attempt): bool
+    {
+        $purpose = (string) ($attempt->request_payload['purpose'] ?? '');
+
+        return in_array($purpose, ['successful_buy', 'sale_redemption_payment'], true);
+    }
+
+    private function transactionDescription(PaymentAttempt $attempt): string
+    {
+        return $this->isSuccessfulBuy($attempt) ? 'Winning buy' : 'Participation';
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    private function failAttempt(PaymentAttempt $attempt, string $message, ?array $responsePayload = null): void
+    {
+        if ($this->isSuccessfulBuy($attempt)) {
+            $this->sales->markSalePaymentFailed($attempt, $message, $responsePayload);
+
+            return;
+        }
+
+        $this->bids->markFailed($attempt, $message, $responsePayload);
     }
 
     /**

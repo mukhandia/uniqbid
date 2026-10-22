@@ -14,6 +14,7 @@ class RedeemBidService
 {
     public function __construct(
         private readonly LogisticsService $logistics,
+        private readonly AuctionBidService $bids,
     ) {}
 
     /**
@@ -69,9 +70,11 @@ class RedeemBidService
         ];
     }
 
-    public function initiateSalePayment(AuctionResult $result): PaymentAttempt
+    public function initiateSalePayment(AuctionResult $result, string $phone): PaymentAttempt
     {
-        return DB::transaction(function () use ($result): PaymentAttempt {
+        $phone = $this->bids->normalizeKenyanPhone($phone);
+
+        return DB::transaction(function () use ($result, $phone): PaymentAttempt {
             $result = AuctionResult::query()->lockForUpdate()->with('auctionBid')->findOrFail($result->id);
 
             if ($result->isSalePaid()) {
@@ -80,60 +83,118 @@ class RedeemBidService
                 ]);
             }
 
-            if ($result->auction_bid_id === null) {
+            if ($result->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED) {
                 throw ValidationException::withMessages([
-                    'payment' => 'This result has no linked bid.',
+                    'payment' => 'This successful buy was redeemed and does not need a sale payment.',
                 ]);
+            }
+
+            if ($result->auction_bid_id === null || $result->sale_price < 1) {
+                throw ValidationException::withMessages([
+                    'payment' => 'This payment cannot be sent to M-Pesa.',
+                ]);
+            }
+
+            $existing = PaymentAttempt::query()
+                ->where('auction_bid_id', $result->auction_bid_id)
+                ->where('status', 'initiated')
+                ->where(function ($query): void {
+                    $query->where('request_payload->purpose', 'successful_buy')
+                        ->orWhere('request_payload->purpose', 'sale_redemption_payment');
+                })
+                ->latest('id')
+                ->first();
+
+            if ($existing !== null) {
+                $payload = $existing->request_payload ?? [];
+                $payload['phone'] = $phone;
+                $existing->update(['request_payload' => $payload]);
+
+                return $existing->fresh();
             }
 
             return PaymentAttempt::query()->create([
                 'auction_bid_id' => $result->auction_bid_id,
                 'provider' => 'mpesa_daraja_stk_push',
-                'reference' => 'RDM-'.str()->upper(str()->random(10)),
+                'reference' => 'SBY-'.str()->upper(str()->random(10)),
                 'amount' => $result->sale_price,
                 'status' => 'initiated',
                 'request_payload' => [
-                    'purpose' => 'sale_redemption_payment',
+                    'purpose' => 'successful_buy',
                     'auction_result_id' => $result->id,
                     'amount' => $result->sale_price,
+                    'phone' => $phone,
                 ],
             ]);
         });
     }
 
-    public function confirmSalePayment(PaymentAttempt $attempt): AuctionResult
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function confirmSalePayment(PaymentAttempt $attempt, ?array $responsePayload = null): AuctionResult
     {
-        return DB::transaction(function () use ($attempt): AuctionResult {
+        return DB::transaction(function () use ($attempt, $responsePayload): AuctionResult {
             $attempt = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
+            $payload = $attempt->request_payload ?? [];
+            $result = AuctionResult::query()->lockForUpdate()->findOrFail((int) ($payload['auction_result_id'] ?? 0));
 
             if ($attempt->status === 'succeeded') {
-                $payload = $attempt->request_payload ?? [];
-                $resultId = (int) ($payload['auction_result_id'] ?? 0);
-
-                return AuctionResult::query()->findOrFail($resultId);
+                return $result;
             }
 
-            if ($attempt->status !== 'initiated') {
+            if (! in_array($attempt->status, ['initiated', 'failed'], true)) {
                 throw ValidationException::withMessages([
                     'payment' => 'This payment attempt can no longer be completed.',
                 ]);
             }
 
-            $payload = $attempt->request_payload ?? [];
-            $resultId = (int) ($payload['auction_result_id'] ?? 0);
-            $result = AuctionResult::query()->lockForUpdate()->findOrFail($resultId);
-
             $attempt->update([
                 'status' => 'succeeded',
-                'response_payload' => ['status' => 'stk_push_simulated_success', 'purpose' => 'sale_redemption_payment'],
+                'failure_reason' => null,
+                'response_payload' => $responsePayload ?? [
+                    'status' => 'stk_push_simulated_success',
+                    'purpose' => 'successful_buy',
+                ],
             ]);
 
-            $result->update([
-                'sale_payment_status' => AuctionResult::PAYMENT_PAID,
-                'sale_payment_paid_at' => now(),
-            ]);
+            if (! $result->isSalePaid()) {
+                $result->update([
+                    'sale_payment_status' => AuctionResult::PAYMENT_PAID,
+                    'sale_payment_paid_at' => now(),
+                ]);
+
+                AuditLogger::log('sale_payment', 'successful-buy payment received', 'paid', $result, [
+                    'auction_id' => $result->auction_id,
+                    'amount' => $result->sale_price,
+                    'payment_attempt_id' => $attempt->id,
+                ]);
+            }
 
             return $result->fresh();
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function markSalePaymentFailed(PaymentAttempt $attempt, ?string $reason = null, ?array $responsePayload = null): void
+    {
+        DB::transaction(function () use ($attempt, $reason, $responsePayload): void {
+            $attempt = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
+
+            if (in_array($attempt->status, ['failed', 'succeeded'], true)) {
+                return;
+            }
+
+            $attempt->update([
+                'status' => 'failed',
+                'failure_reason' => str($reason ?: 'Payment was not completed.')->limit(250, ''),
+                'response_payload' => $responsePayload ?? [
+                    'status' => 'stk_push_simulated_failure',
+                    'purpose' => 'successful_buy',
+                ],
+            ]);
         });
     }
 

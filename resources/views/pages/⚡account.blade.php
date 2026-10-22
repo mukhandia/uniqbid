@@ -1,18 +1,23 @@
 <?php
 
+use App\Models\AuctionResult;
 use App\Models\CustomerVerificationDocument;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\AuctionBidService;
 use App\Services\CustomerAccountService;
+use App\Services\DarajaStkService;
 use App\Services\OrderService;
+use App\Services\RedeemBidService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -37,6 +42,14 @@ class extends Component {
     public ?int $participationFeeLimit = null;
 
     public ?string $limitPeriod = null;
+
+    public ?int $salePaymentAttemptId = null;
+
+    public ?int $salePaymentResultId = null;
+
+    public string $salePaymentState = 'idle';
+
+    public string $salePaymentMessage = '';
 
     public function mount(): void
     {
@@ -94,6 +107,100 @@ class extends Component {
             ->latest('id')
             ->limit(20)
             ->get();
+    }
+
+    public function payWinningAmount(int $resultId): void
+    {
+        $user = Auth::user();
+        abort_if($user === null || $user->is_admin, 403);
+
+        $result = AuctionResult::query()->with('auctionBid.bidder')->findOrFail($resultId);
+
+        if ($result->auctionBid?->bidder_id !== $user->bidder?->id) {
+            abort(403);
+        }
+
+        $phone = (string) ($result->auctionBid->bidder->phone ?? $user->phone);
+        $this->beginSalePayment($result, $phone);
+    }
+
+    private function beginSalePayment(AuctionResult $result, string $phone): void
+    {
+        $this->salePaymentResultId = $result->id;
+        $this->salePaymentMessage = '';
+
+        if ($result->isSalePaid()) {
+            $this->salePaymentState = 'success';
+            unset($this->bidHistory);
+
+            return;
+        }
+
+        try {
+            $attempt = app(RedeemBidService::class)->initiateSalePayment($result, $phone);
+        } catch (ValidationException $exception) {
+            $this->salePaymentState = 'failure';
+            $this->salePaymentMessage = (string) (collect($exception->errors())->flatten()->first() ?? 'This payment cannot be started.');
+
+            return;
+        }
+
+        $this->salePaymentAttemptId = $attempt->id;
+        $daraja = app(DarajaStkService::class);
+
+        if (blank($attempt->checkout_request_id) && $daraja->isReady() && ! app()->runningUnitTests()) {
+            try {
+                $daraja->requestPayment($attempt);
+            } catch (ValidationException $exception) {
+                $pending = $exception->errors()['payment_pending'][0] ?? null;
+
+                if (is_string($pending)) {
+                    $this->salePaymentState = 'pending';
+                    $this->salePaymentMessage = $pending;
+
+                    return;
+                }
+
+                $this->salePaymentState = 'failure';
+                $this->salePaymentMessage = (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not start the payment.');
+
+                return;
+            }
+        }
+
+        $this->salePaymentState = 'pending';
+    }
+
+    public function refreshSalePayment(): void
+    {
+        if ($this->salePaymentState !== 'pending' || $this->salePaymentAttemptId === null) {
+            return;
+        }
+
+        $attempt = PaymentAttempt::query()->find($this->salePaymentAttemptId);
+
+        if ($attempt === null) {
+            return;
+        }
+
+        if ($attempt->status === 'initiated' && filled($attempt->checkout_request_id)) {
+            app(DarajaStkService::class)->queryPayment($attempt);
+            $attempt->refresh();
+        }
+
+        if ($attempt->status === 'succeeded') {
+            $this->salePaymentState = 'success';
+            $this->salePaymentMessage = '';
+            unset($this->bidHistory);
+            Flux::toast(variant: 'success', text: 'Successful-buy payment received.');
+
+            return;
+        }
+
+        if ($attempt->status === 'failed') {
+            $this->salePaymentState = 'failure';
+            $this->salePaymentMessage = (string) ($attempt->failure_reason ?: 'The payment was not completed.');
+        }
     }
 
     public function cancelShopOrder(int $orderId): void
@@ -303,8 +410,8 @@ class extends Component {
     }
 }; ?>
 
-<div class="mx-auto max-w-4xl px-4 py-12">
-    <div class="rounded-2xl border border-border bg-white p-8 shadow-sm">
+<div class="mx-auto max-w-4xl px-4 py-8 sm:py-12">
+    <div class="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-8">
         <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-navy-foreground">
             <flux:icon.user class="size-6" />
         </div>
@@ -314,11 +421,11 @@ class extends Component {
             <p class="mt-2 text-center text-sm text-muted-foreground">
                 Sign in with your mobile number to view entry history, spending controls, and your profile.
             </p>
-            <div class="mt-6 flex flex-wrap justify-center gap-2">
-                <flux:button href="{{ route('mobile-login') }}" class="bg-accent! text-accent-foreground!">
+            <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+                <flux:button href="{{ route('mobile-login') }}" class="w-full bg-accent! text-accent-foreground! sm:w-auto">
                     Sign in with mobile
                 </flux:button>
-                <flux:button href="{{ route('auctions.index') }}" variant="ghost">
+                <flux:button href="{{ route('auctions.index') }}" variant="ghost" class="w-full sm:w-auto">
                     Browse auctions
                 </flux:button>
             </div>
@@ -576,55 +683,66 @@ class extends Component {
                         @if ($this->bidHistory->isEmpty())
                             <p class="mt-2 text-sm text-muted-foreground">No entries yet. Browse live sales to place your first amount.</p>
                         @else
-                            <div class="mt-4 overflow-x-auto rounded-xl border border-border">
-                                <table class="min-w-full divide-y divide-border text-sm">
-                                    <thead class="bg-surface text-left text-muted-foreground">
-                                        <tr>
-                                            <th class="px-4 py-3 font-medium">Sale</th>
-                                            <th class="px-4 py-3 font-medium">Amount</th>
-                                            <th class="px-4 py-3 font-medium">Reference</th>
-                                            <th class="px-4 py-3 font-medium">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-border bg-white">
-                                        @foreach ($this->bidHistory as $entry)
-                                            @php($bid = $entry['bid'])
-                                            <tr wire:key="bid-{{ $bid->id }}">
-                                                <td class="px-4 py-3">
-                                                    <a href="{{ route('auctions.show', $bid->auction) }}" class="font-medium text-navy hover:underline" wire:navigate>
-                                                        {{ $bid->auction->name }}
-                                                    </a>
-                                                </td>
-                                                <td class="px-4 py-3">{{ Money::kes($bid->amount) }}</td>
-                                                <td class="px-4 py-3 font-mono text-xs">{{ $bid->reference }}</td>
-                                                <td class="px-4 py-3">
-                                                    <flux:badge size="sm" :color="match ($entry['status']) {
-                                                        'successful' => 'green',
-                                                        'open', 'pending_payment' => 'amber',
-                                                        'failed' => 'red',
-                                                        default => 'zinc',
-                                                    }">
-                                                        {{ $entry['label'] }}
-                                                    </flux:badge>
-                                                </td>
-                                            </tr>
-                                            @if ($entry['status'] === 'successful')
-                                                @php($result = $bid->auction->result)
-                                                <tr wire:key="bid-success-{{ $bid->id }}">
-                                                    <td colspan="4" class="bg-green-50 px-4 py-3 text-sm text-green-900">
-                                                        Successful buy at {{ Money::kes($bid->amount) }}.
-                                                        @if ($result?->sale_payment_status === 'paid')
-                                                            Sale payment received.
+                            <div class="mt-4 space-y-3">
+                                @foreach ($this->bidHistory as $entry)
+                                    @php($bid = $entry['bid'])
+                                    <div class="overflow-hidden rounded-xl border border-border" wire:key="bid-{{ $bid->id }}">
+                                        <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                            <div class="min-w-0">
+                                                <a href="{{ route('auctions.show', $bid->auction) }}" class="block truncate font-medium text-navy hover:underline" wire:navigate>
+                                                    {{ $bid->auction->name }}
+                                                </a>
+                                                <div class="mt-1 text-sm text-muted-foreground">
+                                                    {{ Money::kes($bid->amount) }}
+                                                    <span class="mx-1">·</span>
+                                                    <span class="font-mono text-xs">{{ $bid->reference }}</span>
+                                                </div>
+                                            </div>
+                                            <flux:badge size="sm" class="w-fit" :color="match ($entry['status']) {
+                                                'successful' => 'green',
+                                                'open', 'pending_payment' => 'amber',
+                                                'failed' => 'red',
+                                                default => 'zinc',
+                                            }">
+                                                {{ $entry['label'] }}
+                                            </flux:badge>
+                                        </div>
+                                        @if ($entry['status'] === 'successful')
+                                            @php($result = $bid->auction->result)
+                                            <div class="border-t border-green-100 bg-green-50 px-4 py-4 text-sm text-green-900">
+                                                <p>Successful buy at {{ Money::kes($bid->amount) }}.</p>
+                                                @if ($result?->sale_payment_status === 'paid')
+                                                    <p class="mt-2">Sale payment received.</p>
+                                                @elseif ($result?->fulfilment_status === 'redeemed')
+                                                    <p class="mt-2">Redeemed for cash. No sale payment is due.</p>
+                                                @elseif ($result)
+                                                    <div class="mt-3">
+                                                        <h3 class="font-semibold text-navy">Pay a winning amount</h3>
+                                                        <p class="mt-1">
+                                                            Pay {{ Money::kes($result->sale_price) }} by {{ $result->fulfilment_due_at?->timezone(config('app.timezone'))->format('j M Y, H:i') ?? 'the agreed deadline' }} to collect or receive this item. The prompt goes to {{ $this->displayPhone($bid->bidder?->phone) }}.
+                                                        </p>
+                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
+                                                            <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
+                                                                Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
+                                                                @if ($salePaymentMessage !== '')
+                                                                    <div class="mt-1">{{ $salePaymentMessage }}</div>
+                                                                @endif
+                                                            </div>
                                                         @else
-                                                            Pay the sale price by {{ $result?->fulfilment_due_at?->timezone(config('app.timezone'))->format('j M Y, H:i') ?? 'the agreed deadline' }}.
+                                                            @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
+                                                                <p class="mt-3">{{ $salePaymentMessage }}</p>
+                                                            @endif
+                                                            <flux:button class="mt-3 w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
+                                                                Pay with M-Pesa
+                                                            </flux:button>
                                                         @endif
-                                                        Collection / delivery: {{ str_replace('_', ' ', $result?->fulfilment_status ?? 'pending') }}.
-                                                    </td>
-                                                </tr>
-                                            @endif
-                                        @endforeach
-                                    </tbody>
-                                </table>
+                                                    </div>
+                                                @endif
+                                                <p class="mt-3 text-xs">Collection / delivery: {{ str_replace('_', ' ', $result?->fulfilment_status ?? 'pending') }}.</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
                             </div>
                         @endif
                     </section>

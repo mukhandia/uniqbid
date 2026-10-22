@@ -76,7 +76,7 @@ class CustomerAccountService
         }
 
         return AuctionBid::query()
-            ->with(['auction.result'])
+            ->with(['auction.result', 'bidder'])
             ->where('bidder_id', $bidder->id)
             ->latest()
             ->get()
