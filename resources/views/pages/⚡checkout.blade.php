@@ -1,8 +1,10 @@
 <?php
 
 use App\Models\Order;
+use App\Models\PaymentAttempt;
 use App\Services\AuctionBidService;
 use App\Services\CartService;
+use App\Services\DarajaStkService;
 use App\Services\OrderService;
 use App\Support\Money;
 use Flux\Flux;
@@ -30,8 +32,34 @@ class extends Component {
 
     public string $orderRef = '';
 
+    public ?int $paymentAttemptId = null;
+
+    public string $failureReason = '';
+
+    public int $amountDue = 0;
+
     public function mount(CartService $cart): void
     {
+        $pendingId = session('checkout.order_id');
+
+        if (is_numeric($pendingId)) {
+            $order = Order::query()->find((int) $pendingId);
+
+            if ($order !== null && $order->status === Order::STATUS_AWAITING_PAYMENT) {
+                $this->resumeWaiting($order);
+
+                return;
+            }
+
+            if ($order !== null && $order->status === Order::STATUS_PAID) {
+                $this->showPaid($order, $cart);
+
+                return;
+            }
+
+            session()->forget('checkout.order_id');
+        }
+
         if ($cart->count() === 0) {
             $this->redirect(route('cart'), navigate: true);
 
@@ -55,8 +83,12 @@ class extends Component {
         }
     }
 
-    public function placeOrder(OrderService $orders, CartService $cart): void
+    public function placeOrder(OrderService $orders, CartService $cart, DarajaStkService $daraja): void
     {
+        if ($this->status === 'pending') {
+            return;
+        }
+
         if ($cart->count() === 0) {
             $this->redirect(route('cart'), navigate: true);
 
@@ -71,6 +103,8 @@ class extends Component {
             'address' => [$this->delivery === Order::DELIVERY_COLLECTION ? 'nullable' : 'required', 'string', 'max:1000'],
         ]);
 
+        $awaitMpesa = $daraja->isReady() && ! app()->runningUnitTests();
+
         try {
             $order = $orders->placeFromCart([
                 'name' => $this->name,
@@ -79,6 +113,7 @@ class extends Component {
                 'delivery_method' => $this->delivery,
                 'delivery_address' => $this->address,
                 'user' => Auth::user()?->is_admin ? null : Auth::user(),
+                'await_mpesa' => $awaitMpesa,
             ]);
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?? 'Unable to place order.';
@@ -86,12 +121,116 @@ class extends Component {
             throw $exception;
         }
 
+        if (! $awaitMpesa) {
+            $this->showPaid($order, $cart);
+            Flux::toast(variant: 'success', text: 'Order '.$order->reference.' placed.');
+
+            return;
+        }
+
+        $attempt = $order->paymentAttempts()->latest('id')->first();
+
+        if ($attempt === null) {
+            $this->status = 'failure';
+            $this->failureReason = 'M-Pesa could not start the payment.';
+
+            return;
+        }
+
+        session(['checkout.order_id' => $order->id]);
+        $this->paymentAttemptId = $attempt->id;
+        $this->orderRef = $order->reference;
+        $this->amountDue = $order->total;
+        $this->failureReason = '';
+
+        try {
+            $daraja->requestPayment($attempt);
+            $this->status = 'pending';
+        } catch (ValidationException $exception) {
+            if (array_key_exists('payment_pending', $exception->errors())) {
+                $this->status = 'pending';
+                $this->failureReason = (string) (collect($exception->errors())->flatten()->first() ?? '');
+
+                return;
+            }
+
+            $fresh = $attempt->fresh();
+
+            if ($fresh !== null && $fresh->status === 'initiated') {
+                $orders->markShopPaymentFailed(
+                    $fresh,
+                    (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not start the payment.'),
+                );
+            }
+
+            session()->forget('checkout.order_id');
+            $this->status = 'failure';
+            $this->failureReason = (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not start the payment.');
+        }
+    }
+
+    public function refreshShopPayment(DarajaStkService $daraja, CartService $cart): void
+    {
+        if ($this->status !== 'pending' || $this->paymentAttemptId === null) {
+            return;
+        }
+
+        $attempt = PaymentAttempt::query()->find($this->paymentAttemptId);
+
+        if ($attempt === null) {
+            return;
+        }
+
+        if ($attempt->status === 'initiated' && filled($attempt->checkout_request_id)) {
+            $daraja->queryPayment($attempt);
+            $attempt->refresh();
+        }
+
+        if ($attempt->status === 'succeeded') {
+            $order = $attempt->order;
+
+            if ($order !== null) {
+                $this->showPaid($order, $cart);
+                Flux::toast(variant: 'success', text: 'Order '.$order->reference.' paid.');
+            }
+
+            return;
+        }
+
+        if ($attempt->status === 'failed') {
+            session()->forget('checkout.order_id');
+            $this->status = 'failure';
+            $this->failureReason = (string) ($attempt->failure_reason ?: 'The M-Pesa payment was not completed.');
+        }
+    }
+
+    public function resetCheckout(): void
+    {
+        $this->status = 'form';
+        $this->failureReason = '';
+        $this->paymentAttemptId = null;
+        $this->orderRef = '';
+        $this->amountDue = 0;
+    }
+
+    private function resumeWaiting(Order $order): void
+    {
+        $this->status = 'pending';
+        $this->orderRef = $order->reference;
+        $this->amountDue = $order->total;
+        $attemptId = $order->paymentAttempts()->latest('id')->value('id');
+        $this->paymentAttemptId = is_numeric($attemptId) ? (int) $attemptId : null;
+        $phone = $order->customer_phone;
+        $this->phone = str_starts_with($phone, '254') ? '0'.substr($phone, 3) : $phone;
+    }
+
+    private function showPaid(Order $order, CartService $cart): void
+    {
+        $cart->clear();
+        session()->forget('checkout.order_id');
         $this->orderRef = $order->reference;
         $this->status = 'success';
-
         $this->dispatch('cart-updated');
-
-        Flux::toast(variant: 'success', text: 'Order '.$order->reference.' placed.');
     }
 
     public function with(): array
@@ -117,7 +256,7 @@ class extends Component {
             </div>
             <h1 class="mt-4 text-2xl font-bold text-navy">Order received</h1>
             <p class="mt-2 text-sm text-muted-foreground">
-                Payment confirmed (demo M-Pesa). Reference
+                Payment confirmed. Reference
                 <span class="font-mono font-semibold text-zinc-900">{{ $orderRef }}</span>.
             </p>
             <p class="mt-3 text-sm text-zinc-700">
@@ -129,10 +268,38 @@ class extends Component {
                 <flux:button href="{{ route('shop.index') }}" variant="outline">Continue shopping</flux:button>
             </div>
         </div>
+    @elseif ($status === 'pending')
+        <div wire:poll.3s.visible="refreshShopPayment" class="mx-auto max-w-lg rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+            <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy/10">
+                <flux:icon.device-phone-mobile class="size-6 text-navy" />
+            </div>
+            <h1 class="mt-4 text-2xl font-bold text-navy">Check your phone</h1>
+            <p class="mt-2 text-sm text-muted-foreground">
+                Safaricom is sending an M-Pesa prompt for {{ Money::kes($amountDue) }}
+                @if ($phone !== '')
+                    to {{ $phone }}
+                @endif
+                . Enter your PIN to pay for order
+                <span class="font-mono font-semibold text-zinc-900">{{ $orderRef }}</span>.
+            </p>
+            <p class="mt-2 text-xs text-muted-foreground">This page checks with Safaricom until the payment is confirmed. Keep it open.</p>
+            @if ($failureReason !== '')
+                <p class="mt-2 text-xs text-amber-800">{{ $failureReason }}</p>
+            @endif
+        </div>
+    @elseif ($status === 'failure')
+        <div class="mx-auto max-w-lg rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+            <h1 class="text-2xl font-bold text-navy">Payment not completed</h1>
+            <p class="mt-2 text-sm text-muted-foreground">{{ $failureReason !== '' ? $failureReason : 'The M-Pesa payment was not completed.' }}</p>
+            <p class="mt-2 text-sm text-zinc-700">No money was taken. Your items are still in the cart.</p>
+            <div class="mt-6">
+                <flux:button wire:click="resetCheckout" class="w-full bg-accent! text-accent-foreground! sm:w-auto">Try again</flux:button>
+            </div>
+        </div>
     @else
         <h1 class="text-3xl font-bold text-navy">Checkout</h1>
         <p class="mt-2 text-sm text-muted-foreground">
-            M-Pesa is the default payment method. Live Daraja STK Push arrives in Milestone 2.6; this checkout records a paid demo order.
+            Pay the total with M-Pesa. You will get a prompt on this number. Delivery outside Nairobi is confirmed later and is not part of this payment.
         </p>
 
         <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
@@ -182,8 +349,8 @@ class extends Component {
                     </ul>
                 </div>
 
-                <flux:button type="submit" class="w-full bg-accent! text-accent-foreground!">
-                    Pay with M-Pesa (demo): {{ Money::kes($total) }}
+                <flux:button type="submit" wire:loading.attr="disabled" class="w-full bg-accent! text-accent-foreground!">
+                    Pay with M-Pesa: {{ Money::kes($total) }}
                 </flux:button>
             </form>
 

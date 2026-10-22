@@ -66,6 +66,7 @@ class extends Component {
 
 @php
     $badgeColor = match ($order->status) {
+        Order::STATUS_AWAITING_PAYMENT => 'zinc',
         Order::STATUS_PAID, Order::STATUS_PROCESSING => 'amber',
         Order::STATUS_DISPATCHED => 'sky',
         Order::STATUS_DELIVERED => 'green',

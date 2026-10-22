@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\AuditLogger;
@@ -27,7 +28,8 @@ class OrderService
      *     email?: string|null,
      *     delivery_method: string,
      *     delivery_address?: string|null,
-     *     user?: User|null
+     *     user?: User|null,
+     *     await_mpesa?: bool
      * }  $details
      */
     public function placeFromCart(array $details): Order
@@ -40,7 +42,9 @@ class OrderService
             ]);
         }
 
-        return DB::transaction(function () use ($details, $items): Order {
+        $awaiting = ($details['await_mpesa'] ?? false) === true;
+
+        return DB::transaction(function () use ($details, $items, $awaiting): Order {
             $phone = $this->phones->normalizeKenyanPhone($details['phone']);
             $subtotal = 0;
             $prepared = [];
@@ -83,10 +87,10 @@ class OrderService
                 'subtotal' => $subtotal,
                 'delivery_fee' => 0,
                 'total' => $subtotal,
-                'status' => Order::STATUS_PAID,
-                'payment_provider' => 'mpesa_demo',
-                'payment_reference' => 'MPESA'.random_int(100000, 999999),
-                'paid_at' => now(),
+                'status' => $awaiting ? Order::STATUS_AWAITING_PAYMENT : Order::STATUS_PAID,
+                'payment_provider' => $awaiting ? 'mpesa_daraja_stk_push' : 'mpesa_demo',
+                'payment_reference' => $awaiting ? null : 'MPESA'.random_int(100000, 999999),
+                'paid_at' => $awaiting ? null : now(),
             ]);
 
             foreach ($prepared as $row) {
@@ -101,7 +105,7 @@ class OrderService
                     $split = $this->guestListings->splitAmounts($row['line_total']);
                     $commission = $split['commission'];
                     $payout = $split['payout'];
-                    $payoutStatus = OrderItem::PAYOUT_PENDING;
+                    $payoutStatus = $awaiting ? OrderItem::PAYOUT_NONE : OrderItem::PAYOUT_PENDING;
                     $sellerId = $product->seller_user_id;
                 }
 
@@ -121,7 +125,28 @@ class OrderService
                     'is_returnable' => $product->is_returnable,
                 ]);
 
-                $product->decrement('stock', $row['qty']);
+                if ($awaiting) {
+                    $product->increment('reserved_stock', $row['qty']);
+                } else {
+                    $product->decrement('stock', $row['qty']);
+                }
+            }
+
+            if ($awaiting) {
+                PaymentAttempt::query()->create([
+                    'order_id' => $order->id,
+                    'provider' => 'mpesa_daraja_stk_push',
+                    'reference' => $this->generatePaymentReference(),
+                    'amount' => $subtotal,
+                    'status' => 'initiated',
+                    'request_payload' => [
+                        'purpose' => 'shop_checkout',
+                        'phone' => $phone,
+                        'stock_held' => true,
+                    ],
+                ]);
+
+                return $order->load('items');
             }
 
             $this->cart->clear();
@@ -129,6 +154,121 @@ class OrderService
             $this->notifications->notifyOrderPlaced($order);
 
             return $order->load('items');
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function confirmShopPayment(PaymentAttempt $attempt, ?array $responsePayload = null): Order
+    {
+        return DB::transaction(function () use ($attempt, $responsePayload): Order {
+            $locked = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
+
+            if ($locked->order_id === null) {
+                throw ValidationException::withMessages([
+                    'payment' => 'This payment is not a shop order.',
+                ]);
+            }
+
+            $order = Order::query()->lockForUpdate()->with('items')->findOrFail($locked->order_id);
+
+            if ($locked->status === 'succeeded' && $order->status === Order::STATUS_PAID) {
+                return $order->fresh('items');
+            }
+
+            if (! in_array($locked->status, ['initiated', 'failed'], true)) {
+                return $order->fresh('items');
+            }
+
+            $payload = $locked->request_payload ?? [];
+            $held = ($payload['stock_held'] ?? false) === true;
+            $payload['stock_held'] = false;
+
+            if ($held) {
+                $this->consumeReservedStock($order);
+            } else {
+                $this->takeStock($order);
+            }
+
+            $locked->update([
+                'status' => 'succeeded',
+                'failure_reason' => null,
+                'request_payload' => $payload,
+                'response_payload' => $responsePayload ?? $locked->response_payload,
+            ]);
+
+            foreach ($order->items as $item) {
+                if ($item->seller_user_id !== null && $item->seller_payout_amount > 0 && $item->seller_payout_status === OrderItem::PAYOUT_NONE) {
+                    $item->update(['seller_payout_status' => OrderItem::PAYOUT_PENDING]);
+                }
+            }
+
+            $order->update([
+                'status' => Order::STATUS_PAID,
+                'payment_provider' => 'mpesa_daraja_stk_push',
+                'payment_reference' => $locked->mpesa_receipt ?: $locked->reference,
+                'paid_at' => $order->paid_at ?? now(),
+                'cancelled_at' => null,
+                'cancel_reason' => null,
+            ]);
+
+            $fresh = $order->fresh('items');
+
+            AuditLogger::log('orders', 'shop payment confirmed', 'shop_payment', $fresh, [
+                'reference' => $fresh->reference,
+                'amount' => $fresh->total,
+            ]);
+
+            $this->notifications->notifyOrderPlaced($fresh);
+
+            return $fresh;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    public function markShopPaymentFailed(PaymentAttempt $attempt, string $message, ?array $responsePayload = null): Order
+    {
+        return DB::transaction(function () use ($attempt, $message, $responsePayload): Order {
+            $locked = PaymentAttempt::query()->lockForUpdate()->findOrFail($attempt->id);
+
+            if ($locked->order_id === null) {
+                throw ValidationException::withMessages([
+                    'payment' => 'This payment is not a shop order.',
+                ]);
+            }
+
+            $order = Order::query()->lockForUpdate()->with('items')->findOrFail($locked->order_id);
+
+            if (in_array($locked->status, ['succeeded', 'failed'], true)) {
+                return $order->fresh('items');
+            }
+
+            $payload = $locked->request_payload ?? [];
+
+            if (($payload['stock_held'] ?? false) === true) {
+                $this->releaseReservedStock($order);
+                $payload['stock_held'] = false;
+            }
+
+            $locked->update([
+                'status' => 'failed',
+                'failure_reason' => $message,
+                'request_payload' => $payload,
+                'response_payload' => $responsePayload,
+            ]);
+
+            if ($order->status === Order::STATUS_AWAITING_PAYMENT) {
+                $order->update([
+                    'status' => Order::STATUS_CANCELLED,
+                    'cancelled_at' => now(),
+                    'cancel_reason' => $message,
+                ]);
+            }
+
+            return $order->fresh('items');
         });
     }
 
@@ -259,5 +399,74 @@ class OrderService
         } while (Order::query()->where('reference', $reference)->exists());
 
         return $reference;
+    }
+
+    private function generatePaymentReference(): string
+    {
+        do {
+            $reference = 'SHP-'.str()->upper(str()->random(10));
+        } while (PaymentAttempt::query()->where('reference', $reference)->exists());
+
+        return $reference;
+    }
+
+    private function consumeReservedStock(Order $order): void
+    {
+        foreach ($order->items as $item) {
+            if ($item->product_id === null) {
+                continue;
+            }
+
+            $product = Product::query()->lockForUpdate()->find($item->product_id);
+
+            if ($product === null) {
+                continue;
+            }
+
+            $product->decrement('stock', $item->quantity);
+            $release = min($item->quantity, $product->reserved_stock);
+
+            if ($release > 0) {
+                $product->decrement('reserved_stock', $release);
+            }
+        }
+    }
+
+    private function takeStock(Order $order): void
+    {
+        foreach ($order->items as $item) {
+            if ($item->product_id === null) {
+                continue;
+            }
+
+            $product = Product::query()->lockForUpdate()->find($item->product_id);
+
+            if ($product === null) {
+                continue;
+            }
+
+            $product->decrement('stock', $item->quantity);
+        }
+    }
+
+    private function releaseReservedStock(Order $order): void
+    {
+        foreach ($order->items as $item) {
+            if ($item->product_id === null) {
+                continue;
+            }
+
+            $product = Product::query()->lockForUpdate()->find($item->product_id);
+
+            if ($product === null) {
+                continue;
+            }
+
+            $release = min($item->quantity, $product->reserved_stock);
+
+            if ($release > 0) {
+                $product->decrement('reserved_stock', $release);
+            }
+        }
     }
 }

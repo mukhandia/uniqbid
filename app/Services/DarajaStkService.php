@@ -17,6 +17,7 @@ class DarajaStkService
     public function __construct(
         private readonly AuctionBidService $bids,
         private readonly RedeemBidService $sales,
+        private readonly OrderService $orders,
     ) {}
 
     public function isReady(): bool
@@ -223,6 +224,12 @@ class DarajaStkService
         $outcome = DarajaStkResult::classify($resultCode);
 
         if ($outcome === DarajaStkResult::SUCCESS) {
+            if ($this->isShopCheckout($attempt)) {
+                $this->orders->confirmShopPayment($attempt->fresh(), $stored);
+
+                return;
+            }
+
             if ($this->isSuccessfulBuy($attempt)) {
                 $this->sales->confirmSalePayment($attempt->fresh(), $stored);
 
@@ -254,8 +261,17 @@ class DarajaStkService
         return in_array($purpose, ['successful_buy', 'sale_redemption_payment'], true);
     }
 
+    private function isShopCheckout(PaymentAttempt $attempt): bool
+    {
+        return (string) ($attempt->request_payload['purpose'] ?? '') === 'shop_checkout';
+    }
+
     private function transactionDescription(PaymentAttempt $attempt): string
     {
+        if ($this->isShopCheckout($attempt)) {
+            return 'Shop order';
+        }
+
         return $this->isSuccessfulBuy($attempt) ? 'Winning buy' : 'Participation';
     }
 
@@ -264,6 +280,12 @@ class DarajaStkService
      */
     private function failAttempt(PaymentAttempt $attempt, string $message, ?array $responsePayload = null): void
     {
+        if ($this->isShopCheckout($attempt)) {
+            $this->orders->markShopPaymentFailed($attempt, $message, $responsePayload);
+
+            return;
+        }
+
         if ($this->isSuccessfulBuy($attempt)) {
             $this->sales->markSalePaymentFailed($attempt, $message, $responsePayload);
 

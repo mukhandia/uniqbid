@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * @property int $id
- * @property int $auction_bid_id
+ * @property int|null $auction_bid_id
+ * @property int|null $order_id
  * @property string $provider
  * @property string $reference
  * @property string|null $checkout_request_id
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable([
     'auction_bid_id',
+    'order_id',
     'provider',
     'reference',
     'checkout_request_id',
@@ -55,5 +57,13 @@ class PaymentAttempt extends Model
     public function auctionBid(): BelongsTo
     {
         return $this->belongsTo(AuctionBid::class);
+    }
+
+    /**
+     * @return BelongsTo<Order, $this>
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 }

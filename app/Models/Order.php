@@ -60,6 +60,8 @@ class Order extends Model
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
 
+    public const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
+
     public const STATUS_PAID = 'paid';
 
     public const STATUS_PROCESSING = 'processing';
@@ -82,6 +84,7 @@ class Order extends Model
     public static function statuses(): array
     {
         return [
+            self::STATUS_AWAITING_PAYMENT => 'Awaiting M-Pesa',
             self::STATUS_PAID => 'Paid: preparing',
             self::STATUS_PROCESSING => 'Processing',
             self::STATUS_DISPATCHED => 'Dispatched',
@@ -141,6 +144,14 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * @return HasMany<PaymentAttempt, $this>
+     */
+    public function paymentAttempts(): HasMany
+    {
+        return $this->hasMany(PaymentAttempt::class);
     }
 
     public function hasGuestListingItems(): bool
@@ -219,7 +230,7 @@ class Order extends Model
      */
     public function scopePaidNotCancelled(Builder $query): Builder
     {
-        return $query->where('status', '!=', self::STATUS_CANCELLED);
+        return $query->whereNotIn('status', [self::STATUS_CANCELLED, self::STATUS_AWAITING_PAYMENT]);
     }
 
     /**
@@ -323,6 +334,7 @@ class Order extends Model
     public function statusLabel(): string
     {
         return match ($this->status) {
+            self::STATUS_AWAITING_PAYMENT => 'Awaiting M-Pesa',
             self::STATUS_PAID => 'Paid: preparing',
             self::STATUS_PROCESSING => 'Processing',
             self::STATUS_DISPATCHED => 'Dispatched',
