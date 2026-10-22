@@ -51,7 +51,6 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
-    environment: staging
 
     steps:
       - name: Checkout code
@@ -95,7 +94,16 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          tr -d '\r' < ~/.ssh/deploy_key > ~/.ssh/deploy_key.tmp
+          mv ~/.ssh/deploy_key.tmp ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          FINGERPRINT="$(ssh-keygen -lf ~/.ssh/deploy_key | awk '{print $2}')"
+          echo "Deploy key fingerprint: ${FINGERPRINT}"
+          if [ "$FINGERPRINT" != "SHA256:pxAsLJToIGvONlTcIQ05BmaWexgQ1P31wH3SEPjWWcc" ]; then
+            echo "STAGING_SSH_KEY does not match the public key installed for uniqbid."
+            echo "Paste the private key file uniqbid_gha_deploy, including the BEGIN and END lines."
+            exit 1
+          fi
           PORT="${SSH_PORT:-22}"
           ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
