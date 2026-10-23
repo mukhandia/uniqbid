@@ -20,7 +20,7 @@
         close() { this.open = false },
         init() {
             window.addEventListener('resize', () => {
-                if (window.matchMedia('(min-width: 1280px)').matches) {
+                if (window.matchMedia('(min-width: 1024px)').matches) {
                     this.open = false
                 }
             })
@@ -29,7 +29,7 @@
     @keydown.escape.window="close()"
 >
     <div class="mx-auto max-w-7xl px-3 sm:px-4">
-        <div class="flex items-center gap-x-2 py-2.5 sm:gap-x-3 sm:py-3">
+        <div class="flex items-center gap-x-2 py-2.5 sm:py-3 xl:gap-x-3">
             <a href="{{ route('home') }}" class="flex min-w-0 shrink-0 items-center gap-2" aria-label="UniqBid home">
                 <img
                     src="/images/brand/uniqbid-icon.jpeg"
@@ -44,7 +44,7 @@
                 </div>
             </a>
 
-            <nav class="hidden min-w-0 flex-1 items-center justify-center gap-2 xl:flex" aria-label="Primary">
+            <nav class="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex xl:gap-2" aria-label="Primary">
                 @foreach ($nav as $item)
                     @php
                         $active = request()->routeIs($item['match']);
@@ -53,7 +53,7 @@
                     <a
                         href="{{ route($item['route']) }}"
                         @class([
-                            'whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm font-medium transition',
+                            'whitespace-nowrap rounded-md px-1.5 py-1.5 text-xs font-medium leading-5 transition xl:px-2.5 xl:text-sm',
                             'bg-red-600 text-white hover:bg-red-700' => $cta,
                             'bg-red-800 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.85)]' => $cta && $active,
                             'text-navy underline decoration-2 underline-offset-8' => $active && ! $cta,
@@ -86,7 +86,7 @@
 
                 <button
                     type="button"
-                    class="ms-1 rounded-md p-2 xl:hidden sm:ms-2 sm:border-l sm:border-border sm:ps-3"
+                    class="ms-1 rounded-md p-2 lg:hidden sm:ms-2 sm:border-l sm:border-border sm:ps-3"
                     @click="open = !open"
                     :aria-expanded="open.toString()"
                     aria-controls="site-mobile-nav"
@@ -105,7 +105,7 @@
 
     <div
         id="site-mobile-nav"
-        class="border-t border-border bg-white xl:hidden"
+        class="border-t border-border bg-white lg:hidden"
         x-cloak
         x-show="open"
         x-transition:enter="transition ease-out duration-150"
