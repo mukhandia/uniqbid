@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AuctionResult;
 use App\Models\Product;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Support\Money;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -33,6 +35,32 @@ class AdminAttentionService
             || $user->can('guest-listings.manage');
     }
 
+    public function canViewAuctions(?User $user): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->is_admin
+            || $user->can('auctions.view')
+            || $user->can('auctions.manage');
+    }
+
+    /**
+     * @return Builder<AuctionResult>
+     */
+    public function openRedeemReviews(): Builder
+    {
+        return AuctionResult::query()
+            ->whereNotNull('redemption_requested_at')
+            ->whereNull('redemption_review_read_at')
+            ->where('fulfilment_status', AuctionResult::FULFILMENT_REDEEMED)
+            ->where(function ($query): void {
+                $query->whereNull('redemption_payout_status')
+                    ->orWhere('redemption_payout_status', '!=', AuctionResult::REDEMPTION_PAYOUT_PAID);
+            });
+    }
+
     public function unreadTicketCount(?User $user): int
     {
         if (! $this->canViewTickets($user)) {
@@ -51,15 +79,27 @@ class AdminAttentionService
         return Product::query()->unseenPendingGuestApproval()->count();
     }
 
+    public function openRedeemReviewCount(?User $user): int
+    {
+        if (! $this->canViewAuctions($user)) {
+            return 0;
+        }
+
+        return $this->openRedeemReviews()->count();
+    }
+
     public function totalCount(?User $user): int
     {
-        return $this->unreadTicketCount($user) + $this->unseenGuestListingCount($user);
+        return $this->unreadTicketCount($user)
+            + $this->unseenGuestListingCount($user)
+            + $this->openRedeemReviewCount($user);
     }
 
     public function ariaLabel(?User $user): string
     {
         $unreadTickets = $this->unreadTicketCount($user);
         $unseenGuestListings = $this->unseenGuestListingCount($user);
+        $redeemReviews = $this->openRedeemReviewCount($user);
         $parts = [];
 
         if ($unreadTickets > 0) {
@@ -72,6 +112,12 @@ class AdminAttentionService
             $parts[] = $unseenGuestListings === 1
                 ? '1 unseen guest listing'
                 : $unseenGuestListings.' unseen guest listings';
+        }
+
+        if ($redeemReviews > 0) {
+            $parts[] = $redeemReviews === 1
+                ? '1 redeem request'
+                : $redeemReviews.' redeem requests';
         }
 
         return $parts === []
@@ -126,6 +172,24 @@ class AdminAttentionService
                         'subtitle' => ($listing->seller->name ?? 'Guest seller').' · '.Money::kes($listing->price),
                         'created_at' => $listing->created_at?->diffForHumans() ?? '',
                         'sort_at' => $listing->created_at,
+                    ]);
+                });
+        }
+
+        if ($this->canViewAuctions($user)) {
+            $this->openRedeemReviews()
+                ->with(['auction:id,name', 'auctionBid.bidder:id,name'])
+                ->latest('redemption_requested_at')
+                ->limit($limit)
+                ->get()
+                ->each(function (AuctionResult $result) use ($items): void {
+                    $items->push([
+                        'type' => 'redeem_review',
+                        'id' => (int) $result->auction_id,
+                        'title' => $result->auction->name,
+                        'subtitle' => $result->auctionBid->bidder->name.' · '.Money::kes((int) $result->redemption_amount),
+                        'created_at' => $result->redemption_requested_at?->diffForHumans() ?? '',
+                        'sort_at' => $result->redemption_requested_at,
                     ]);
                 });
         }

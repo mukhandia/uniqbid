@@ -6,6 +6,7 @@ use App\Models\Auction;
 use App\Models\AuctionBid;
 use App\Models\AuctionResult;
 use App\Models\AuctionRound;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\AuditLogger;
@@ -18,6 +19,7 @@ class AuctionSettlementService
 {
     public function __construct(
         private readonly CreateSaleFromProductService $createSaleFromProduct,
+        private readonly LogisticsService $logistics,
     ) {}
 
     /**
@@ -182,6 +184,22 @@ class AuctionSettlementService
                 ]);
             }
 
+            if ($auction->result->redemption_payout_status === AuctionResult::REDEMPTION_PAYOUT_PAID) {
+                throw ValidationException::withMessages([
+                    'auction' => 'The cash payout was already sent, so this sale cannot be re-offered.',
+                ]);
+            }
+
+            if ($auction->result->auction_bid_id !== null && PaymentAttempt::query()
+                ->where('auction_bid_id', $auction->result->auction_bid_id)
+                ->where('provider', 'mpesa_daraja_b2c')
+                ->where('status', 'initiated')
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'auction' => 'A cash payout is still with M-Pesa. Wait for that result before re-offering.',
+                ]);
+            }
+
             $acceptedBids = AuctionBid::query()
                 ->with('bidder')
                 ->where('auction_id', $auction->id)
@@ -197,6 +215,8 @@ class AuctionSettlementService
                 return null;
             }
 
+            $hadRedeemRequest = $auction->result->redemption_requested_at !== null;
+
             $auction->result->update([
                 'auction_bid_id' => $nextBid->id,
                 'sale_price' => $nextBid->amount,
@@ -204,9 +224,25 @@ class AuctionSettlementService
                 'sale_payment_paid_at' => null,
                 'fulfilment_status' => 'pending',
                 'fulfilment_due_at' => now()->addDays(7),
+                'outcome_choice' => null,
+                'redemption_amount' => null,
+                'redemption_payout_status' => null,
+                'redeemed_at' => null,
+                'redemption_requested_at' => null,
+                'redemption_review_read_at' => null,
                 'buyer_display' => $this->maskBuyer($nextBid),
                 'sold_on' => now()->toDateString(),
             ]);
+
+            $freshResult = $auction->result->fresh();
+            $this->logistics->reopenAfterUnpaidRedemption($freshResult);
+
+            if ($hadRedeemRequest) {
+                AuditLogger::log('redeem', 'redeem request closed because the sale was re-offered', 'redeem_request_closed', $freshResult, [
+                    'auction_id' => $auction->id,
+                    'auction_bid_id' => $nextBid->id,
+                ]);
+            }
 
             $this->logActivity($auction->fresh(), 'sale re-offered', 'reoffered');
 

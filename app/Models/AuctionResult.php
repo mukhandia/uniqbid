@@ -23,6 +23,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $buyer_image
  * @property Carbon $sold_on
  * @property Carbon|null $created_at
+ * @property Carbon|null $redeemed_at
+ * @property Carbon|null $redemption_requested_at
+ * @property Carbon|null $redemption_review_read_at
  * @property Carbon|null $updated_at
  */
 #[Fillable([
@@ -41,6 +44,8 @@ use Illuminate\Support\Carbon;
     'redemption_amount',
     'redemption_payout_status',
     'redeemed_at',
+    'redemption_requested_at',
+    'redemption_review_read_at',
     'buyer_display',
     'buyer_image',
     'sold_on',
@@ -82,6 +87,8 @@ class AuctionResult extends Model
             'fulfilment_due_at' => 'datetime',
             'redemption_amount' => 'integer',
             'redeemed_at' => 'datetime',
+            'redemption_requested_at' => 'datetime',
+            'redemption_review_read_at' => 'datetime',
         ];
     }
 
@@ -193,6 +200,13 @@ class AuctionResult extends Model
             self::FULFILMENT_REDEEMED => 'Redeemed for cash',
             default => str_replace('_', ' ', (string) $this->fulfilment_status),
         };
+    }
+
+    public function payoutReviewOpen(): bool
+    {
+        return $this->redemption_requested_at !== null
+            && $this->fulfilment_status === self::FULFILMENT_REDEEMED
+            && $this->redemption_payout_status !== self::REDEMPTION_PAYOUT_PAID;
     }
 
     public function canMarkPaid(): bool

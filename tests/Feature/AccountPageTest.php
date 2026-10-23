@@ -2,6 +2,7 @@
 
 use App\Models\Auction;
 use App\Models\AuctionBid;
+use App\Models\AuctionResult;
 use App\Models\Bidder;
 use App\Models\CustomerControl;
 use App\Models\User;
@@ -174,4 +175,123 @@ test('customers can set an optional participation fee limit', function () {
     expect($control)->not->toBeNull()
         ->and($control->participation_fee_limit)->toBe(500)
         ->and($control->limit_period)->toBe('daily');
+});
+
+test('an unpaid cash payout stays unfinished on my account', function () {
+    $user = User::factory()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+    ]);
+    $bidder = Bidder::factory()->create([
+        'user_id' => $user->id,
+        'phone' => $user->phone,
+    ]);
+    $auction = Auction::factory()->create([
+        'name' => 'Pencil Test',
+        'status' => 'closed',
+        'settled_at' => now(),
+        'retail_value' => 20,
+    ]);
+    $bid = AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 1,
+        'reference' => 'BID-UNPAIDPAY',
+    ]);
+    AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $bid->id,
+        'sale_price' => 1,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'redemption_amount' => 19,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('account'))
+        ->assertOk()
+        ->assertSee('Successful buy at KES 1')
+        ->assertSee('Cash payout of KES 19 has not been sent')
+        ->assertSee('take the item instead')
+        ->assertSee('Cash payout: not sent')
+        ->assertSee('Try again')
+        ->assertSee('Pay with M-Pesa')
+        ->assertSee(route('redeem', ['reference' => 'BID-UNPAIDPAY'], false))
+        ->assertDontSee('Redeemed for cash');
+});
+
+test('a sent redeem review is shown as waiting for review', function () {
+    $user = User::factory()->create([
+        'phone' => '254700000099',
+        'phone_verified_at' => now(),
+    ]);
+    $bidder = Bidder::factory()->create([
+        'user_id' => $user->id,
+        'phone' => $user->phone,
+    ]);
+    $auction = Auction::factory()->create([
+        'name' => 'Review Pencil',
+        'status' => 'closed',
+        'settled_at' => now(),
+    ]);
+    $bid = AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 1,
+        'reference' => 'BID-REVIEW001',
+    ]);
+    AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $bid->id,
+        'sale_price' => 1,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'redemption_amount' => 19,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
+        'redemption_requested_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('account'))
+        ->assertOk()
+        ->assertSee('Your redeem request has been sent for review.')
+        ->assertSee('Pay with M-Pesa')
+        ->assertDontSee('Try again');
+});
+
+test('a sent cash payout is shown as complete', function () {
+    $user = User::factory()->create([
+        'phone' => '254700000002',
+        'phone_verified_at' => now(),
+    ]);
+    $bidder = Bidder::factory()->create([
+        'user_id' => $user->id,
+        'phone' => $user->phone,
+    ]);
+    $auction = Auction::factory()->create([
+        'name' => 'Paid Redeem',
+        'status' => 'closed',
+        'settled_at' => now(),
+        'retail_value' => 20,
+    ]);
+    $bid = AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 1,
+        'reference' => 'BID-PAIDPAY01',
+    ]);
+    AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $bid->id,
+        'sale_price' => 1,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'redemption_amount' => 19,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PAID,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('account'))
+        ->assertOk()
+        ->assertSee('Redeemed for cash. KES 19 was sent to your M-Pesa.')
+        ->assertSee('Cash payout sent.')
+        ->assertDontSee('has not been sent');
 });

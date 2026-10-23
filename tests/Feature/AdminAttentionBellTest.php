@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\Auction;
+use App\Models\AuctionBid;
+use App\Models\AuctionResult;
+use App\Models\Bidder;
 use App\Models\Product;
 use App\Models\SupportTicket;
 use App\Models\User;
@@ -79,6 +83,40 @@ test('seen guest listings stay pending for approval but leave the bell', functio
         ->assertSee('Mary Seller');
 
     expect($listing->fresh()->approval_status)->toBe(Product::APPROVAL_PENDING);
+});
+
+test('reading a redeem request clears the bell and keeps the payout request', function () {
+    $bidder = Bidder::factory()->create(['name' => 'Amina Winner']);
+    $auction = Auction::factory()->create(['name' => 'Bell Pencil']);
+    $bid = AuctionBid::factory()->accepted()->create([
+        'auction_id' => $auction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 1,
+    ]);
+    $result = AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $bid->id,
+        'sale_price' => 1,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'redemption_amount' => 19,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
+        'redemption_requested_at' => now(),
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test('admin-ticket-bell')
+        ->assertSee('Redeem requested')
+        ->assertSee('Read')
+        ->assertSee('Bell Pencil')
+        ->call('openRedeemReview', $auction->id)
+        ->assertRedirect(route('admin.auction-bids', $auction));
+
+    expect($result->fresh()->redemption_requested_at)->not->toBeNull()
+        ->and($result->fresh()->redemption_review_read_at)->not->toBeNull();
+
+    Livewire::actingAs($this->admin)
+        ->test('admin-ticket-bell')
+        ->assertDontSee('Bell Pencil');
 });
 
 test('logistics role does not see ticket or guest listing notifications', function () {

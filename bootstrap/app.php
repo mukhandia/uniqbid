@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'mpesa/stk/callback',
+            'mpesa/b2c/result',
+            'mpesa/b2c/timeout',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

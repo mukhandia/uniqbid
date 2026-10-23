@@ -709,12 +709,64 @@ class extends Component {
                                         </div>
                                         @if ($entry['status'] === 'successful')
                                             @php($result = $bid->auction->result)
-                                            <div class="border-t border-green-100 bg-green-50 px-4 py-4 text-sm text-green-900">
+                                            @php($payoutUnpaid = $result?->fulfilment_status === 'redeemed' && $result->redemption_payout_status !== AuctionResult::REDEMPTION_PAYOUT_PAID)
+                                            <div @class([
+                                                'border-t px-4 py-4 text-sm',
+                                                'border-amber-100 bg-amber-50 text-amber-950' => $payoutUnpaid,
+                                                'border-green-100 bg-green-50 text-green-900' => ! $payoutUnpaid,
+                                            ])>
                                                 <p>Successful buy at {{ Money::kes($bid->amount) }}.</p>
-                                                @if ($result?->sale_payment_status === 'paid')
+                                                @if ($result?->fulfilment_status === 'redeemed' && $result->redemption_payout_status === AuctionResult::REDEMPTION_PAYOUT_PAID)
+                                                    <p class="mt-2">Redeemed for cash. {{ Money::kes((int) $result->redemption_amount) }} was sent to your M-Pesa.</p>
+                                                @elseif ($payoutUnpaid && $result->redemption_requested_at !== null)
+                                                    <p class="mt-2">Your redeem request has been sent for review.</p>
+                                                    @if ($result->sale_payment_status !== AuctionResult::PAYMENT_PAID)
+                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
+                                                            <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
+                                                                Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
+                                                                @if ($salePaymentMessage !== '')
+                                                                    <div class="mt-1">{{ $salePaymentMessage }}</div>
+                                                                @endif
+                                                            </div>
+                                                        @else
+                                                            @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
+                                                                <p class="mt-3">{{ $salePaymentMessage }}</p>
+                                                            @endif
+                                                            <p class="mt-2">You can still pay {{ Money::kes($result->sale_price) }} to take the item instead.</p>
+                                                            <flux:button class="mt-3 w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
+                                                                Pay with M-Pesa
+                                                            </flux:button>
+                                                        @endif
+                                                    @endif
+                                                @elseif ($payoutUnpaid && $result->sale_payment_status !== AuctionResult::PAYMENT_PAID)
+                                                    <p class="mt-2">Cash payout of {{ Money::kes((int) $result->redemption_amount) }} has not been sent. You can try that payout again, or pay {{ Money::kes($result->sale_price) }} to take the item instead.</p>
+                                                    @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
+                                                        <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
+                                                            Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
+                                                            @if ($salePaymentMessage !== '')
+                                                                <div class="mt-1">{{ $salePaymentMessage }}</div>
+                                                            @endif
+                                                        </div>
+                                                    @else
+                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
+                                                            <p class="mt-3">{{ $salePaymentMessage }}</p>
+                                                        @endif
+                                                        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                                                            <flux:button href="{{ route('redeem', ['reference' => $bid->reference]) }}" class="w-full sm:w-auto" wire:navigate>
+                                                                Try again
+                                                            </flux:button>
+                                                            <flux:button class="w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
+                                                                Pay with M-Pesa
+                                                            </flux:button>
+                                                        </div>
+                                                    @endif
+                                                @elseif ($payoutUnpaid)
+                                                    <p class="mt-2">Cash payout of {{ Money::kes((int) $result->redemption_amount) }} has not been sent.</p>
+                                                    <flux:button href="{{ route('redeem', ['reference' => $bid->reference]) }}" class="mt-3 w-full sm:w-auto" wire:navigate>
+                                                        Try again
+                                                    </flux:button>
+                                                @elseif ($result?->sale_payment_status === 'paid')
                                                     <p class="mt-2">Sale payment received.</p>
-                                                @elseif ($result?->fulfilment_status === 'redeemed')
-                                                    <p class="mt-2">Redeemed for cash. No sale payment is due.</p>
                                                 @elseif ($result)
                                                     <div class="mt-3">
                                                         <h3 class="font-semibold text-navy">Pay a winning amount</h3>
@@ -738,7 +790,13 @@ class extends Component {
                                                         @endif
                                                     </div>
                                                 @endif
-                                                <p class="mt-3 text-xs">Collection / delivery: {{ str_replace('_', ' ', $result?->fulfilment_status ?? 'pending') }}.</p>
+                                                @if ($payoutUnpaid)
+                                                    <p class="mt-3 text-xs">Cash payout: not sent.</p>
+                                                @elseif ($result?->fulfilment_status === 'redeemed')
+                                                    <p class="mt-3 text-xs">Cash payout sent.</p>
+                                                @else
+                                                    <p class="mt-3 text-xs">Collection / delivery: {{ str_replace('_', ' ', $result?->fulfilment_status ?? 'pending') }}.</p>
+                                                @endif
                                             </div>
                                         @endif
                                     </div>

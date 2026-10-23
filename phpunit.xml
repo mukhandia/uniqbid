@@ -36,5 +36,10 @@
         <env name="MPESA_CONSUMER_SECRET" value=""/>
         <env name="MPESA_PASSKEY" value=""/>
         <env name="MPESA_CALLBACK_URL" value=""/>
+        <env name="MPESA_INITIATOR_NAME" value=""/>
+        <env name="MPESA_SECURITY_CREDENTIAL" value=""/>
+        <env name="MPESA_B2C_SHORTCODE" value=""/>
+        <env name="MPESA_B2C_RESULT_URL" value=""/>
+        <env name="MPESA_B2C_TIMEOUT_URL" value=""/>
     </php>
 </phpunit>

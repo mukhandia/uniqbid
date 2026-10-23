@@ -290,7 +290,17 @@ class extends Component {
     public function reoffer(int $auctionId): void
     {
         $auction = Auction::query()->findOrFail($auctionId);
-        $bid = app(AuctionSettlementService::class)->reofferToNextBidder($auction);
+
+        try {
+            $bid = app(AuctionSettlementService::class)->reofferToNextBidder($auction);
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: (string) (collect($exception->errors())->flatten()->first() ?? 'This sale cannot be re-offered.'),
+            );
+
+            return;
+        }
 
         Flux::toast(
             variant: $bid ? 'success' : 'warning',

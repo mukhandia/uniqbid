@@ -2,7 +2,9 @@
 
 use App\Models\Auction;
 use App\Models\AuctionBid;
+use App\Models\AuctionResult;
 use App\Models\Bidder;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\AuctionSettlementService;
@@ -112,6 +114,69 @@ test('sale can be re-offered to the next lowest unique bid', function () {
 
     expect($reofferedBid?->is($nextBid))->toBeTrue()
         ->and($auction->fresh()->result->sale_price)->toBe(20);
+});
+
+test('re-offering closes the first winner redeem request', function () {
+    $auction = Auction::factory()->create([
+        'name' => 'Reoffer Pencil',
+        'status' => 'closed',
+        'settled_at' => now(),
+        'retail_value' => 40,
+    ]);
+    $first = AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 10]);
+    $next = AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 20]);
+    $result = AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $first->id,
+        'sale_price' => 10,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'outcome_choice' => 'redeem',
+        'redemption_amount' => 30,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
+        'redemption_requested_at' => now(),
+    ]);
+
+    $reoffered = app(AuctionSettlementService::class)->reofferToNextBidder($auction->fresh());
+
+    expect($reoffered?->is($next))->toBeTrue()
+        ->and($result->fresh()->auction_bid_id)->toBe($next->id)
+        ->and($result->fresh()->fulfilment_status)->toBe(AuctionResult::FULFILMENT_PENDING)
+        ->and($result->fresh()->redemption_requested_at)->toBeNull();
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test('pages::admin.auction-bids', ['auction' => $auction])
+        ->assertDontSee('Initiate payment');
+});
+
+test('re-offer waits while a cash payout is still with mpesa', function () {
+    $auction = Auction::factory()->create([
+        'status' => 'closed',
+        'settled_at' => now(),
+    ]);
+    $first = AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 10]);
+    AuctionBid::factory()->accepted()->create(['auction_id' => $auction->id, 'amount' => 20]);
+    AuctionResult::factory()->create([
+        'auction_id' => $auction->id,
+        'auction_bid_id' => $first->id,
+        'sale_price' => 10,
+        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
+        'redemption_amount' => 30,
+        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
+        'redemption_requested_at' => now(),
+    ]);
+    PaymentAttempt::query()->create([
+        'auction_bid_id' => $first->id,
+        'provider' => 'mpesa_daraja_b2c',
+        'reference' => 'RDMWAIT0001',
+        'amount' => 30,
+        'status' => 'initiated',
+        'request_payload' => ['purpose' => 'redeem_payout'],
+    ]);
+
+    expect(fn () => app(AuctionSettlementService::class)->reofferToNextBidder($auction->fresh()))
+        ->toThrow(ValidationException::class);
+
+    expect($auction->fresh()->result->auction_bid_id)->toBe($first->id);
 });
 
 test('settling a successful sale decrements stock and can go negative', function () {

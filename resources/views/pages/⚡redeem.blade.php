@@ -29,6 +29,35 @@ class extends Component {
 
     public string $buyerDisplay = '';
 
+    public string $phone = '';
+
+    public string $payoutMessage = '';
+
+    public bool $payoutPaid = false;
+
+    public ?int $paymentAttemptId = null;
+
+    public bool $alreadyRedeemed = false;
+
+    public function mount(RedeemBidService $service): void
+    {
+        session()->forget('redeem.attempt_id');
+
+        $reference = strtoupper(trim((string) request()->query('reference', '')));
+
+        if ($reference === '') {
+            return;
+        }
+
+        $this->reference = $reference;
+
+        try {
+            $this->lookup($service);
+        } catch (ValidationException) {
+            $this->step = 'lookup';
+        }
+    }
+
     public function lookup(RedeemBidService $service): void
     {
         $this->validate([
@@ -49,28 +78,48 @@ class extends Component {
         $this->retailValue = (int) $payload['auction']->retail_value;
         $this->payoutAmount = max(0, $this->retailValue - $this->salePrice);
         $this->buyerDisplay = $payload['result']->buyer_display;
-        $this->step = 'redeem';
+        $phone = (string) ($payload['bid']->bidder->phone ?? '');
+        $this->phone = str_starts_with($phone, '254') ? '0'.substr($phone, 3) : $phone;
+        $this->alreadyRedeemed = $payload['result']->fulfilment_status === AuctionResult::FULFILMENT_REDEEMED;
+        $this->step = $payload['result']->redemption_requested_at !== null ? 'review' : 'redeem';
     }
 
     public function confirmRedeem(RedeemBidService $service): void
     {
         $result = AuctionResult::query()->findOrFail($this->resultId);
 
+        if ($this->payoutAmount < 10) {
+            Flux::toast(variant: 'danger', text: 'M-Pesa cannot send a payout below KES 10.');
+
+            return;
+        }
+
+        if (! $this->alreadyRedeemed) {
+            try {
+                $result = $service->redeem($result);
+            } catch (ValidationException $exception) {
+                Flux::toast(variant: 'danger', text: collect($exception->errors())->flatten()->first() ?? 'Unable to redeem.');
+
+                throw $exception;
+            }
+        }
+
         try {
-            $service->redeem($result);
+            $service->submitForReview($result);
         } catch (ValidationException $exception) {
-            Flux::toast(variant: 'danger', text: collect($exception->errors())->flatten()->first() ?? 'Unable to redeem.');
+            Flux::toast(variant: 'danger', text: collect($exception->errors())->flatten()->first() ?? 'Unable to send this request.');
 
             throw $exception;
         }
 
-        $this->step = 'done';
-        Flux::toast(variant: 'success', text: 'Redeemed. Cash payout of '.Money::kes($this->payoutAmount).' is pending Finance.');
+        $this->step = 'review';
+        Flux::toast(variant: 'success', text: 'Your redeem request has been sent for review.');
     }
 
     public function resetFlow(): void
     {
-        $this->reset(['step', 'reference', 'resultId', 'itemName', 'salePrice', 'retailValue', 'payoutAmount', 'buyerDisplay']);
+        session()->forget('redeem.attempt_id');
+        $this->reset(['step', 'reference', 'resultId', 'itemName', 'salePrice', 'retailValue', 'payoutAmount', 'buyerDisplay', 'phone', 'payoutMessage', 'payoutPaid', 'paymentAttemptId', 'alreadyRedeemed']);
         $this->step = 'lookup';
     }
 }; ?>
@@ -100,6 +149,9 @@ class extends Component {
                     <div class="text-sm text-muted-foreground">Successful buy</div>
                     <div class="text-xl font-semibold text-navy">{{ $itemName }}</div>
                     <div class="mt-1 text-sm text-muted-foreground">{{ $buyerDisplay }} · Ref {{ strtoupper($reference) }}</div>
+                    @if ($phone !== '')
+                        <div class="mt-1 text-sm text-muted-foreground">Payout phone {{ $phone }}</div>
+                    @endif
                 </div>
                 <div class="grid gap-3 sm:grid-cols-3">
                     <div class="rounded-xl border border-border bg-surface p-4">
@@ -116,20 +168,25 @@ class extends Component {
                     </div>
                 </div>
 
-                <flux:button wire:click="confirmRedeem" wire:confirm="Redeem this successful buy for {{ Money::kes($payoutAmount) }} cash?" class="bg-accent! text-accent-foreground!">
-                    Redeem for {{ Money::kes($payoutAmount) }}
+                <flux:button wire:click="confirmRedeem" wire:confirm="Send this redeem request for review?" wire:loading.attr="disabled" class="w-full bg-accent! text-accent-foreground! sm:w-auto">
+                    {{ $alreadyRedeemed ? 'Redeem '.Money::kes($payoutAmount).' to M-Pesa' : 'Redeem for '.Money::kes($payoutAmount) }}
                 </flux:button>
 
                 <flux:button variant="ghost" wire:click="resetFlow">Start over</flux:button>
             </div>
+        @elseif ($step === 'review')
+            <div class="space-y-3 text-center">
+                <flux:icon.check-circle class="mx-auto size-10 text-emerald-600" />
+                <h2 class="text-xl font-semibold text-navy">Request sent</h2>
+                <p class="text-sm text-muted-foreground">Your redeem request has been sent for review.</p>
+                <flux:button href="{{ route('account') }}" class="w-full bg-accent! text-accent-foreground! sm:w-auto" wire:navigate>My account</flux:button>
+            </div>
         @else
             <div class="space-y-3 text-center">
                 <flux:icon.check-circle class="mx-auto size-10 text-emerald-600" />
-                <h2 class="text-xl font-semibold text-navy">Redemption recorded</h2>
-                <p class="text-sm text-muted-foreground">
-                    Finance will process a cash payout of {{ Money::kes($payoutAmount) }} (product value {{ Money::kes($retailValue) }} minus successful amount {{ Money::kes($salePrice) }}).
-                </p>
-                <flux:button href="{{ route('home') }}" class="bg-accent! text-accent-foreground!">Back home</flux:button>
+                <h2 class="text-xl font-semibold text-navy">Request sent</h2>
+                <p class="text-sm text-muted-foreground">Your redeem request has been sent for review.</p>
+                <flux:button href="{{ route('home') }}" class="w-full bg-accent! text-accent-foreground! sm:w-auto">Back home</flux:button>
             </div>
         @endif
     </div>

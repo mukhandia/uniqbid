@@ -16,6 +16,16 @@ return [
 
     'callback_url' => env('MPESA_CALLBACK_URL'),
 
+    'initiator_name' => env('MPESA_INITIATOR_NAME'),
+
+    'security_credential' => env('MPESA_SECURITY_CREDENTIAL'),
+
+    'b2c_shortcode' => env('MPESA_B2C_SHORTCODE'),
+
+    'b2c_result_url' => env('MPESA_B2C_RESULT_URL'),
+
+    'b2c_timeout_url' => env('MPESA_B2C_TIMEOUT_URL'),
+
     'timeout' => 20,
 
 ];

@@ -4,9 +4,13 @@ use App\Models\Auction;
 use App\Models\AuctionResult;
 use App\Models\Bidder;
 use App\Models\BidderMessage;
+use App\Models\PaymentAttempt;
 use App\Services\AuctionSettlementService;
 use App\Services\BidderMessageService;
+use App\Services\DarajaB2cService;
 use App\Services\LogisticsService;
+use App\Services\RedeemBidService;
+use App\Support\AuditLogger;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Facades\Storage;
@@ -149,6 +153,8 @@ class extends Component {
 
         $snapshot = app(AuctionSettlementService::class)->uniquenessSnapshot($this->auction);
 
+        $result = $this->auction->result;
+
         return [
             'bids' => $this->auction->bids()
                 ->with(['bidder', 'paymentAttempts'])
@@ -157,7 +163,19 @@ class extends Component {
             'snapshot' => $snapshot,
             'leadingBid' => $snapshot['leading_bid'],
             'amountCounts' => $snapshot['amount_counts'],
-            'successfulBid' => $this->auction->result?->auctionBid,
+            'successfulBid' => $result?->auctionBid,
+            'payoutInFlight' => $result?->auction_bid_id !== null && PaymentAttempt::query()
+                ->where('auction_bid_id', $result->auction_bid_id)
+                ->where('provider', 'mpesa_daraja_b2c')
+                ->where('status', 'initiated')
+                ->exists(),
+            'latestPayoutAttempt' => $result?->auction_bid_id === null
+                ? null
+                : PaymentAttempt::query()
+                    ->where('auction_bid_id', $result->auction_bid_id)
+                    ->where('provider', 'mpesa_daraja_b2c')
+                    ->latest('id')
+                    ->first(),
             'shipment' => $this->auction->result?->activeShipment(),
             'messageCounts' => BidderMessage::query()
                 ->where('auction_id', $this->auction->id)
@@ -228,6 +246,43 @@ class extends Component {
         }
 
         Flux::toast(variant: 'success', text: $message);
+    }
+
+    public function initiateRedeemPayout(RedeemBidService $redeems, DarajaB2cService $daraja): void
+    {
+        $result = $this->auction->result;
+
+        if ($result === null || ! $result->payoutReviewOpen()) {
+            Flux::toast(variant: 'danger', text: 'There is no redeem request to pay.');
+
+            return;
+        }
+
+        if (! $daraja->isReady()) {
+            Flux::toast(variant: 'danger', text: 'M-Pesa is not connected, so the payout was not sent.');
+
+            return;
+        }
+
+        try {
+            $attempt = $redeems->beginPayout($result);
+            $daraja->requestPayout($attempt);
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not send the payout.'),
+            );
+
+            return;
+        }
+
+        AuditLogger::log('redeem', 'redeem payout requested from M-Pesa', 'payout_requested', $result->fresh(), [
+            'auction_id' => $result->auction_id,
+            'redemption_amount' => $result->redemption_amount,
+            'payment_attempt_id' => $attempt->id,
+        ]);
+
+        Flux::toast(variant: 'success', text: 'M-Pesa accepted the payout request. The result will confirm it.');
     }
 
     public function markSalePaid(): void
@@ -488,6 +543,25 @@ class extends Component {
 
                 <aside class="space-y-2">
                     <h2 class="text-sm font-semibold">Process this sale</h2>
+                    @if ($result->fulfilment_status === 'redeemed' && $result->redemption_payout_status === AuctionResult::REDEMPTION_PAYOUT_PAID)
+                        <p class="text-sm text-green-800">Cash payout sent.</p>
+                    @elseif ($result->payoutReviewOpen())
+                        <p class="text-sm text-zinc-600 dark:text-zinc-300">
+                            {{ $successfulBidder?->name ?? $result->buyer_display }} requested a cash payout of {{ Money::kes((int) $result->redemption_amount) }}.
+                        </p>
+                        @if ($payoutInFlight)
+                            <div wire:poll.5s.visible class="text-sm text-amber-800">
+                                This payout is with M-Pesa. This page checks for Safaricom's result.
+                            </div>
+                        @else
+                            @if ($latestPayoutAttempt?->status === 'failed' && filled($latestPayoutAttempt->failure_reason))
+                                <p class="text-sm text-red-700">{{ $latestPayoutAttempt->failure_reason }}</p>
+                            @endif
+                            <flux:button class="w-full" wire:click="initiateRedeemPayout" wire:confirm="Send {{ Money::kes((int) $result->redemption_amount) }} to the successful bidder?">
+                                Initiate payment
+                            </flux:button>
+                        @endif
+                    @endif
                     @if ($result->canMarkPaid())
                         <flux:button class="w-full" wire:click="markSalePaid" wire:confirm="Record that the successful buyer has paid the sale price?">
                             Mark sale paid

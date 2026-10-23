@@ -10,7 +10,9 @@ use App\Services\DarajaStkService;
 use App\Services\RedeemBidService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 function winningSale(): array
 {
@@ -210,4 +212,39 @@ test('the account page starts one winning-amount payment', function () {
     expect(PaymentAttempt::query()->count())->toBe(1)
         ->and(PaymentAttempt::query()->first()->amount)->toBe(20)
         ->and(PaymentAttempt::query()->first()->request_payload['purpose'])->toBe('successful_buy');
+});
+
+test('an unpaid redeem can be paid as the winning amount instead', function () {
+    ['result' => $result] = winningSale();
+    $result->auction->update(['retail_value' => 40]);
+
+    $redeemed = app(RedeemBidService::class)->redeem($result->fresh());
+
+    expect(Activity::query()->where('description', 'redemption recorded, cash payout not sent')->exists())->toBeTrue()
+        ->and(Activity::query()->where('description', 'successful buy redeemed')->exists())->toBeFalse()
+        ->and(Activity::query()->where('event', 'payout_paid')->exists())->toBeFalse();
+
+    $attempt = app(RedeemBidService::class)->initiateSalePayment($redeemed, '0712345678');
+
+    expect(Activity::query()->where('description', 'successful-buy payment received')->exists())->toBeFalse();
+
+    $paid = app(RedeemBidService::class)->confirmSalePayment($attempt);
+
+    expect($paid->sale_payment_status)->toBe(AuctionResult::PAYMENT_PAID)
+        ->and($paid->fulfilment_status)->toBe(AuctionResult::FULFILMENT_PENDING)
+        ->and($paid->redemption_payout_status)->toBeNull()
+        ->and(Activity::query()->where('description', 'successful-buy payment received')->count())->toBe(1);
+});
+
+test('a winning amount cannot start while the cash payout is still with mpesa', function () {
+    ['result' => $result] = winningSale();
+    $result->auction->update(['retail_value' => 40]);
+    $redeemed = app(RedeemBidService::class)->redeem($result->fresh());
+    $redeemed = app(RedeemBidService::class)->submitForReview($redeemed);
+    app(RedeemBidService::class)->beginPayout($redeemed);
+
+    expect(fn () => app(RedeemBidService::class)->initiateSalePayment($redeemed, '0712345678'))
+        ->toThrow(ValidationException::class);
+
+    expect(PaymentAttempt::query()->where('provider', 'mpesa_daraja_stk_push')->count())->toBe(0);
 });

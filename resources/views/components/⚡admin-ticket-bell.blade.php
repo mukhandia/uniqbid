@@ -1,8 +1,11 @@
 <?php
 
+use App\Models\Auction;
+use App\Models\AuctionResult;
 use App\Models\Product;
 use App\Models\SupportTicket;
 use App\Services\AdminAttentionService;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component {
@@ -15,6 +18,7 @@ new class extends Component {
 
         $ticket = SupportTicket::query()->findOrFail($ticketId);
         $ticket->markRead();
+        $this->dispatch('attention-read');
 
         $this->redirect(route('admin.tickets.show', $ticket), navigate: true);
     }
@@ -26,8 +30,33 @@ new class extends Component {
 
         $listing = Product::query()->pendingGuestApproval()->findOrFail($productId);
         $listing->markAdminSeen();
+        $this->dispatch('attention-read');
 
         $this->redirect(route('admin.guest-listings', ['status' => 'pending']), navigate: true);
+    }
+
+    public function openRedeemReview(int $auctionId): void
+    {
+        $user = auth()->user();
+        abort_unless(app(AdminAttentionService::class)->canViewAuctions($user), 403);
+
+        $result = AuctionResult::query()->where('auction_id', $auctionId)->firstOrFail();
+
+        if ($result->redemption_review_read_at === null) {
+            $result->update(['redemption_review_read_at' => now()]);
+        }
+
+        $this->dispatch('attention-read');
+
+        $auction = Auction::query()->findOrFail($auctionId);
+
+        $this->redirect(route('admin.auction-bids', $auction), navigate: true);
+    }
+
+    #[On('attention-read')]
+    public function refreshAttention(): void
+    {
+        //
     }
 
     public function with(): array
@@ -113,26 +142,37 @@ new class extends Component {
     >
         <div class="shrink-0 border-b border-zinc-200 px-3 py-2 dark:border-zinc-700">
             <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Needs attention</div>
-            <div class="text-xs text-zinc-500">Open an item to mark it as seen.</div>
+            <div class="text-xs text-zinc-500">Read opens the item and clears it from this bell.</div>
         </div>
 
         <ul class="min-h-0 max-h-80 flex-1 divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
             @forelse ($items as $item)
-                <li wire:key="attention-{{ $item['type'] }}-{{ $item['id'] }}">
+                <li wire:key="attention-{{ $item['type'] }}-{{ $item['id'] }}" class="flex items-start justify-between gap-3 px-3 py-2.5">
+                    <div class="min-w-0">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                            {{ match ($item['type']) {
+                                'ticket' => 'Support ticket',
+                                'guest_listing' => 'Guest listing',
+                                default => 'Redeem requested',
+                            } }}
+                        </div>
+                        <div class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $item['title'] }}</div>
+                        <div class="text-xs text-zinc-500">{{ $item['subtitle'] }}</div>
+                        @if ($item['created_at'] !== '')
+                            <div class="text-[11px] text-zinc-400">{{ $item['created_at'] }}</div>
+                        @endif
+                    </div>
                     <button
                         type="button"
-                        class="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/80"
-                        wire:click="{{ $item['type'] === 'ticket' ? 'openTicket('.$item['id'].')' : 'openGuestListing('.$item['id'].')' }}"
+                        class="shrink-0 text-xs font-semibold text-navy hover:underline dark:text-sky-300"
+                        wire:click="{{ match ($item['type']) {
+                            'ticket' => 'openTicket('.$item['id'].')',
+                            'guest_listing' => 'openGuestListing('.$item['id'].')',
+                            default => 'openRedeemReview('.$item['id'].')',
+                        } }}"
                         @click="open = false"
                     >
-                        <span class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                            {{ $item['type'] === 'ticket' ? 'Support ticket' : 'Guest listing' }}
-                        </span>
-                        <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $item['title'] }}</span>
-                        <span class="text-xs text-zinc-500">{{ $item['subtitle'] }}</span>
-                        @if ($item['created_at'] !== '')
-                            <span class="text-[11px] text-zinc-400">{{ $item['created_at'] }}</span>
-                        @endif
+                        Read
                     </button>
                 </li>
             @empty

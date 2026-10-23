@@ -182,6 +182,34 @@ class LogisticsService
     }
 
     /**
+     * The winner paid for the item after an unpaid cash redeem.
+     * The redeemed shipment goes back to pending so the item can be collected.
+     */
+    public function reopenAfterUnpaidRedemption(AuctionResult $result): ?Shipment
+    {
+        $shipment = Shipment::query()
+            ->where('shippable_type', $result->getMorphClass())
+            ->where('shippable_id', $result->getKey())
+            ->where('status', Shipment::STATUS_REDEEMED)
+            ->latest('id')
+            ->first();
+
+        if ($shipment === null) {
+            return null;
+        }
+
+        return $this->updateShipment($shipment, [
+            'method' => $shipment->method,
+            'status' => Shipment::STATUS_PENDING,
+            'recipient_name' => $shipment->recipient_name,
+            'recipient_phone' => $shipment->recipient_phone,
+            'address' => $shipment->address,
+            'fee' => $shipment->fee,
+            'notes' => $shipment->notes,
+        ]);
+    }
+
+    /**
      * @param  array{
      *     method: string,
      *     status?: string,
