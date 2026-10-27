@@ -9,6 +9,7 @@ namespace App\Support;
  *
  * Codes that stay open include 4999 (still processing), 1001 (another M-Pesa session),
  * 17 (internal failure) and 26 (system busy), plus any code not listed as a failure.
+ * 9999 is the same finished outcome as 1025: Safaricom did not send the prompt.
  */
 final class DarajaStkResult
 {
@@ -27,6 +28,7 @@ final class DarajaStkResult
         1 => 'The customer did not have enough M-Pesa balance.',
         1019 => 'The prompt expired before it was completed.',
         1025 => 'Safaricom could not send the prompt.',
+        9999 => 'Safaricom could not send the prompt.',
         1032 => 'The customer cancelled the prompt.',
         1037 => 'The phone did not respond to the prompt.',
         2001 => 'The M-Pesa PIN was rejected.',

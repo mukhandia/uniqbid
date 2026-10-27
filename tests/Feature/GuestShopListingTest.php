@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Category;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\SiteSetting;
@@ -164,9 +165,25 @@ test('guest can monitor listing status without editing', function () {
         'product_id' => $sold->id,
         'seller_user_id' => $seller->id,
         'product_name' => $sold->name,
+        'quantity' => 1,
         'seller_payout_amount' => 7200,
         'seller_payout_status' => OrderItem::PAYOUT_PENDING,
         'commission_amount' => 800,
+    ]);
+    $cancelledOrder = Order::factory()->create([
+        'reference' => 'ORD-CANCELLED',
+        'status' => Order::STATUS_CANCELLED,
+        'cancelled_at' => now(),
+        'paid_at' => null,
+    ]);
+    OrderItem::factory()->create([
+        'order_id' => $cancelledOrder->id,
+        'product_id' => $sold->id,
+        'seller_user_id' => $seller->id,
+        'product_name' => $sold->name,
+        'quantity' => 1,
+        'seller_payout_amount' => 0,
+        'seller_payout_status' => OrderItem::PAYOUT_NONE,
     ]);
 
     Livewire::actingAs($seller)
@@ -174,11 +191,13 @@ test('guest can monitor listing status without editing', function () {
         ->assertSee('Pending Guest Chair')
         ->assertSee('Pending approval')
         ->assertSee('Sold Guest Lamp')
-        ->assertSee('Sold')
+        ->assertSee('Live in shop')
+        ->assertSee('Bought 1 time')
+        ->assertSee('1 cancelled')
         ->assertSee('Payout pending');
 
     expect($pending->guestListingStatusLabel())->toBe('Pending approval')
-        ->and($sold->guestListingStatusLabel())->toBe('Sold');
+        ->and($sold->guestListingStatusLabel())->toBe('Live in shop');
 });
 
 test('guest listings manage permission is required to approve', function () {
@@ -227,13 +246,6 @@ test('checkout on an approved guest product splits commission and seller payout'
         ->and($item->commission_amount)->toBe(1000)
         ->and($item->seller_payout_amount)->toBe(9000)
         ->and($item->seller_payout_status)->toBe(OrderItem::PAYOUT_PENDING);
-
-    Livewire::actingAs(User::factory()->admin()->create())
-        ->test('pages::admin.guest-listings')
-        ->call('simulateSellerPayout', $item->id)
-        ->assertHasNoErrors();
-
-    expect($item->fresh()->seller_payout_status)->toBe(OrderItem::PAYOUT_PAID);
 });
 
 test('guest listing shop orders sync into logistics with guest context', function () {

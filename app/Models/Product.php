@@ -311,7 +311,6 @@ class Product extends Model
         return match (true) {
             $this->approval_status === self::APPROVAL_PENDING => 'Pending approval',
             $this->approval_status === self::APPROVAL_REJECTED => 'Rejected',
-            $this->availableStock() <= 0 => 'Sold',
             default => 'Live in shop',
         };
     }
@@ -321,9 +320,69 @@ class Product extends Model
         return match ($this->guestListingStatusLabel()) {
             'Pending approval' => 'amber',
             'Rejected' => 'red',
-            'Sold' => 'zinc',
             default => 'green',
         };
+    }
+
+    /**
+     * Paid sales, cancelled orders, and each seller payout for this listing.
+     *
+     * @return array{bought: int, cancelled: int, awaiting: int, payouts: list<array{reference: string, amount: int, sent: bool}>}
+     */
+    public function guestSaleSummary(): array
+    {
+        $bought = 0;
+        $cancelled = 0;
+        $awaiting = 0;
+        $payouts = [];
+
+        foreach ($this->orderItems as $item) {
+            $order = $item->order;
+
+            if ($order === null) {
+                continue;
+            }
+
+            $quantity = max(1, (int) $item->quantity);
+
+            if ($order->status === Order::STATUS_CANCELLED) {
+                $cancelled += $quantity;
+
+                continue;
+            }
+
+            if ($order->status === Order::STATUS_AWAITING_PAYMENT) {
+                $awaiting += $quantity;
+
+                continue;
+            }
+
+            if (! in_array($order->status, [
+                Order::STATUS_PAID,
+                Order::STATUS_PROCESSING,
+                Order::STATUS_DISPATCHED,
+                Order::STATUS_DELIVERED,
+            ], true)) {
+                continue;
+            }
+
+            $bought += $quantity;
+
+            if ($item->seller_payout_amount > 0 && $item->seller_payout_status !== OrderItem::PAYOUT_NONE) {
+                $payouts[] = [
+                    'reference' => $order->reference,
+                    'amount' => (int) $item->seller_payout_amount,
+                    'sent' => $item->seller_payout_status === OrderItem::PAYOUT_PAID,
+                ];
+            }
+        }
+
+        return [
+            'bought' => $bought,
+            'cancelled' => $cancelled,
+            'awaiting' => $awaiting,
+            'payouts' => $payouts,
+        ];
     }
 
     /**

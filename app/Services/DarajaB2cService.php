@@ -15,7 +15,10 @@ use Throwable;
 
 class DarajaB2cService
 {
-    public function __construct(private readonly RedeemBidService $redeems) {}
+    public function __construct(
+        private readonly RedeemBidService $redeems,
+        private readonly GuestSellerPayoutService $sellerPayouts,
+    ) {}
 
     public function isReady(): bool
     {
@@ -49,6 +52,7 @@ class DarajaB2cService
         }
 
         $token = $this->accessToken();
+        $sellerPayout = (string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout';
 
         try {
             $response = $this->http()
@@ -61,10 +65,10 @@ class DarajaB2cService
                     'Amount' => $attempt->amount,
                     'PartyA' => (string) config('mpesa.b2c_shortcode'),
                     'PartyB' => $phone,
-                    'Remarks' => 'Redeem payout',
+                    'Remarks' => $sellerPayout ? 'Seller payout' : 'Redeem payout',
                     'QueueTimeOutURL' => (string) config('mpesa.b2c_timeout_url'),
                     'ResultURL' => (string) config('mpesa.b2c_result_url'),
-                    'Occassion' => 'Redeem',
+                    'Occassion' => $sellerPayout ? 'Seller' : 'Redeem',
                 ]);
         } catch (ConnectionException $exception) {
             Log::warning('daraja.b2c.unreachable', ['message' => $exception->getMessage()]);
@@ -91,7 +95,7 @@ class DarajaB2cService
                 return;
             }
 
-            $this->redeems->markPayoutFailed($attempt, $message, is_array($body) ? $body : null);
+            $this->failAttempt($attempt, $message, is_array($body) ? $body : null);
 
             throw ValidationException::withMessages([
                 'redeem' => $message,
@@ -155,7 +159,7 @@ class DarajaB2cService
                     $attempt->update(['mpesa_receipt' => (string) $receipt]);
                 }
 
-                $this->redeems->confirmPayout($attempt->fresh(), $stored);
+                $this->confirmAttempt($attempt->fresh(), $stored);
 
                 return;
             }
@@ -170,7 +174,7 @@ class DarajaB2cService
                 return;
             }
 
-            $this->redeems->markPayoutFailed($attempt, $resultDesc, $stored);
+            $this->failAttempt($attempt, $resultDesc, $stored);
         } catch (Throwable $exception) {
             report($exception);
         }
@@ -184,6 +188,34 @@ class DarajaB2cService
     public function handleTimeout(array $payload): void
     {
         Log::info('daraja.b2c.timeout', ['payload' => $payload]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $stored
+     */
+    private function confirmAttempt(PaymentAttempt $attempt, array $stored): void
+    {
+        if ((string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout') {
+            $this->sellerPayouts->confirmPayout($attempt, $stored);
+
+            return;
+        }
+
+        $this->redeems->confirmPayout($attempt, $stored);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $responsePayload
+     */
+    private function failAttempt(PaymentAttempt $attempt, string $message, ?array $responsePayload = null): void
+    {
+        if ((string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout') {
+            $this->sellerPayouts->markPayoutFailed($attempt, $message, $responsePayload);
+
+            return;
+        }
+
+        $this->redeems->markPayoutFailed($attempt, $message, $responsePayload);
     }
 
     private function findAttempt(string $originator, string $conversation): ?PaymentAttempt

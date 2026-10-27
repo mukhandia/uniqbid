@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\Category;
-use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\SiteSetting;
 use App\Models\Subcategory;
@@ -160,7 +159,7 @@ class extends Component {
         $myListings = Auth::user()
             ? Product::query()
                 ->where('seller_user_id', Auth::id())
-                ->with(['orderItems' => fn ($query) => $query->latest('id')->limit(1)])
+                ->with(['orderItems.order'])
                 ->latest('id')
                 ->limit(20)
                 ->get()
@@ -288,7 +287,6 @@ class extends Component {
             <p class="mt-1 text-sm text-muted-foreground">View-only status. UniqBid staff approve, edit, and fulfil orders.</p>
             <div class="mt-4 space-y-3">
                 @foreach ($myListings as $listing)
-                    @php($sale = $listing->orderItems->first())
                     <div class="flex items-start gap-3 rounded-xl border border-border bg-white p-3" wire:key="my-listing-{{ $listing->id }}">
                         <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
                         <div class="min-w-0 flex-1">
@@ -298,19 +296,7 @@ class extends Component {
                                     {{ $listing->guestListingStatusLabel() }}
                                 </flux:badge>
                             </div>
-                            <div class="mt-1 text-xs text-muted-foreground">
-                                {{ Money::kes($listing->price) }}
-                                · 1 unit
-                                @if ($listing->approval_status === Product::APPROVAL_REJECTED && filled($listing->rejection_reason))
-                                    · {{ $listing->rejection_reason }}
-                                @endif
-                            </div>
-                            @if ($sale)
-                                <div class="mt-1 text-xs text-muted-foreground">
-                                    Sold on order · Payout {{ $sale->seller_payout_status === OrderItem::PAYOUT_PAID ? 'paid' : 'pending' }}
-                                    ({{ Money::kes($sale->seller_payout_amount) }})
-                                </div>
-                            @endif
+                            <x-guest-listing-sales :listing="$listing" />
                         </div>
                     </div>
                 @endforeach

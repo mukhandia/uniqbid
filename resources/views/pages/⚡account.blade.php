@@ -103,7 +103,7 @@ class extends Component {
 
         return Product::query()
             ->where('seller_user_id', $user->id)
-            ->with(['orderItems' => fn ($query) => $query->latest('id')->limit(1)])
+            ->with(['orderItems.order'])
             ->latest('id')
             ->limit(20)
             ->get();
@@ -589,14 +589,13 @@ class extends Component {
                             </flux:button>
                         </div>
                         <p class="mt-2 text-sm text-muted-foreground">
-                            Submit a one-unit shop listing for admin approval. Monitor status here; UniqBid staff manage edits and fulfilment.
+                            Submit a shop listing for admin approval. Each sale, cancellation, and payout shows on the listing.
                         </p>
                         @if ($this->guestListings->isEmpty())
                             <p class="mt-3 text-sm text-muted-foreground">No guest listings yet.</p>
                         @else
                             <div class="mt-4 space-y-3">
                                 @foreach ($this->guestListings as $listing)
-                                    @php($sale = $listing->orderItems->first())
                                     <div class="rounded-xl border border-border p-4" wire:key="guest-listing-{{ $listing->id }}">
                                         <div class="flex items-start gap-3">
                                             <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
@@ -607,18 +606,7 @@ class extends Component {
                                                         {{ $listing->guestListingStatusLabel() }}
                                                     </flux:badge>
                                                 </div>
-                                                <div class="mt-1 text-xs text-muted-foreground">
-                                                    {{ Money::kes($listing->price) }} · 1 unit
-                                                    @if ($listing->approval_status === Product::APPROVAL_REJECTED && filled($listing->rejection_reason))
-                                                        · {{ $listing->rejection_reason }}
-                                                    @endif
-                                                </div>
-                                                @if ($sale)
-                                                    <div class="mt-1 text-xs text-muted-foreground">
-                                                        Sold · Payout {{ $sale->seller_payout_status === OrderItem::PAYOUT_PAID ? 'paid' : 'pending' }}
-                                                        ({{ Money::kes($sale->seller_payout_amount) }})
-                                                    </div>
-                                                @endif
+                                                <x-guest-listing-sales :listing="$listing" />
                                             </div>
                                         </div>
                                     </div>
