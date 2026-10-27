@@ -18,6 +18,7 @@ class DarajaB2cService
     public function __construct(
         private readonly RedeemBidService $redeems,
         private readonly GuestSellerPayoutService $sellerPayouts,
+        private readonly ParticipationRefundService $feeRefunds,
     ) {}
 
     public function isReady(): bool
@@ -52,7 +53,7 @@ class DarajaB2cService
         }
 
         $token = $this->accessToken();
-        $sellerPayout = (string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout';
+        [$remarks, $occasion] = $this->b2cCopy((string) ($attempt->request_payload['purpose'] ?? ''));
 
         try {
             $response = $this->http()
@@ -65,10 +66,10 @@ class DarajaB2cService
                     'Amount' => $attempt->amount,
                     'PartyA' => (string) config('mpesa.b2c_shortcode'),
                     'PartyB' => $phone,
-                    'Remarks' => $sellerPayout ? 'Seller payout' : 'Redeem payout',
+                    'Remarks' => $remarks,
                     'QueueTimeOutURL' => (string) config('mpesa.b2c_timeout_url'),
                     'ResultURL' => (string) config('mpesa.b2c_result_url'),
-                    'Occassion' => $sellerPayout ? 'Seller' : 'Redeem',
+                    'Occassion' => $occasion,
                 ]);
         } catch (ConnectionException $exception) {
             Log::warning('daraja.b2c.unreachable', ['message' => $exception->getMessage()]);
@@ -195,8 +196,16 @@ class DarajaB2cService
      */
     private function confirmAttempt(PaymentAttempt $attempt, array $stored): void
     {
-        if ((string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout') {
+        $purpose = (string) ($attempt->request_payload['purpose'] ?? '');
+
+        if ($purpose === 'seller_payout') {
             $this->sellerPayouts->confirmPayout($attempt, $stored);
+
+            return;
+        }
+
+        if ($purpose === 'participation_refund') {
+            $this->feeRefunds->confirmRefund($attempt, $stored);
 
             return;
         }
@@ -209,13 +218,33 @@ class DarajaB2cService
      */
     private function failAttempt(PaymentAttempt $attempt, string $message, ?array $responsePayload = null): void
     {
-        if ((string) ($attempt->request_payload['purpose'] ?? '') === 'seller_payout') {
+        $purpose = (string) ($attempt->request_payload['purpose'] ?? '');
+
+        if ($purpose === 'seller_payout') {
             $this->sellerPayouts->markPayoutFailed($attempt, $message, $responsePayload);
 
             return;
         }
 
+        if ($purpose === 'participation_refund') {
+            $this->feeRefunds->markRefundFailed($attempt, $message, $responsePayload);
+
+            return;
+        }
+
         $this->redeems->markPayoutFailed($attempt, $message, $responsePayload);
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function b2cCopy(string $purpose): array
+    {
+        return match ($purpose) {
+            'seller_payout' => ['Seller payout', 'Seller'],
+            'participation_refund' => ['Fee refund', 'Refund'],
+            default => ['Redeem payout', 'Redeem'],
+        };
     }
 
     private function findAttempt(string $originator, string $conversation): ?PaymentAttempt

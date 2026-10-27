@@ -9,6 +9,7 @@ use App\Services\AuctionSettlementService;
 use App\Services\BidderMessageService;
 use App\Services\DarajaB2cService;
 use App\Services\LogisticsService;
+use App\Services\ParticipationRefundService;
 use App\Services\RedeemBidService;
 use App\Support\AuditLogger;
 use App\Support\Money;
@@ -164,9 +165,16 @@ class extends Component {
             'leadingBid' => $snapshot['leading_bid'],
             'amountCounts' => $snapshot['amount_counts'],
             'successfulBid' => $result?->auctionBid,
+            'refundInFlight' => $this->auction->status === 'voided' && PaymentAttempt::query()
+                ->where('provider', 'mpesa_daraja_b2c')
+                ->where('request_payload->purpose', 'participation_refund')
+                ->where('status', 'initiated')
+                ->whereIn('auction_bid_id', $this->auction->bids()->select('id'))
+                ->exists(),
             'payoutInFlight' => $result?->auction_bid_id !== null && PaymentAttempt::query()
                 ->where('auction_bid_id', $result->auction_bid_id)
                 ->where('provider', 'mpesa_daraja_b2c')
+                ->where('request_payload->purpose', 'redeem_payout')
                 ->where('status', 'initiated')
                 ->exists(),
             'latestPayoutAttempt' => $result?->auction_bid_id === null
@@ -174,6 +182,7 @@ class extends Component {
                 : PaymentAttempt::query()
                     ->where('auction_bid_id', $result->auction_bid_id)
                     ->where('provider', 'mpesa_daraja_b2c')
+                    ->where('request_payload->purpose', 'redeem_payout')
                     ->latest('id')
                     ->first(),
             'shipment' => $this->auction->result?->activeShipment(),
@@ -283,6 +292,37 @@ class extends Component {
         ]);
 
         Flux::toast(variant: 'success', text: 'M-Pesa accepted the payout request. The result will confirm it.');
+    }
+
+    public function initiateParticipationRefund(int $bidId, ParticipationRefundService $refunds, DarajaB2cService $daraja): void
+    {
+        $bid = $this->auction->bids()->whereKey($bidId)->firstOrFail();
+
+        if (! $daraja->isReady()) {
+            Flux::toast(variant: 'danger', text: 'M-Pesa is not connected, so the refund was not sent.');
+
+            return;
+        }
+
+        try {
+            $attempt = $refunds->beginRefund($bid);
+            $daraja->requestPayout($attempt);
+        } catch (ValidationException $exception) {
+            Flux::toast(
+                variant: 'danger',
+                text: (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not send the refund.'),
+            );
+
+            return;
+        }
+
+        AuditLogger::log('auctions', 'participation refund requested from M-Pesa', 'participation_refund_requested', $bid->fresh(), [
+            'auction_id' => $bid->auction_id,
+            'amount' => $attempt->amount,
+            'payment_attempt_id' => $attempt->id,
+        ]);
+
+        Flux::toast(variant: 'success', text: 'M-Pesa accepted the refund request. The result will confirm it.');
     }
 
     public function markSalePaid(): void
@@ -421,7 +461,7 @@ class extends Component {
     $successfulBidder = $successfulBid?->bidder;
 @endphp
 
-<div class="space-y-6" wire:poll.180s.visible>
+<div class="space-y-6" @if ($refundInFlight) wire:poll.5s.visible @else wire:poll.180s.visible @endif>
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
             <a href="{{ route('admin.auctions') }}" class="text-sm text-zinc-500 hover:underline" wire:navigate>← All sales</a>
@@ -718,12 +758,26 @@ class extends Component {
                     <th class="px-4 py-3 font-medium">Uniqueness</th>
                     <th class="px-4 py-3 font-medium">Status</th>
                     <th class="px-4 py-3 font-medium">Payment</th>
+                    @if ($auction->status === 'voided')
+                        <th class="px-4 py-3 font-medium">Refund</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @forelse ($bids as $bid)
                     @php
-                        $latestPayment = $bid->paymentAttempts->sortByDesc('id')->first();
+                        $latestPayment = $bid->paymentAttempts
+                            ->filter(fn (PaymentAttempt $attempt): bool => ($attempt->request_payload['purpose'] ?? '') !== 'participation_refund')
+                            ->sortByDesc('id')
+                            ->first();
+                        $feePayment = $bid->paymentAttempts
+                            ->filter(fn (PaymentAttempt $attempt): bool => $attempt->status === 'succeeded' && $attempt->provider !== 'mpesa_daraja_b2c')
+                            ->sortByDesc('id')
+                            ->first();
+                        $refundAttempt = $bid->paymentAttempts
+                            ->filter(fn (PaymentAttempt $attempt): bool => ($attempt->request_payload['purpose'] ?? '') === 'participation_refund')
+                            ->sortByDesc('id')
+                            ->first();
                         $isLeading = $leadingBid && $bid->id === $leadingBid->id;
                         $isSuccessful = $successfulBid && $bid->id === $successfulBid->id;
                         $acceptedCount = $amountCounts[$bid->amount] ?? 0;
@@ -788,10 +842,33 @@ class extends Component {
                                 None
                             @endif
                         </td>
+                        @if ($auction->status === 'voided')
+                            <td class="px-4 py-3 text-xs">
+                                @if ($bid->status === 'accepted' && $feePayment)
+                                    @if ($refundAttempt?->status === 'succeeded')
+                                        <div>Refund sent.</div>
+                                        @if (filled($refundAttempt->mpesa_receipt))
+                                            <div class="font-mono">{{ $refundAttempt->mpesa_receipt }}</div>
+                                        @endif
+                                    @elseif ($refundAttempt?->status === 'initiated')
+                                        <p class="text-amber-800">This refund is with M-Pesa. This page checks for Safaricom's result.</p>
+                                    @elseif ((int) $feePayment->amount < 10)
+                                        <p>This fee is below the M-Pesa minimum of KES 10, so it cannot be sent.</p>
+                                    @else
+                                        @if ($refundAttempt?->status === 'failed' && filled($refundAttempt->failure_reason))
+                                            <p class="mb-2 text-red-700">{{ $refundAttempt->failure_reason }}</p>
+                                        @endif
+                                        <flux:button size="sm" wire:click="initiateParticipationRefund({{ $bid->id }})" wire:confirm="Send {{ Money::kes($feePayment->amount) }} back to the bidder?">
+                                            Refund to customer
+                                        </flux:button>
+                                    @endif
+                                @endif
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-zinc-500">No bids recorded yet.</td>
+                        <td colspan="{{ $auction->status === 'voided' ? 7 : 6 }}" class="px-4 py-8 text-center text-zinc-500">No bids recorded yet.</td>
                     </tr>
                 @endforelse
             </tbody>

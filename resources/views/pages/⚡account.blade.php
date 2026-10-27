@@ -687,14 +687,28 @@ class extends Component {
                                                 </div>
                                             </div>
                                             <flux:badge size="sm" class="w-fit" :color="match ($entry['status']) {
-                                                'successful' => 'green',
-                                                'open', 'pending_payment' => 'amber',
-                                                'failed' => 'red',
+                                                'successful', 'refund_successful' => 'green',
+                                                'open', 'pending_payment', 'awaiting_refund' => 'amber',
+                                                'failed', 'refund_failed' => 'red',
                                                 default => 'zinc',
                                             }">
                                                 {{ $entry['label'] }}
                                             </flux:badge>
                                         </div>
+                                        @php($refund = app(CustomerAccountService::class)->refundState($bid))
+                                        @if ($refund === 'pending')
+                                            <div wire:poll.5s.visible class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Refund is with M-Pesa.
+                                            </div>
+                                        @elseif ($refund === 'successful')
+                                            <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Refund successful.
+                                            </div>
+                                        @elseif ($refund === 'failed')
+                                            <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                Refund failed.
+                                            </div>
+                                        @endif
                                         @if ($entry['status'] === 'successful')
                                             @php($result = $bid->auction->result)
                                             @php($payoutUnpaid = $result?->fulfilment_status === 'redeemed' && $result->redemption_payout_status !== AuctionResult::REDEMPTION_PAYOUT_PAID)

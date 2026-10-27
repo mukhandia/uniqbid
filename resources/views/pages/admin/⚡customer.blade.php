@@ -77,7 +77,7 @@ class extends Component {
         $user = $this->bidder->user;
 
         $bids = $this->bidder->bids()
-            ->with(['auction:id,name,slug,settled_at', 'auction.result'])
+            ->with(['auction:id,name,slug,status,settled_at', 'auction.result', 'paymentAttempts'])
             ->latest()
             ->paginate(15, pageName: 'bids');
 
@@ -88,10 +88,10 @@ class extends Component {
             'bidStatus' => fn (AuctionBid $bid): array => [
                 'label' => $accounts->statusLabel($status = $accounts->classifyBid($bid)),
                 'color' => match ($status) {
-                    'successful' => 'green',
+                    'successful', 'refund_successful' => 'green',
                     'open' => 'sky',
-                    'pending_payment' => 'amber',
-                    'failed' => 'red',
+                    'pending_payment', 'awaiting_refund' => 'amber',
+                    'failed', 'refund_failed' => 'red',
                     default => 'zinc',
                 },
             ],

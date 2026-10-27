@@ -284,7 +284,7 @@ class extends Component {
             'current_round' => $auction->current_round,
         ]);
 
-        Flux::toast(variant: 'success', text: 'Sale voided. Participation-fee refunds must be processed once the payment provider is connected.');
+        Flux::toast(variant: 'success', text: 'Sale voided. Open the sale to refund each paid participation fee.');
     }
 
     public function reoffer(int $auctionId): void

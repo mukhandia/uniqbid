@@ -76,7 +76,7 @@ class CustomerAccountService
         }
 
         return AuctionBid::query()
-            ->with(['auction.result', 'bidder'])
+            ->with(['auction.result', 'bidder', 'paymentAttempts'])
             ->where('bidder_id', $bidder->id)
             ->latest()
             ->get()
@@ -85,6 +85,28 @@ class CustomerAccountService
                 'status' => $this->classifyBid($bid),
                 'label' => $this->statusLabel($this->classifyBid($bid)),
             ]);
+    }
+
+    public function refundState(AuctionBid $bid): ?string
+    {
+        if ($bid->auction->status !== 'voided') {
+            return null;
+        }
+
+        $attempt = $bid->paymentAttempts
+            ->filter(fn (PaymentAttempt $payment): bool => ($payment->request_payload['purpose'] ?? '') === 'participation_refund')
+            ->sortByDesc('id')
+            ->first();
+
+        if ($attempt === null) {
+            return null;
+        }
+
+        return match ($attempt->status) {
+            'succeeded' => 'successful',
+            'failed' => 'failed',
+            default => 'pending',
+        };
     }
 
     public function classifyBid(AuctionBid $bid): string
@@ -98,6 +120,15 @@ class CustomerAccountService
         }
 
         $auction = $bid->auction;
+
+        if ($auction->status === 'voided' && $bid->status === 'accepted') {
+            return match ($this->refundState($bid)) {
+                'successful' => 'refund_successful',
+                'failed' => 'refund_failed',
+                default => 'awaiting_refund',
+            };
+        }
+
         $result = $auction->result;
 
         if ($auction->settled_at === null) {
@@ -122,6 +153,9 @@ class CustomerAccountService
             'successful' => 'Successful buy',
             'unsuccessful' => 'Not successful',
             'failed' => 'Payment failed',
+            'awaiting_refund' => 'Awaiting Refund',
+            'refund_successful' => 'Refund successful',
+            'refund_failed' => 'Refund failed',
             default => ucfirst(str_replace('_', ' ', $status)),
         };
     }
@@ -130,6 +164,7 @@ class CustomerAccountService
     {
         return (int) PaymentAttempt::query()
             ->where('status', 'succeeded')
+            ->where('provider', '!=', 'mpesa_daraja_b2c')
             ->whereHas('auctionBid', fn ($query) => $query->where('bidder_id', $bidderId))
             ->where('updated_at', '>=', $since)
             ->sum('amount');
