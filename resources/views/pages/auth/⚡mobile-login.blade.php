@@ -151,12 +151,19 @@ class extends Component {
             </flux:button>
         </form>
     @elseif ($step === 'code')
-        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            <div class="font-semibold">SMS placeholder</div>
-            <p class="mt-1">SMS delivery will be connected later. For this staging flow, enter <span class="font-mono font-bold">{{ $placeholderCode }}</span>.</p>
-        </div>
+        @if ($placeholderCode !== '')
+            <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                <div class="font-semibold">SMS placeholder</div>
+                <p class="mt-1">SMS delivery will be connected later. For this staging flow, enter <span class="font-mono font-bold">{{ $placeholderCode }}</span>.</p>
+            </div>
+        @else
+            <div class="rounded-lg border border-border bg-surface p-3 text-sm text-muted-foreground">
+                Check your phone for the six-digit code. It expires in 10 minutes.
+            </div>
+        @endif
 
         <form wire:submit="verifyCode" class="flex flex-col gap-6">
+            <flux:error name="phone" />
             <flux:input wire:model="code" :label="__('Six-digit code')" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus />
             <flux:error name="code" />
             <flux:button type="submit" variant="primary" class="w-full">

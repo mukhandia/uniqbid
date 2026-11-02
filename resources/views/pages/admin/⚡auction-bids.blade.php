@@ -74,11 +74,21 @@ class extends Component {
 
         $bidder = $this->bidderOnSale($this->messageBidderId);
 
-        $messages->send($this->auction, $bidder, $this->messageBody, auth()->user());
+        $message = $messages->send($this->auction, $bidder, $this->messageBody, auth()->user());
 
         $this->messageBody = '';
 
-        Flux::toast(variant: 'success', text: 'Message to '.$bidder->name.' saved as pending. It will send once SMS is connected.');
+        Flux::toast(
+            variant: match ($message->status) {
+                BidderMessage::STATUS_FAILED => 'danger',
+                default => 'success',
+            },
+            text: match ($message->status) {
+                BidderMessage::STATUS_DELIVERED => 'Message to '.$bidder->name.' was accepted by SMS.',
+                BidderMessage::STATUS_FAILED => 'Message to '.$bidder->name.' was not sent. '.$message->failure_reason,
+                default => 'Message to '.$bidder->name.' saved as pending. It will send once SMS is connected.',
+            },
+        );
     }
 
     private function bidderOnSale(int $bidderId): Bidder
@@ -703,7 +713,11 @@ class extends Component {
                         <flux:textarea wire:model="messageBody" rows="4" maxlength="{{ BidderMessage::MAX_LENGTH }}" placeholder="Type your message to the bidder…" data-test="message-body" />
                         <flux:error name="messageBody" />
                     </flux:field>
-                    <flux:text class="text-xs">SMS is not connected yet, so messages are saved as Pending until it is.</flux:text>
+                    @if (app(\App\Services\MobileSasaSmsService::class)->isReady())
+                        <flux:text class="text-xs">The message is sent by SMS when you click Send.</flux:text>
+                    @else
+                        <flux:text class="text-xs">SMS is not connected yet, so messages are saved as Pending until it is.</flux:text>
+                    @endif
                     <div class="flex justify-end gap-2">
                         <flux:modal.close>
                             <flux:button type="button" variant="ghost">Close</flux:button>

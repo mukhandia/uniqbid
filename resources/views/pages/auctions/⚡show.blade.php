@@ -495,12 +495,19 @@ class extends Component {
                                 Enter the six-digit code sent to {{ $phone }}.
                             </p>
 
-                            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                                <div class="font-semibold">SMS placeholder</div>
-                                <p class="mt-1">SMS delivery will be connected later. For this staging flow, enter <span class="font-mono font-bold">{{ $placeholderCode }}</span>.</p>
-                            </div>
+                            @if ($placeholderCode !== '')
+                                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                    <div class="font-semibold">SMS placeholder</div>
+                                    <p class="mt-1">SMS delivery will be connected later. For this staging flow, enter <span class="font-mono font-bold">{{ $placeholderCode }}</span>.</p>
+                                </div>
+                            @else
+                                <div class="mt-4 rounded-lg border border-border bg-surface p-3 text-sm text-muted-foreground">
+                                    Check your phone for the six-digit code. It expires in 10 minutes.
+                                </div>
+                            @endif
 
                             <form wire:submit="verifySignInCode" class="mt-4 space-y-4">
+                                <flux:error name="phone" />
                                 <flux:field>
                                     <flux:label>Six-digit code</flux:label>
                                     <flux:input wire:model="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" autofocus />

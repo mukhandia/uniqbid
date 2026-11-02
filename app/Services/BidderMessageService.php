@@ -11,8 +11,11 @@ use Illuminate\Validation\ValidationException;
 
 class BidderMessageService
 {
+    public function __construct(private readonly MobileSasaSmsService $sms) {}
+
     /**
-     * Records an admin message to a bidder on a sale. Messages stay pending until an SMS provider is connected.
+     * Records an admin message to a bidder on a sale. When Mobile Sasa is connected, the SMS is
+     * queued immediately. Otherwise the row stays pending until SMS is available.
      */
     public function send(Auction $auction, Bidder $bidder, string $body, ?User $sender = null): BidderMessage
     {
@@ -39,6 +42,31 @@ class BidderMessageService
             'phone' => $bidder->phone,
         ]);
 
-        return $message;
+        if (! $this->sms->isReady()) {
+            return $message;
+        }
+
+        try {
+            $this->sms->send(
+                phone: (string) $bidder->phone,
+                message: trim($body),
+                trackingId: 'MSG-'.$message->id,
+            );
+
+            $message->update([
+                'status' => BidderMessage::STATUS_DELIVERED,
+                'delivered_at' => now(),
+                'failure_reason' => null,
+            ]);
+        } catch (ValidationException $exception) {
+            $message->update([
+                'status' => BidderMessage::STATUS_FAILED,
+                'failure_reason' => str((string) collect($exception->errors())->flatten()->first())
+                    ->limit(250, '')
+                    ->toString(),
+            ]);
+        }
+
+        return $message->fresh() ?? $message;
     }
 }

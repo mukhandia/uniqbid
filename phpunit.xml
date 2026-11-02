@@ -41,5 +41,7 @@
         <env name="MPESA_B2C_SHORTCODE" value=""/>
         <env name="MPESA_B2C_RESULT_URL" value=""/>
         <env name="MPESA_B2C_TIMEOUT_URL" value=""/>
+        <env name="MOBILESASA_TOKEN" value=""/>
+        <env name="MOBILESASA_SENDER_ID" value=""/>
     </php>
 </phpunit>
