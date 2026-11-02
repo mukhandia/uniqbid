@@ -7,7 +7,7 @@ use Carbon\CarbonInterface;
 class Countdown
 {
     /**
-     * Format remaining time as days, hours, and minutes (no seconds).
+     * Format remaining time as total hours, minutes, and seconds.
      */
     public static function label(?CarbonInterface $endsAt, ?CarbonInterface $now = null): string
     {
@@ -22,10 +22,10 @@ class Countdown
             return 'Closed';
         }
 
-        $days = intdiv($diffSeconds, 86400);
-        $hours = intdiv($diffSeconds % 86400, 3600);
+        $hours = intdiv($diffSeconds, 3600);
         $minutes = intdiv($diffSeconds % 3600, 60);
+        $seconds = $diffSeconds % 60;
 
-        return sprintf('%dd : %02dh : %02dm', $days, $hours, $minutes);
+        return sprintf('%dh : %02dm : %02ds', $hours, $minutes, $seconds);
     }
 }

@@ -75,7 +75,7 @@ class extends Component {
                     The lowest <span class="text-gold">unique amount</span> secures the item.
                 </h1>
                 <p class="mt-4 max-w-md text-base opacity-90">
-                    Participate transparently on real items: phones, TVs, motorbikes, from as little as KES 20. Instantly pay via M-Pesa and get SMS or WhatsApp confirmation.
+                    Real items, phones, TVs, motorbikes. Enter any amount in the range, pay a participation fee from KES 1 via M-Pesa, and the lowest unique amount secures the item.
                 </p>
                 <div class="mt-6 flex flex-wrap gap-3">
                     @if ($featured)

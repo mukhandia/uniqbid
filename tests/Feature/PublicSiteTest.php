@@ -139,7 +139,7 @@ test('auction pages poll the server every thirty seconds for countdown labels', 
         ->assertSee('wire:poll.10s.visible="refreshLiveSnapshot"', false)
         ->assertDontSee('wire:ignore', false);
 
-    expect($response->getContent())->toMatch('/\d+d : \d{2}h : \d{2}m/');
+    expect($response->getContent())->toMatch('/\d+h : \d{2}m : \d{2}s/');
 
     $this->get(route('auctions.index'))
         ->assertOk()
