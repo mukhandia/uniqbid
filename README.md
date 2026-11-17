@@ -80,5 +80,3 @@ Push to `staging` and the pipeline handles everything, including migrations.
 | `UniqBidDemoSeeder` / `db:seed` without `--class` | Adds fake past sales and a test user | **Never on a server** |
 
 Never run `migrate:fresh` on a server with real data: it deletes all users, bids, payments and orders, and uploaded images lose their database references. It is also blocked when `APP_ENV=production`.
-
-Hey There
