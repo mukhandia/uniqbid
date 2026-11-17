@@ -11,7 +11,6 @@ use App\Services\RedeemBidService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
-use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
 function winningSale(): array
@@ -54,16 +53,17 @@ function winningSale(): array
     return compact('user', 'bidder', 'auction', 'bid', 'result');
 }
 
-test('the winner sees a mpesa button for the unpaid winning amount', function () {
+test('the winner does not see winning-amount payment controls on my account', function () {
     ['user' => $user] = winningSale();
 
     $this->actingAs($user)
-        ->get(route('account'))
+        ->get(route('account', ['section' => 'history']))
         ->assertOk()
-        ->assertSee('Pay a winning amount')
-        ->assertSee('Pay with M-Pesa')
+        ->assertSee('Bid Successfully Placed')
         ->assertSee('KES 20')
-        ->assertSee('0712345678');
+        ->assertDontSee('Pay a winning amount')
+        ->assertDontSee('Pay with M-Pesa')
+        ->assertDontSee('Successful buy');
 });
 
 test('a signed-out guest account does not ask for a winning amount', function () {
@@ -184,34 +184,6 @@ test('an unfinished winning-amount callback stays open', function () {
 
     expect($attempt->fresh()->status)->toBe('initiated')
         ->and($result->fresh()->sale_payment_status)->toBe('awaiting_payment');
-});
-
-test('another customer cannot pay someone elses winning amount', function () {
-    ['result' => $result] = winningSale();
-    $other = User::factory()->create(['phone' => '254700000001', 'phone_verified_at' => now()]);
-    Bidder::factory()->create(['user_id' => $other->id, 'phone' => $other->phone]);
-
-    Livewire::actingAs($other)
-        ->test('pages::account')
-        ->call('payWinningAmount', $result->id)
-        ->assertForbidden();
-
-    expect(PaymentAttempt::query()->count())->toBe(0);
-});
-
-test('the account page starts one winning-amount payment', function () {
-    ['user' => $user, 'result' => $result] = winningSale();
-
-    Livewire::actingAs($user)
-        ->test('pages::account')
-        ->call('payWinningAmount', $result->id)
-        ->assertSet('salePaymentState', 'pending')
-        ->call('payWinningAmount', $result->id)
-        ->assertHasNoErrors();
-
-    expect(PaymentAttempt::query()->count())->toBe(1)
-        ->and(PaymentAttempt::query()->first()->amount)->toBe(20)
-        ->and(PaymentAttempt::query()->first()->request_payload['purpose'])->toBe('successful_buy');
 });
 
 test('an unpaid redeem can be paid as the winning amount instead', function () {

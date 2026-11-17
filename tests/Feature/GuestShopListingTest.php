@@ -188,6 +188,7 @@ test('guest can monitor listing status without editing', function () {
 
     Livewire::actingAs($seller)
         ->test('pages::account')
+        ->set('section', 'listings')
         ->assertSee('Pending Guest Chair')
         ->assertSee('Pending approval')
         ->assertSee('Sold Guest Lamp')

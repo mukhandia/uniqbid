@@ -6,8 +6,9 @@ use App\Models\AuctionBid;
 use App\Models\CustomerControl;
 use App\Models\PaymentAttempt;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class CustomerAccountService
@@ -65,26 +66,53 @@ class CustomerAccountService
     }
 
     /**
-     * @return Collection<int, array{bid: AuctionBid, status: string, label: string}>
+     * @return LengthAwarePaginator<int, array{bid: AuctionBid, status: string, label: string}>
      */
-    public function bidHistory(User $user): Collection
+    public function bidHistory(User $user, int $perPage = 10, string $pageName = 'historyPage', ?string $search = null): LengthAwarePaginator
     {
         $bidder = $user->bidder;
 
         if ($bidder === null) {
-            return collect();
+            return new Paginator([], 0, $perPage, Paginator::resolveCurrentPage($pageName), [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => $pageName,
+            ]);
         }
+
+        $term = trim((string) $search);
 
         return AuctionBid::query()
             ->with(['auction.result', 'bidder', 'paymentAttempts'])
             ->where('bidder_id', $bidder->id)
+            ->when($term !== '', function ($query) use ($term): void {
+                $query->where(function ($builder) use ($term): void {
+                    $builder
+                        ->where('reference', 'like', '%'.$term.'%')
+                        ->orWhereHas('auction', fn ($auction) => $auction->where('name', 'like', '%'.$term.'%'));
+                });
+            })
             ->latest()
-            ->get()
-            ->map(fn (AuctionBid $bid): array => [
-                'bid' => $bid,
-                'status' => $this->classifyBid($bid),
-                'label' => $this->statusLabel($this->classifyBid($bid)),
-            ]);
+            ->paginate($perPage, pageName: $pageName)
+            ->through(function (AuctionBid $bid): array {
+                $status = $this->classifyBid($bid);
+
+                return [
+                    'bid' => $bid,
+                    'status' => $status,
+                    'label' => $this->guestHistoryLabel($status),
+                ];
+            });
+    }
+
+    /**
+     * Guest account history hides win/loss; UniqBid notifies winners separately.
+     */
+    public function guestHistoryLabel(string $status): string
+    {
+        return match ($status) {
+            'successful', 'unsuccessful' => 'Bid Successfully Placed',
+            default => $this->statusLabel($status),
+        };
     }
 
     public function refundState(AuctionBid $bid): ?string

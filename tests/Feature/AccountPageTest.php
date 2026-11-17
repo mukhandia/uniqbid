@@ -62,12 +62,61 @@ test('customers see profile controls and bid history', function () {
         ->get(route('account'))
         ->assertOk()
         ->assertSee('Jane Bidder')
-        ->assertSee('Weekend Gadget Sale')
-        ->assertSee('BID-TEST1234')
-        ->assertSee('Open')
-        ->assertSee('Participation fee limit')
+        ->assertSee('Profile')
+        ->assertSee('Settings')
+        ->assertSee('Sales & Auction history')
+        ->assertSee('Vendor listings')
         ->assertDontSee('Go to dashboard')
         ->assertDontSee('Profile settings');
+
+    Livewire::actingAs($user)
+        ->test('pages::account')
+        ->assertSee('Jane Bidder')
+        ->call('showSection', 'settings')
+        ->assertSee('Participation fee limit')
+        ->call('showSection', 'history')
+        ->assertSee('Weekend Gadget Sale')
+        ->assertSee('BID-TEST1234')
+        ->assertSee('Open');
+});
+
+test('customers can filter sales history by product name or bid number', function () {
+    $user = User::factory()->create([
+        'phone' => '254712345678',
+        'phone_verified_at' => now(),
+    ]);
+    $bidder = Bidder::factory()->create([
+        'user_id' => $user->id,
+        'phone' => $user->phone,
+    ]);
+
+    $keep = Auction::factory()->create(['name' => 'Keep Phone Sale', 'status' => 'live']);
+    $hide = Auction::factory()->create(['name' => 'Hide Laptop Sale', 'status' => 'live']);
+
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $keep->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 10,
+        'reference' => 'BID-KEEP0001',
+    ]);
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $hide->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 12,
+        'reference' => 'BID-HIDE0002',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test('pages::account')
+        ->set('section', 'history')
+        ->assertSee('Keep Phone Sale')
+        ->assertSee('Hide Laptop Sale')
+        ->set('historySearch', 'Phone')
+        ->assertSee('Keep Phone Sale')
+        ->assertDontSee('Hide Laptop Sale')
+        ->set('historySearch', 'BID-HIDE')
+        ->assertSee('Hide Laptop Sale')
+        ->assertDontSee('Keep Phone Sale');
 });
 
 test('customers can update profile from my account', function () {
@@ -177,7 +226,7 @@ test('customers can set an optional participation fee limit', function () {
         ->and($control->limit_period)->toBe('daily');
 });
 
-test('an unpaid cash payout stays unfinished on my account', function () {
+test('settled bids hide win or loss and winning-amount payment on my account', function () {
     $user = User::factory()->create([
         'phone' => '254712345678',
         'phone_verified_at' => now(),
@@ -186,112 +235,53 @@ test('an unpaid cash payout stays unfinished on my account', function () {
         'user_id' => $user->id,
         'phone' => $user->phone,
     ]);
-    $auction = Auction::factory()->create([
-        'name' => 'Pencil Test',
+    $wonAuction = Auction::factory()->create([
+        'name' => 'Winning Pencil',
         'status' => 'closed',
         'settled_at' => now(),
         'retail_value' => 20,
     ]);
-    $bid = AuctionBid::factory()->accepted()->create([
-        'auction_id' => $auction->id,
-        'bidder_id' => $bidder->id,
-        'amount' => 1,
-        'reference' => 'BID-UNPAIDPAY',
-    ]);
-    AuctionResult::factory()->create([
-        'auction_id' => $auction->id,
-        'auction_bid_id' => $bid->id,
-        'sale_price' => 1,
-        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
-        'redemption_amount' => 19,
-        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
-    ]);
-
-    $this->actingAs($user)
-        ->get(route('account'))
-        ->assertOk()
-        ->assertSee('Successful buy at KES 1')
-        ->assertSee('Cash payout of KES 19 has not been sent')
-        ->assertSee('take the item instead')
-        ->assertSee('Cash payout: not sent')
-        ->assertSee('Try again')
-        ->assertSee('Pay with M-Pesa')
-        ->assertSee(route('redeem', ['reference' => 'BID-UNPAIDPAY'], false))
-        ->assertDontSee('Redeemed for cash');
-});
-
-test('a sent redeem review is shown as waiting for review', function () {
-    $user = User::factory()->create([
-        'phone' => '254700000099',
-        'phone_verified_at' => now(),
-    ]);
-    $bidder = Bidder::factory()->create([
-        'user_id' => $user->id,
-        'phone' => $user->phone,
-    ]);
-    $auction = Auction::factory()->create([
-        'name' => 'Review Pencil',
+    $lostAuction = Auction::factory()->create([
+        'name' => 'Losing Pencil',
         'status' => 'closed',
         'settled_at' => now(),
     ]);
-    $bid = AuctionBid::factory()->accepted()->create([
-        'auction_id' => $auction->id,
+    $wonBid = AuctionBid::factory()->accepted()->create([
+        'auction_id' => $wonAuction->id,
         'bidder_id' => $bidder->id,
         'amount' => 1,
-        'reference' => 'BID-REVIEW001',
+        'reference' => 'BID-WONHIDE01',
+    ]);
+    AuctionBid::factory()->accepted()->create([
+        'auction_id' => $lostAuction->id,
+        'bidder_id' => $bidder->id,
+        'amount' => 5,
+        'reference' => 'BID-LOSTHIDE1',
     ]);
     AuctionResult::factory()->create([
-        'auction_id' => $auction->id,
-        'auction_bid_id' => $bid->id,
+        'auction_id' => $wonAuction->id,
+        'auction_bid_id' => $wonBid->id,
         'sale_price' => 1,
         'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
         'redemption_amount' => 19,
         'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PENDING,
-        'redemption_requested_at' => now(),
+    ]);
+    AuctionResult::factory()->create([
+        'auction_id' => $lostAuction->id,
+        'auction_bid_id' => null,
+        'sale_price' => 2,
     ]);
 
     $this->actingAs($user)
-        ->get(route('account'))
+        ->get(route('account', ['section' => 'history']))
         ->assertOk()
-        ->assertSee('Your redeem request has been sent for review.')
-        ->assertSee('Pay with M-Pesa')
+        ->assertSee('Winning Pencil')
+        ->assertSee('Losing Pencil')
+        ->assertSee('Bid Successfully Placed')
+        ->assertDontSee('Successful buy')
+        ->assertDontSee('Not successful')
+        ->assertDontSee('Pay a winning amount')
+        ->assertDontSee('Pay with M-Pesa')
+        ->assertDontSee('Cash payout')
         ->assertDontSee('Try again');
-});
-
-test('a sent cash payout is shown as complete', function () {
-    $user = User::factory()->create([
-        'phone' => '254700000002',
-        'phone_verified_at' => now(),
-    ]);
-    $bidder = Bidder::factory()->create([
-        'user_id' => $user->id,
-        'phone' => $user->phone,
-    ]);
-    $auction = Auction::factory()->create([
-        'name' => 'Paid Redeem',
-        'status' => 'closed',
-        'settled_at' => now(),
-        'retail_value' => 20,
-    ]);
-    $bid = AuctionBid::factory()->accepted()->create([
-        'auction_id' => $auction->id,
-        'bidder_id' => $bidder->id,
-        'amount' => 1,
-        'reference' => 'BID-PAIDPAY01',
-    ]);
-    AuctionResult::factory()->create([
-        'auction_id' => $auction->id,
-        'auction_bid_id' => $bid->id,
-        'sale_price' => 1,
-        'fulfilment_status' => AuctionResult::FULFILMENT_REDEEMED,
-        'redemption_amount' => 19,
-        'redemption_payout_status' => AuctionResult::REDEMPTION_PAYOUT_PAID,
-    ]);
-
-    $this->actingAs($user)
-        ->get(route('account'))
-        ->assertOk()
-        ->assertSee('Redeemed for cash. KES 19 was sent to your M-Pesa.')
-        ->assertSee('Cash payout sent.')
-        ->assertDontSee('has not been sent');
 });

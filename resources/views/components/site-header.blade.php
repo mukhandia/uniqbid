@@ -70,7 +70,7 @@
 
                 <a
                     href="{{ route('account') }}"
-                    class="hidden rounded-md p-2 text-zinc-900 hover:bg-muted sm:block"
+                    class="rounded-md p-2 text-zinc-900 hover:bg-muted"
                     aria-label="My account"
                 >
                     <flux:icon.user class="size-5" />

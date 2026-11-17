@@ -1,37 +1,40 @@
 <?php
 
-use App\Models\AuctionResult;
 use App\Models\CustomerVerificationDocument;
 use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\AuctionBidService;
 use App\Services\CustomerAccountService;
-use App\Services\DarajaStkService;
 use App\Services\OrderService;
-use App\Services\RedeemBidService;
 use App\Support\Money;
 use Flux\Flux;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 new
 #[Layout('layouts.site')]
 #[Title('My Account: UniqBid')]
 class extends Component {
     use WithFileUploads;
+    use WithPagination;
+
+    /** @var list<string> */
+    private const SECTIONS = ['profile', 'settings', 'history', 'orders', 'listings'];
 
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
     public array $verificationFiles = [];
+
+    #[Url(as: 'section', history: true)]
+    public string $section = 'profile';
 
     public string $name = '';
 
@@ -43,16 +46,18 @@ class extends Component {
 
     public ?string $limitPeriod = null;
 
-    public ?int $salePaymentAttemptId = null;
+    public string $historySearch = '';
 
-    public ?int $salePaymentResultId = null;
+    public string $ordersSearch = '';
 
-    public string $salePaymentState = 'idle';
-
-    public string $salePaymentMessage = '';
+    public string $listingsSearch = '';
 
     public function mount(): void
     {
+        if (! in_array($this->section, self::SECTIONS, true)) {
+            $this->section = 'profile';
+        }
+
         $user = Auth::user();
 
         if ($user === null || $user->is_admin) {
@@ -68,139 +73,106 @@ class extends Component {
         $this->limitPeriod = $user->customerControl?->limit_period;
     }
 
+    public function updatedSection(string $value): void
+    {
+        if (! in_array($value, self::SECTIONS, true)) {
+            $this->section = 'profile';
+
+            return;
+        }
+
+        $this->resetPage('historyPage');
+        $this->resetPage('ordersPage');
+        $this->resetPage('listingsPage');
+        unset($this->sectionLabel);
+    }
+
+    public function updatedHistorySearch(): void
+    {
+        $this->resetPage('historyPage');
+    }
+
+    public function updatedOrdersSearch(): void
+    {
+        $this->resetPage('ordersPage');
+    }
+
+    public function updatedListingsSearch(): void
+    {
+        $this->resetPage('listingsPage');
+    }
+
+    public function showSection(string $section): void
+    {
+        if (! in_array($section, self::SECTIONS, true)) {
+            return;
+        }
+
+        $this->section = $section;
+    }
+
     #[Computed]
-    public function bidHistory(): Collection
+    public function sectionLabel(): string
+    {
+        return match ($this->section) {
+            'settings' => 'Settings',
+            'history' => 'Sales & Auction history',
+            'orders' => 'Shop orders',
+            'listings' => 'Vendor listings',
+            default => 'Profile',
+        };
+    }
+
+    public function with(): array
     {
         $user = Auth::user();
 
         if ($user === null || $user->is_admin) {
-            return collect();
+            return [];
         }
 
-        return app(CustomerAccountService::class)->bidHistory($user);
-    }
+        return match ($this->section) {
+            'history' => [
+                'bidHistory' => app(CustomerAccountService::class)->bidHistory(
+                    $user,
+                    perPage: 10,
+                    pageName: 'historyPage',
+                    search: $this->historySearch,
+                ),
+            ],
+            'orders' => [
+                'shopOrders' => $user->orders()
+                    ->with('items')
+                    ->when(trim($this->ordersSearch) !== '', function ($query): void {
+                        $term = '%'.trim($this->ordersSearch).'%';
 
-    #[Computed]
-    public function shopOrders(): Collection
-    {
-        $user = Auth::user();
+                        $query->where(function ($builder) use ($term): void {
+                            $builder
+                                ->where('reference', 'like', $term)
+                                ->orWhereHas('items', fn ($items) => $items->where('product_name', 'like', $term));
+                        });
+                    })
+                    ->latest('id')
+                    ->paginate(10, pageName: 'ordersPage'),
+            ],
+            'listings' => [
+                'guestListings' => Product::query()
+                    ->where('seller_user_id', $user->id)
+                    ->when(trim($this->listingsSearch) !== '', function ($query): void {
+                        $term = '%'.trim($this->listingsSearch).'%';
 
-        if ($user === null || $user->is_admin) {
-            return collect();
-        }
-
-        return $user->orders()->with('items')->limit(20)->get();
-    }
-
-    #[Computed]
-    public function guestListings(): Collection
-    {
-        $user = Auth::user();
-
-        if ($user === null || $user->is_admin) {
-            return collect();
-        }
-
-        return Product::query()
-            ->where('seller_user_id', $user->id)
-            ->with(['orderItems.order'])
-            ->latest('id')
-            ->limit(20)
-            ->get();
-    }
-
-    public function payWinningAmount(int $resultId): void
-    {
-        $user = Auth::user();
-        abort_if($user === null || $user->is_admin, 403);
-
-        $result = AuctionResult::query()->with('auctionBid.bidder')->findOrFail($resultId);
-
-        if ($result->auctionBid?->bidder_id !== $user->bidder?->id) {
-            abort(403);
-        }
-
-        $phone = (string) ($result->auctionBid->bidder->phone ?? $user->phone);
-        $this->beginSalePayment($result, $phone);
-    }
-
-    private function beginSalePayment(AuctionResult $result, string $phone): void
-    {
-        $this->salePaymentResultId = $result->id;
-        $this->salePaymentMessage = '';
-
-        if ($result->isSalePaid()) {
-            $this->salePaymentState = 'success';
-            unset($this->bidHistory);
-
-            return;
-        }
-
-        try {
-            $attempt = app(RedeemBidService::class)->initiateSalePayment($result, $phone);
-        } catch (ValidationException $exception) {
-            $this->salePaymentState = 'failure';
-            $this->salePaymentMessage = (string) (collect($exception->errors())->flatten()->first() ?? 'This payment cannot be started.');
-
-            return;
-        }
-
-        $this->salePaymentAttemptId = $attempt->id;
-        $daraja = app(DarajaStkService::class);
-
-        if (blank($attempt->checkout_request_id) && $daraja->isReady() && ! app()->runningUnitTests()) {
-            try {
-                $daraja->requestPayment($attempt);
-            } catch (ValidationException $exception) {
-                $pending = $exception->errors()['payment_pending'][0] ?? null;
-
-                if (is_string($pending)) {
-                    $this->salePaymentState = 'pending';
-                    $this->salePaymentMessage = $pending;
-
-                    return;
-                }
-
-                $this->salePaymentState = 'failure';
-                $this->salePaymentMessage = (string) (collect($exception->errors())->flatten()->first() ?? 'M-Pesa could not start the payment.');
-
-                return;
-            }
-        }
-
-        $this->salePaymentState = 'pending';
-    }
-
-    public function refreshSalePayment(): void
-    {
-        if ($this->salePaymentState !== 'pending' || $this->salePaymentAttemptId === null) {
-            return;
-        }
-
-        $attempt = PaymentAttempt::query()->find($this->salePaymentAttemptId);
-
-        if ($attempt === null) {
-            return;
-        }
-
-        if ($attempt->status === 'initiated' && filled($attempt->checkout_request_id)) {
-            app(DarajaStkService::class)->queryPayment($attempt);
-            $attempt->refresh();
-        }
-
-        if ($attempt->status === 'succeeded') {
-            $this->salePaymentState = 'success';
-            $this->salePaymentMessage = '';
-            unset($this->bidHistory);
-            Flux::toast(variant: 'success', text: 'Successful-buy payment received.');
-
-            return;
-        }
-
-        if ($attempt->status === 'failed') {
-            $this->salePaymentState = 'failure';
-            $this->salePaymentMessage = (string) ($attempt->failure_reason ?: 'The payment was not completed.');
-        }
+                        $query->where(function ($builder) use ($term): void {
+                            $builder
+                                ->where('name', 'like', $term)
+                                ->orWhere('slug', 'like', $term);
+                        });
+                    })
+                    ->with(['orderItems.order'])
+                    ->latest('id')
+                    ->paginate(10, pageName: 'listingsPage'),
+            ],
+            default => [],
+        };
     }
 
     public function cancelShopOrder(int $orderId): void
@@ -212,7 +184,6 @@ class extends Component {
 
         try {
             app(OrderService::class)->cancelBeforeDispatch($order);
-            unset($this->shopOrders);
             Flux::toast(variant: 'success', text: 'Order '.$order->reference.' cancelled.');
         } catch (\Illuminate\Validation\ValidationException $exception) {
             Flux::toast(
@@ -410,15 +381,24 @@ class extends Component {
     }
 }; ?>
 
-<div class="mx-auto max-w-4xl px-4 py-8 sm:py-12">
-    <div class="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-8">
-        <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-navy-foreground">
-            <flux:icon.user class="size-6" />
-        </div>
-        <h1 class="mt-4 text-center text-2xl font-bold text-navy">My Account</h1>
+@php
+    $navItems = [
+        'profile' => ['label' => 'Profile', 'icon' => 'user'],
+        'settings' => ['label' => 'Settings', 'icon' => 'cog-6-tooth'],
+        'history' => ['label' => 'Sales & Auction history', 'icon' => 'clock'],
+        'orders' => ['label' => 'Shop orders', 'icon' => 'shopping-bag'],
+        'listings' => ['label' => 'Vendor listings', 'icon' => 'clipboard-document-list'],
+    ];
+@endphp
 
-        @guest
-            <p class="mt-2 text-center text-sm text-muted-foreground">
+<div class="mx-auto max-w-6xl px-4 py-6 sm:py-10">
+    @guest
+        <div class="mx-auto max-w-lg rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+            <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-navy-foreground">
+                <flux:icon.user class="size-6" />
+            </div>
+            <h1 class="mt-4 text-2xl font-bold text-navy">My Account</h1>
+            <p class="mt-2 text-sm text-muted-foreground">
                 Sign in with your mobile number to view entry history, spending controls, and your profile.
             </p>
             <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
@@ -429,12 +409,18 @@ class extends Component {
                     Browse auctions
                 </flux:button>
             </div>
-            <div class="mt-8 rounded-xl bg-surface p-4 text-center text-sm text-muted-foreground">
+            <div class="mt-8 rounded-xl bg-surface p-4 text-sm text-muted-foreground">
                 Signed in as: <span class="font-medium text-zinc-900">Guest</span>
             </div>
-        @else
-            @if (Auth::user()->is_admin)
-                <p class="mt-2 text-center text-sm text-muted-foreground">
+        </div>
+    @else
+        @if (Auth::user()->is_admin)
+            <div class="mx-auto max-w-lg rounded-2xl border border-border bg-white p-6 text-center shadow-sm sm:p-8">
+                <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-navy-foreground">
+                    <flux:icon.user class="size-6" />
+                </div>
+                <h1 class="mt-4 text-2xl font-bold text-navy">My Account</h1>
+                <p class="mt-2 text-sm text-muted-foreground">
                     Admin account: use the dashboard for sale management.
                 </p>
                 <div class="mt-6 flex flex-wrap justify-center gap-2">
@@ -448,374 +434,404 @@ class extends Component {
                         Browse auctions
                     </flux:button>
                 </div>
-                <div class="mt-8 rounded-xl bg-surface p-4 text-center text-sm text-muted-foreground">
+                <div class="mt-8 rounded-xl bg-surface p-4 text-sm text-muted-foreground">
                     Signed in as: <span class="font-medium text-zinc-900">{{ Auth::user()->email }}</span>
                 </div>
-            @else
-                <p class="mt-2 text-center text-sm text-muted-foreground">
-                    Mobile: {{ $this->displayPhone(Auth::user()->phone) }}
-                </p>
+            </div>
+        @else
+            <div class="overflow-hidden rounded-2xl border border-border bg-white shadow-sm lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
+                {{-- Desktop sidebar --}}
+                <aside class="hidden border-e border-border bg-surface lg:flex lg:flex-col">
+                    <div class="border-b border-border px-4 py-4">
+                        <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gold">My Account</div>
+                        <div class="mt-1 truncate text-sm font-semibold text-navy">{{ Auth::user()->name }}</div>
+                        <div class="truncate text-xs text-muted-foreground">{{ $this->displayPhone(Auth::user()->phone) }}</div>
+                    </div>
 
-                @if ($this->isSelfExcluded)
-                    <flux:callout variant="warning" class="mt-6" icon="no-symbol">
-                        Your account is self-excluded from sales until
-                        {{ Auth::user()->customerControl?->self_excluded_until?->timezone(config('app.timezone'))->format('j M Y, H:i') }}.
-                    </flux:callout>
-                @endif
+                    <nav class="flex flex-1 flex-col gap-1 p-3" aria-label="Account sections">
+                        @foreach ($navItems as $key => $item)
+                            <button
+                                type="button"
+                                wire:click="showSection('{{ $key }}')"
+                                @class([
+                                    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition',
+                                    'bg-navy text-navy-foreground' => $section === $key,
+                                    'text-zinc-700 hover:bg-white' => $section !== $key,
+                                ])
+                            >
+                                <flux:icon :name="$item['icon']" class="size-4 shrink-0" />
+                                <span class="min-w-0 leading-snug">{{ $item['label'] }}</span>
+                            </button>
+                        @endforeach
+                    </nav>
 
-                <div class="mt-8 space-y-10">
-                    <section>
-                        <h2 class="text-lg font-semibold text-navy">Profile</h2>
-                        <form wire:submit="saveProfile" class="mt-4 space-y-4">
-                            <flux:input wire:model="name" label="Full name" required />
-                            <flux:input wire:model="email" type="email" label="Email (optional)" />
-                            <flux:input wire:model="whatsappNumber" label="WhatsApp number (optional)" placeholder="07XX or 01XX XXX XXX" />
-                            <flux:button type="submit" class="bg-accent! text-accent-foreground!">Save profile</flux:button>
+                    <div class="mt-auto space-y-2 border-t border-border p-3">
+                        <flux:button href="{{ route('auctions.index') }}" variant="ghost" class="w-full justify-start" wire:navigate>
+                            Browse auctions
+                        </flux:button>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <flux:button type="submit" variant="outline" class="w-full justify-start" icon="arrow-right-start-on-rectangle">
+                                Sign out
+                            </flux:button>
                         </form>
-                    </section>
+                    </div>
+                </aside>
 
-                    <section>
-                        <h2 class="text-lg font-semibold text-navy">Participation fee limit</h2>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            Optional. Leave blank for no limit; you choose whether to set one.
-                        </p>
-                        <form wire:submit="saveSpendLimit" class="mt-4 grid gap-4 sm:grid-cols-2">
-                            <flux:input wire:model="participationFeeLimit" type="number" min="1" label="Limit (KES)" placeholder="No limit" />
-                            <flux:select wire:model="limitPeriod" label="Period">
-                                <flux:select.option value="">No limit</flux:select.option>
-                                <flux:select.option value="daily">Daily</flux:select.option>
-                                <flux:select.option value="weekly">Weekly</flux:select.option>
-                                <flux:select.option value="monthly">Monthly</flux:select.option>
-                            </flux:select>
-                            <div class="sm:col-span-2">
-                                <flux:button type="submit" variant="outline">Save limit</flux:button>
-                            </div>
-                        </form>
-                    </section>
-
-                    <section>
-                        <h2 class="text-lg font-semibold text-navy">Self-exclusion</h2>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            Pause participation for at least 30 days. This cannot be reversed early.
-                        </p>
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <flux:button wire:click="applySelfExclusion(30)" variant="outline" wire:confirm="Self-exclude from sales for 30 days?">
-                                30 days
-                            </flux:button>
-                            <flux:button wire:click="applySelfExclusion(60)" variant="outline" wire:confirm="Self-exclude from sales for 60 days?">
-                                60 days
-                            </flux:button>
-                            <flux:button wire:click="applySelfExclusion(90)" variant="outline" wire:confirm="Self-exclude from sales for 90 days?">
-                                90 days
-                            </flux:button>
-                        </div>
-                    </section>
-
-                    @php($verificationStatus = Auth::user()->customerControl?->verification_status ?? 'not_requested')
-                    <section data-test="verification-section">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <h2 class="text-lg font-semibold text-navy">ID / KRA verification</h2>
-                            <flux:badge size="sm" :color="match ($verificationStatus) {
-                                'verified' => 'green',
-                                'submitted', 'requested' => 'amber',
-                                'rejected' => 'red',
-                                default => 'zinc',
-                            }">
-                                {{ match ($verificationStatus) {
-                                    'not_requested' => 'Not submitted',
-                                    'requested' => 'Requested by UniqBid',
-                                    'submitted' => 'Submitted, awaiting review',
-                                    'verified' => 'Verified',
-                                    'rejected' => 'Rejected, please upload again',
-                                    default => ucfirst(str_replace('_', ' ', $verificationStatus)),
-                                } }}
-                            </flux:badge>
-                        </div>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            Upload a clear copy of your National ID or passport and your KRA PIN certificate. PDF, JPG, PNG or WEBP, up to 5 MB each, {{ CustomerVerificationDocument::MAX_FILES }} files at most. Only UniqBid staff can see them.
-                        </p>
-
-                        @if ($this->verificationDocuments->isNotEmpty())
-                            <ul class="mt-4 divide-y divide-border rounded-xl border border-border">
-                                @foreach ($this->verificationDocuments as $document)
-                                    <li wire:key="verification-document-{{ $document->id }}" class="flex items-center gap-3 px-4 py-3 text-sm">
-                                        @if ($document->isPdf())
-                                            <flux:icon.document-text class="size-5 shrink-0 text-navy" />
-                                        @else
-                                            <flux:icon.photo class="size-5 shrink-0 text-navy" />
-                                        @endif
-                                        <div class="min-w-0 flex-1">
-                                            <div class="truncate font-medium text-zinc-900">{{ $document->original_name }}</div>
-                                            <div class="text-xs text-muted-foreground">{{ $document->humanSize() }} · uploaded {{ $document->created_at?->timezone(config('app.timezone'))->format('j M Y') }}</div>
-                                        </div>
-                                        @if ($verificationStatus !== 'verified')
-                                            <flux:button size="sm" variant="ghost" wire:click="removeVerificationDocument({{ $document->id }})" wire:confirm="Remove {{ $document->original_name }}?">
-                                                Remove
-                                            </flux:button>
-                                        @endif
-                                    </li>
+                {{-- Main panel --}}
+                <div class="min-w-0">
+                    {{-- Mobile top bar --}}
+                    <div class="flex items-center gap-3 border-b border-border px-4 py-3 lg:hidden">
+                        <flux:dropdown position="bottom" align="start" class="shrink-0">
+                            <flux:button variant="outline" size="sm" icon="bars-2" aria-label="Open account menu" />
+                            <flux:menu class="min-w-56">
+                                @foreach ($navItems as $key => $item)
+                                    <flux:menu.item
+                                        wire:click="showSection('{{ $key }}')"
+                                        :icon="$item['icon']"
+                                        :class="$section === $key ? 'font-semibold text-navy' : ''"
+                                    >
+                                        {{ $item['label'] }}
+                                    </flux:menu.item>
                                 @endforeach
-                            </ul>
-                        @endif
-
-                        @if ($verificationStatus !== 'verified')
-                            <form wire:submit="submitVerification" class="mt-4 space-y-3">
-                                <flux:field>
-                                    <flux:label>Documents</flux:label>
-                                    <input
-                                        type="file"
-                                        wire:model="verificationFiles"
-                                        multiple
-                                        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
-                                        class="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium"
-                                        data-test="verification-files"
-                                    />
-                                    <div wire:loading wire:target="verificationFiles" class="text-xs text-muted-foreground">Uploading…</div>
-                                    <flux:error name="verificationFiles" />
-                                    <flux:error name="verificationFiles.*" />
-                                </flux:field>
-                                <flux:button type="submit" class="bg-accent! text-accent-foreground!" wire:loading.attr="disabled" wire:target="verificationFiles,submitVerification">
-                                    Submit for verification
-                                </flux:button>
-                            </form>
-                        @endif
-                    </section>
-
-                    <section>
-                        <div class="flex items-center justify-between gap-3">
-                            <h2 class="text-lg font-semibold text-navy">Sell on UniqBid</h2>
-                            <flux:button href="{{ route('sell') }}" size="sm" class="bg-accent! text-accent-foreground!" wire:navigate>
-                                List a product
-                            </flux:button>
+                                <flux:menu.separator />
+                                <flux:menu.item href="{{ route('auctions.index') }}" icon="scale" wire:navigate>
+                                    Browse auctions
+                                </flux:menu.item>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <flux:menu.item type="submit" icon="arrow-right-start-on-rectangle">
+                                        Sign out
+                                    </flux:menu.item>
+                                </form>
+                            </flux:menu>
+                        </flux:dropdown>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gold">My Account</div>
+                            <div class="truncate text-sm font-semibold text-navy">{{ $this->sectionLabel }}</div>
                         </div>
-                        <p class="mt-2 text-sm text-muted-foreground">
-                            Submit a shop listing for admin approval. Each sale, cancellation, and payout shows on the listing.
-                        </p>
-                        @if ($this->guestListings->isEmpty())
-                            <p class="mt-3 text-sm text-muted-foreground">No guest listings yet.</p>
-                        @else
-                            <div class="mt-4 space-y-3">
-                                @foreach ($this->guestListings as $listing)
-                                    <div class="rounded-xl border border-border p-4" wire:key="guest-listing-{{ $listing->id }}">
-                                        <div class="flex items-start gap-3">
-                                            <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex flex-wrap items-center gap-2">
-                                                    <div class="font-semibold text-navy">{{ $listing->name }}</div>
-                                                    <flux:badge size="sm" :color="$listing->guestListingStatusColor()">
-                                                        {{ $listing->guestListingStatusLabel() }}
-                                                    </flux:badge>
-                                                </div>
-                                                <x-guest-listing-sales :listing="$listing" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
-                    </section>
+                    </div>
 
-                    <section>
-                        <h2 class="text-lg font-semibold text-navy">Shop orders</h2>
-                        @if ($this->shopOrders->isEmpty())
-                            <p class="mt-2 text-sm text-muted-foreground">
-                                No shop orders yet.
-                                <a href="{{ route('shop.index') }}" class="font-medium text-navy underline" wire:navigate>Browse the shop</a>
-                                or
-                                <a href="{{ route('orders.track') }}" class="font-medium text-navy underline" wire:navigate>track an order</a>.
+                    <div class="p-4 sm:p-6 lg:p-8">
+                        <div class="hidden lg:block">
+                            <h1 class="text-2xl font-bold text-navy">{{ $this->sectionLabel }}</h1>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                Mobile: {{ $this->displayPhone(Auth::user()->phone) }}
                             </p>
-                        @else
-                            <div class="mt-4 space-y-3">
-                                @foreach ($this->shopOrders as $order)
-                                    <div class="rounded-xl border border-border p-4" wire:key="order-{{ $order->id }}">
-                                        <div class="flex flex-wrap items-start justify-between gap-2">
-                                            <div>
-                                                <a href="{{ route('orders.show', $order) }}" class="font-mono text-sm font-semibold text-navy hover:underline" wire:navigate>
-                                                    {{ $order->reference }}
-                                                </a>
-                                                <div class="mt-1 text-xs text-muted-foreground">
-                                                    {{ $order->created_at?->timezone(config('app.timezone'))->format('j M Y') }}
-                                                    · {{ $order->items->sum('quantity') }} item(s)
-                                                    · {{ Money::kes($order->total) }}
-                                                </div>
-                                            </div>
-                                            <flux:badge size="sm" :color="match ($order->status) {
-                                                'paid', 'processing' => 'amber',
-                                                'dispatched' => 'sky',
-                                                'delivered' => 'green',
-                                                'cancelled' => 'red',
-                                                default => 'zinc',
-                                            }">
-                                                {{ $order->statusLabel() }}
-                                            </flux:badge>
-                                        </div>
-                                        @if ($order->canCancelBeforeDispatch())
-                                            <flux:button
-                                                size="sm"
-                                                variant="ghost"
-                                                class="mt-2"
-                                                wire:click="cancelShopOrder({{ $order->id }})"
-                                                wire:confirm="Cancel order {{ $order->reference }} before dispatch?"
-                                            >
-                                                Cancel before dispatch
-                                            </flux:button>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
-                    </section>
+                        </div>
 
-                    <section>
-                        <h2 class="text-lg font-semibold text-navy">Sale history</h2>
-                        @if ($this->bidHistory->isEmpty())
-                            <p class="mt-2 text-sm text-muted-foreground">No entries yet. Browse live sales to place your first amount.</p>
-                        @else
-                            <div class="mt-4 space-y-3">
-                                @foreach ($this->bidHistory as $entry)
-                                    @php($bid = $entry['bid'])
-                                    <div class="overflow-hidden rounded-xl border border-border" wire:key="bid-{{ $bid->id }}">
-                                        <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                                            <div class="min-w-0">
-                                                <a href="{{ route('auctions.show', $bid->auction) }}" class="block truncate font-medium text-navy hover:underline" wire:navigate>
-                                                    {{ $bid->auction->name }}
-                                                </a>
-                                                <div class="mt-1 text-sm text-muted-foreground">
-                                                    {{ Money::kes($bid->amount) }}
-                                                    <span class="mx-1">·</span>
-                                                    <span class="font-mono text-xs">{{ $bid->reference }}</span>
-                                                </div>
-                                            </div>
-                                            <flux:badge size="sm" class="w-fit" :color="match ($entry['status']) {
-                                                'successful', 'refund_successful' => 'green',
-                                                'open', 'pending_payment', 'awaiting_refund' => 'amber',
-                                                'failed', 'refund_failed' => 'red',
-                                                default => 'zinc',
-                                            }">
-                                                {{ $entry['label'] }}
-                                            </flux:badge>
-                                        </div>
-                                        @php($refund = app(CustomerAccountService::class)->refundState($bid))
-                                        @if ($refund === 'pending')
-                                            <div wire:poll.5s.visible class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
-                                                Refund is with M-Pesa.
-                                            </div>
-                                        @elseif ($refund === 'successful')
-                                            <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
-                                                Refund successful.
-                                            </div>
-                                        @elseif ($refund === 'failed')
-                                            <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
-                                                Refund failed.
-                                            </div>
-                                        @endif
-                                        @if ($entry['status'] === 'successful')
-                                            @php($result = $bid->auction->result)
-                                            @php($payoutUnpaid = $result?->fulfilment_status === 'redeemed' && $result->redemption_payout_status !== AuctionResult::REDEMPTION_PAYOUT_PAID)
-                                            <div @class([
-                                                'border-t px-4 py-4 text-sm',
-                                                'border-amber-100 bg-amber-50 text-amber-950' => $payoutUnpaid,
-                                                'border-green-100 bg-green-50 text-green-900' => ! $payoutUnpaid,
-                                            ])>
-                                                <p>Successful buy at {{ Money::kes($bid->amount) }}.</p>
-                                                @if ($result?->fulfilment_status === 'redeemed' && $result->redemption_payout_status === AuctionResult::REDEMPTION_PAYOUT_PAID)
-                                                    <p class="mt-2">Redeemed for cash. {{ Money::kes((int) $result->redemption_amount) }} was sent to your M-Pesa.</p>
-                                                @elseif ($payoutUnpaid && $result->redemption_requested_at !== null)
-                                                    <p class="mt-2">Your redeem request has been sent for review.</p>
-                                                    @if ($result->sale_payment_status !== AuctionResult::PAYMENT_PAID)
-                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
-                                                            <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
-                                                                Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
-                                                                @if ($salePaymentMessage !== '')
-                                                                    <div class="mt-1">{{ $salePaymentMessage }}</div>
-                                                                @endif
-                                                            </div>
-                                                        @else
-                                                            @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
-                                                                <p class="mt-3">{{ $salePaymentMessage }}</p>
-                                                            @endif
-                                                            <p class="mt-2">You can still pay {{ Money::kes($result->sale_price) }} to take the item instead.</p>
-                                                            <flux:button class="mt-3 w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
-                                                                Pay with M-Pesa
-                                                            </flux:button>
-                                                        @endif
-                                                    @endif
-                                                @elseif ($payoutUnpaid && $result->sale_payment_status !== AuctionResult::PAYMENT_PAID)
-                                                    <p class="mt-2">Cash payout of {{ Money::kes((int) $result->redemption_amount) }} has not been sent. You can try that payout again, or pay {{ Money::kes($result->sale_price) }} to take the item instead.</p>
-                                                    @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
-                                                        <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
-                                                            Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
-                                                            @if ($salePaymentMessage !== '')
-                                                                <div class="mt-1">{{ $salePaymentMessage }}</div>
-                                                            @endif
-                                                        </div>
+                        @if ($this->isSelfExcluded)
+                            <flux:callout variant="warning" class="mt-4 lg:mt-6" icon="no-symbol">
+                                Your account is self-excluded from sales until
+                                {{ Auth::user()->customerControl?->self_excluded_until?->timezone(config('app.timezone'))->format('j M Y, H:i') }}.
+                            </flux:callout>
+                        @endif
+
+                        <div class="mt-5 space-y-8 lg:mt-6" wire:key="account-section-{{ $section }}">
+                            @if ($section === 'profile')
+                                <section>
+                                    <h2 class="text-lg font-semibold text-navy lg:sr-only">Profile</h2>
+                                    <form wire:submit="saveProfile" class="mt-4 space-y-4 lg:mt-0">
+                                        <flux:input wire:model="name" label="Full name" required />
+                                        <flux:input wire:model="email" type="email" label="Email (optional)" />
+                                        <flux:input wire:model="whatsappNumber" label="WhatsApp number (optional)" placeholder="07XX or 01XX XXX XXX" />
+                                        <flux:button type="submit" class="bg-accent! text-accent-foreground!">Save profile</flux:button>
+                                    </form>
+                                </section>
+
+                                @php($verificationStatus = Auth::user()->customerControl?->verification_status ?? 'not_requested')
+                                <section data-test="verification-section" class="border-t border-border pt-8">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h2 class="text-lg font-semibold text-navy">ID / KRA verification</h2>
+                                        <flux:badge size="sm" :color="match ($verificationStatus) {
+                                            'verified' => 'green',
+                                            'submitted', 'requested' => 'amber',
+                                            'rejected' => 'red',
+                                            default => 'zinc',
+                                        }">
+                                            {{ match ($verificationStatus) {
+                                                'not_requested' => 'Not submitted',
+                                                'requested' => 'Requested by UniqBid',
+                                                'submitted' => 'Submitted, awaiting review',
+                                                'verified' => 'Verified',
+                                                'rejected' => 'Rejected, please upload again',
+                                                default => ucfirst(str_replace('_', ' ', $verificationStatus)),
+                                            } }}
+                                        </flux:badge>
+                                    </div>
+                                    <p class="mt-1 text-sm text-muted-foreground">
+                                        Upload a clear copy of your National ID or passport and your KRA PIN certificate. PDF, JPG, PNG or WEBP, up to 5 MB each, {{ CustomerVerificationDocument::MAX_FILES }} files at most. Only UniqBid staff can see them.
+                                    </p>
+
+                                    @if ($this->verificationDocuments->isNotEmpty())
+                                        <ul class="mt-4 divide-y divide-border rounded-xl border border-border">
+                                            @foreach ($this->verificationDocuments as $document)
+                                                <li wire:key="verification-document-{{ $document->id }}" class="flex items-center gap-3 px-4 py-3 text-sm">
+                                                    @if ($document->isPdf())
+                                                        <flux:icon.document-text class="size-5 shrink-0 text-navy" />
                                                     @else
-                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
-                                                            <p class="mt-3">{{ $salePaymentMessage }}</p>
-                                                        @endif
-                                                        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                                                            <flux:button href="{{ route('redeem', ['reference' => $bid->reference]) }}" class="w-full sm:w-auto" wire:navigate>
-                                                                Try again
-                                                            </flux:button>
-                                                            <flux:button class="w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
-                                                                Pay with M-Pesa
-                                                            </flux:button>
+                                                        <flux:icon.photo class="size-5 shrink-0 text-navy" />
+                                                    @endif
+                                                    <div class="min-w-0 flex-1">
+                                                        <div class="truncate font-medium text-zinc-900">{{ $document->original_name }}</div>
+                                                        <div class="text-xs text-muted-foreground">{{ $document->humanSize() }} · uploaded {{ $document->created_at?->timezone(config('app.timezone'))->format('j M Y') }}</div>
+                                                    </div>
+                                                    @if ($verificationStatus !== 'verified')
+                                                        <flux:button size="sm" variant="ghost" wire:click="removeVerificationDocument({{ $document->id }})" wire:confirm="Remove {{ $document->original_name }}?">
+                                                            Remove
+                                                        </flux:button>
+                                                    @endif
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+
+                                    @if ($verificationStatus !== 'verified')
+                                        <form wire:submit="submitVerification" class="mt-4 space-y-3">
+                                            <flux:field>
+                                                <flux:label>Documents</flux:label>
+                                                <input
+                                                    type="file"
+                                                    wire:model="verificationFiles"
+                                                    multiple
+                                                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                                                    class="block w-full text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium"
+                                                    data-test="verification-files"
+                                                />
+                                                <div wire:loading wire:target="verificationFiles" class="text-xs text-muted-foreground">Uploading…</div>
+                                                <flux:error name="verificationFiles" />
+                                                <flux:error name="verificationFiles.*" />
+                                            </flux:field>
+                                            <flux:button type="submit" class="bg-accent! text-accent-foreground!" wire:loading.attr="disabled" wire:target="verificationFiles,submitVerification">
+                                                Submit for verification
+                                            </flux:button>
+                                        </form>
+                                    @endif
+                                </section>
+                            @endif
+
+                            @if ($section === 'settings')
+                                <section>
+                                    <h2 class="text-lg font-semibold text-navy">Participation fee limit</h2>
+                                    <p class="mt-1 text-sm text-muted-foreground">
+                                        Optional. Leave blank for no limit; you choose whether to set one.
+                                    </p>
+                                    <form wire:submit="saveSpendLimit" class="mt-4 grid gap-4 sm:grid-cols-2">
+                                        <flux:input wire:model="participationFeeLimit" type="number" min="1" label="Limit (KES)" placeholder="No limit" />
+                                        <flux:select wire:model="limitPeriod" label="Period">
+                                            <flux:select.option value="">No limit</flux:select.option>
+                                            <flux:select.option value="daily">Daily</flux:select.option>
+                                            <flux:select.option value="weekly">Weekly</flux:select.option>
+                                            <flux:select.option value="monthly">Monthly</flux:select.option>
+                                        </flux:select>
+                                        <div class="sm:col-span-2">
+                                            <flux:button type="submit" variant="outline">Save limit</flux:button>
+                                        </div>
+                                    </form>
+                                </section>
+
+                                <section class="border-t border-border pt-8">
+                                    <h2 class="text-lg font-semibold text-navy">Self-exclusion</h2>
+                                    <p class="mt-1 text-sm text-muted-foreground">
+                                        Pause participation for at least 30 days. This cannot be reversed early.
+                                    </p>
+                                    <div class="mt-4 flex flex-wrap gap-2">
+                                        <flux:button wire:click="applySelfExclusion(30)" variant="outline" wire:confirm="Self-exclude from sales for 30 days?">
+                                            30 days
+                                        </flux:button>
+                                        <flux:button wire:click="applySelfExclusion(60)" variant="outline" wire:confirm="Self-exclude from sales for 60 days?">
+                                            60 days
+                                        </flux:button>
+                                        <flux:button wire:click="applySelfExclusion(90)" variant="outline" wire:confirm="Self-exclude from sales for 90 days?">
+                                            90 days
+                                        </flux:button>
+                                    </div>
+                                </section>
+                            @endif
+
+                            @if ($section === 'history')
+                                <section wire:loading.class="opacity-60" wire:target="gotoPage,nextPage,previousPage,showSection,historySearch">
+                                    <h2 class="text-lg font-semibold text-navy lg:sr-only">Sales & Auction history</h2>
+                                    <div class="mt-4 lg:mt-0">
+                                        <flux:input
+                                            wire:model.live.debounce.400ms="historySearch"
+                                            placeholder="Filter by product name or bid number"
+                                            icon="magnifying-glass"
+                                        />
+                                    </div>
+                                    @if ($bidHistory->isEmpty())
+                                        <p class="mt-3 text-sm text-muted-foreground">
+                                            @if (trim($historySearch) !== '')
+                                                No matches for “{{ $historySearch }}”.
+                                            @else
+                                                No entries yet. Browse live sales to place your first amount.
+                                            @endif
+                                        </p>
+                                    @else
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($bidHistory as $entry)
+                                                @php($bid = $entry['bid'])
+                                                <div class="overflow-hidden rounded-xl border border-border" wire:key="bid-{{ $bid->id }}">
+                                                    <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                                        <div class="min-w-0">
+                                                            <a href="{{ route('auctions.show', $bid->auction) }}" class="block truncate font-medium text-navy hover:underline" wire:navigate>
+                                                                {{ $bid->auction->name }}
+                                                            </a>
+                                                            <div class="mt-1 text-sm text-muted-foreground">
+                                                                {{ Money::kes($bid->amount) }}
+                                                                <span class="mx-1">·</span>
+                                                                <span class="font-mono text-xs">{{ $bid->reference }}</span>
+                                                            </div>
+                                                        </div>
+                                                        <flux:badge size="sm" class="w-fit" :color="match ($entry['status']) {
+                                                            'successful', 'unsuccessful', 'refund_successful' => 'green',
+                                                            'open', 'pending_payment', 'awaiting_refund' => 'amber',
+                                                            'failed', 'refund_failed' => 'red',
+                                                            default => 'zinc',
+                                                        }">
+                                                            {{ $entry['label'] }}
+                                                        </flux:badge>
+                                                    </div>
+                                                    @php($refund = app(CustomerAccountService::class)->refundState($bid))
+                                                    @if ($refund === 'pending')
+                                                        <div wire:poll.5s.visible class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                            Refund is with M-Pesa.
+                                                        </div>
+                                                    @elseif ($refund === 'successful')
+                                                        <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                            Refund successful.
+                                                        </div>
+                                                    @elseif ($refund === 'failed')
+                                                        <div class="border-t border-border px-4 py-3 text-sm text-muted-foreground">
+                                                            Refund failed.
                                                         </div>
                                                     @endif
-                                                @elseif ($payoutUnpaid)
-                                                    <p class="mt-2">Cash payout of {{ Money::kes((int) $result->redemption_amount) }} has not been sent.</p>
-                                                    <flux:button href="{{ route('redeem', ['reference' => $bid->reference]) }}" class="mt-3 w-full sm:w-auto" wire:navigate>
-                                                        Try again
-                                                    </flux:button>
-                                                @elseif ($result?->sale_payment_status === 'paid')
-                                                    <p class="mt-2">Sale payment received.</p>
-                                                @elseif ($result)
-                                                    <div class="mt-3">
-                                                        <h3 class="font-semibold text-navy">Pay a winning amount</h3>
-                                                        <p class="mt-1">
-                                                            Pay {{ Money::kes($result->sale_price) }} by {{ $result->fulfilment_due_at?->timezone(config('app.timezone'))->format('j M Y, H:i') ?? 'the agreed deadline' }} to collect or receive this item. The prompt goes to {{ $this->displayPhone($bid->bidder?->phone) }}.
-                                                        </p>
-                                                        @if ($salePaymentResultId === $result->id && $salePaymentState === 'pending')
-                                                            <div wire:poll.3s.visible="refreshSalePayment" class="mt-3">
-                                                                Check your phone for the M-Pesa prompt and enter your PIN. This page keeps checking with Safaricom.
-                                                                @if ($salePaymentMessage !== '')
-                                                                    <div class="mt-1">{{ $salePaymentMessage }}</div>
-                                                                @endif
-                                                            </div>
-                                                        @else
-                                                            @if ($salePaymentResultId === $result->id && $salePaymentState === 'failure' && $salePaymentMessage !== '')
-                                                                <p class="mt-3">{{ $salePaymentMessage }}</p>
-                                                            @endif
-                                                            <flux:button class="mt-3 w-full sm:w-auto" wire:click="payWinningAmount({{ $result->id }})" wire:loading.attr="disabled">
-                                                                Pay with M-Pesa
-                                                            </flux:button>
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                                @if ($payoutUnpaid)
-                                                    <p class="mt-3 text-xs">Cash payout: not sent.</p>
-                                                @elseif ($result?->fulfilment_status === 'redeemed')
-                                                    <p class="mt-3 text-xs">Cash payout sent.</p>
-                                                @else
-                                                    <p class="mt-3 text-xs">Collection / delivery: {{ str_replace('_', ' ', $result?->fulfilment_status ?? 'pending') }}.</p>
-                                                @endif
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endforeach
-                            </div>
-                        @endif
-                    </section>
-                </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <div class="mt-4">{{ $bidHistory->links() }}</div>
+                                    @endif
+                                </section>
+                            @endif
 
-                <div class="mt-8 flex flex-wrap gap-2">
-                    <flux:button href="{{ route('auctions.index') }}" variant="ghost">Browse auctions</flux:button>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <flux:button type="submit" variant="outline">Sign out</flux:button>
-                    </form>
+                            @if ($section === 'orders')
+                                <section wire:loading.class="opacity-60" wire:target="gotoPage,nextPage,previousPage,showSection,ordersSearch">
+                                    <h2 class="text-lg font-semibold text-navy lg:sr-only">Shop orders</h2>
+                                    <div class="mt-4 lg:mt-0">
+                                        <flux:input
+                                            wire:model.live.debounce.400ms="ordersSearch"
+                                            placeholder="Filter by product name or order number"
+                                            icon="magnifying-glass"
+                                        />
+                                    </div>
+                                    @if ($shopOrders->isEmpty())
+                                        <p class="mt-3 text-sm text-muted-foreground">
+                                            @if (trim($ordersSearch) !== '')
+                                                No matches for “{{ $ordersSearch }}”.
+                                            @else
+                                                No shop orders yet.
+                                                <a href="{{ route('shop.index') }}" class="font-medium text-navy underline" wire:navigate>Browse the shop</a>
+                                                or
+                                                <a href="{{ route('orders.track') }}" class="font-medium text-navy underline" wire:navigate>track an order</a>.
+                                            @endif
+                                        </p>
+                                    @else
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($shopOrders as $order)
+                                                <div class="rounded-xl border border-border p-4" wire:key="order-{{ $order->id }}">
+                                                    <div class="flex flex-wrap items-start justify-between gap-2">
+                                                        <div>
+                                                            <a href="{{ route('orders.show', $order) }}" class="font-mono text-sm font-semibold text-navy hover:underline" wire:navigate>
+                                                                {{ $order->reference }}
+                                                            </a>
+                                                            <div class="mt-1 text-xs text-muted-foreground">
+                                                                {{ $order->created_at?->timezone(config('app.timezone'))->format('j M Y') }}
+                                                                · {{ $order->items->sum('quantity') }} item(s)
+                                                                · {{ Money::kes($order->total) }}
+                                                            </div>
+                                                        </div>
+                                                        <flux:badge size="sm" :color="match ($order->status) {
+                                                            'paid', 'processing' => 'amber',
+                                                            'dispatched' => 'sky',
+                                                            'delivered' => 'green',
+                                                            'cancelled' => 'red',
+                                                            default => 'zinc',
+                                                        }">
+                                                            {{ $order->statusLabel() }}
+                                                        </flux:badge>
+                                                    </div>
+                                                    @if ($order->canCancelBeforeDispatch())
+                                                        <flux:button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            class="mt-2"
+                                                            wire:click="cancelShopOrder({{ $order->id }})"
+                                                            wire:confirm="Cancel order {{ $order->reference }} before dispatch?"
+                                                        >
+                                                            Cancel before dispatch
+                                                        </flux:button>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <div class="mt-4">{{ $shopOrders->links() }}</div>
+                                    @endif
+                                </section>
+                            @endif
+
+                            @if ($section === 'listings')
+                                <section wire:loading.class="opacity-60" wire:target="gotoPage,nextPage,previousPage,showSection,listingsSearch">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <h2 class="text-lg font-semibold text-navy lg:sr-only">Vendor listings</h2>
+                                        <flux:button href="{{ route('sell') }}" size="sm" class="ms-auto bg-accent! text-accent-foreground! lg:ms-0" wire:navigate>
+                                            List a product
+                                        </flux:button>
+                                    </div>
+                                    <p class="mt-2 text-sm text-muted-foreground">
+                                        Submit a shop listing for admin approval. Each sale, cancellation, and payout shows on the listing.
+                                    </p>
+                                    <div class="mt-4">
+                                        <flux:input
+                                            wire:model.live.debounce.400ms="listingsSearch"
+                                            placeholder="Filter by product name"
+                                            icon="magnifying-glass"
+                                        />
+                                    </div>
+                                    @if ($guestListings->isEmpty())
+                                        <p class="mt-3 text-sm text-muted-foreground">
+                                            @if (trim($listingsSearch) !== '')
+                                                No matches for “{{ $listingsSearch }}”.
+                                            @else
+                                                No vendor listings yet.
+                                            @endif
+                                        </p>
+                                    @else
+                                        <div class="mt-4 space-y-3">
+                                            @foreach ($guestListings as $listing)
+                                                <div class="rounded-xl border border-border p-4" wire:key="guest-listing-{{ $listing->id }}">
+                                                    <div class="flex items-start gap-3">
+                                                        <img src="{{ $listing->image }}" alt="" class="size-14 rounded-lg object-cover">
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="flex flex-wrap items-center gap-2">
+                                                                <div class="font-semibold text-navy">{{ $listing->name }}</div>
+                                                                <flux:badge size="sm" :color="$listing->guestListingStatusColor()">
+                                                                    {{ $listing->guestListingStatusLabel() }}
+                                                                </flux:badge>
+                                                            </div>
+                                                            <x-guest-listing-sales :listing="$listing" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <div class="mt-4">{{ $guestListings->links() }}</div>
+                                    @endif
+                                </section>
+                            @endif
+                        </div>
+                    </div>
                 </div>
-            @endif
-        @endguest
-    </div>
+            </div>
+        @endif
+    @endguest
 </div>

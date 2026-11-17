@@ -187,6 +187,7 @@ test('admin initiate asks safaricom and the customer follows the refund result',
 
     Livewire::actingAs($bid->bidder->user)
         ->test('pages::account')
+        ->set('section', 'history')
         ->assertSee('Awaiting Refund')
         ->assertDontSee('Not successful');
 
@@ -218,6 +219,7 @@ test('admin initiate asks safaricom and the customer follows the refund result',
 
     Livewire::actingAs($bid->bidder->user)
         ->test('pages::account')
+        ->set('section', 'history')
         ->assertSee('Refund is with M-Pesa')
         ->assertDontSee('Refund successful');
 
@@ -245,6 +247,7 @@ test('admin initiate asks safaricom and the customer follows the refund result',
 
     Livewire::actingAs($bid->bidder->user)
         ->test('pages::account')
+        ->set('section', 'history')
         ->assertSee('Refund successful.')
         ->assertDontSee('Refund is with M-Pesa')
         ->assertDontSee('Not successful');
@@ -288,6 +291,7 @@ test('a finished refund failure can still be completed by a later success', func
 
     Livewire::actingAs($bid->bidder->user)
         ->test('pages::account')
+        ->set('section', 'history')
         ->assertSee('Refund failed.')
         ->assertDontSee('Credit Party customer type cannot be supported.');
 
@@ -305,6 +309,7 @@ test('a finished refund failure can still be completed by a later success', func
 
     Livewire::actingAs($bid->bidder->user)
         ->test('pages::account')
+        ->set('section', 'history')
         ->assertSee('Refund successful.')
         ->assertDontSee('Refund failed.');
 });

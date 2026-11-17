@@ -136,6 +136,7 @@ test('admin initiate asks safaricom and leaves the seller payout unpaid until th
 
     Livewire::actingAs($item->seller)
         ->test('pages::account')
+        ->set('section', 'listings')
         ->assertSee('was sent to your M-Pesa')
         ->assertDontSee('Payout pending');
 });
