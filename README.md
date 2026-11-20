@@ -8,7 +8,7 @@ Laravel 13 + Livewire 4 + Flux UI auction and shop platform.
 composer setup                                            # install, .env, key, migrate, npm build
 php artisan db:seed                                       # local demo data (test user, catalogue, sample past sales)
 composer dev                                              # server + queue + vite
-php artisan test --compact                                # tests
+php artisan test --compact                                # run tests
 ```
 
 ## Environments and branches
