@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Auction;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -33,7 +34,22 @@ class AuctionFactory extends Factory
             'status' => 'live',
             'is_featured' => false,
             'similar_sales' => [1200, 1800, 2400],
+            'current_round' => 1,
+            'duration_hours' => 24,
+            'display_order' => fake()->numberBetween(10, 1000),
+            'extension_minutes' => 60,
+            'no_unique_bid_rule' => 'extend',
         ];
+    }
+
+    /**
+     * Live sale linked to an auction-channel product (public Live Auctions catalogue).
+     */
+    public function onAuctionChannel(): static
+    {
+        return $this->state(fn (): array => [
+            'product_id' => Product::factory()->forAuction(),
+        ]);
     }
 
     public function configure(): static

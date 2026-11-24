@@ -26,14 +26,41 @@ class CartService
         return collect($this->items())->sum('qty');
     }
 
-    public function add(int $productId, int $qty = 1): void
+    public function quantityOf(int $productId): int
     {
+        foreach ($this->items() as $item) {
+            if ($item['product_id'] === $productId) {
+                return (int) $item['qty'];
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Add the requested quantity. Stock is not enforced — overselling is allowed.
+     */
+    public function add(int $productId, int $qty = 1): int
+    {
+        $product = Product::query()->find($productId);
+
+        if ($product === null) {
+            return 0;
+        }
+
+        $toAdd = max(0, $qty);
+
+        if ($toAdd < 1) {
+            return 0;
+        }
+
+        $current = $this->quantityOf($productId);
         $items = $this->items();
         $found = false;
 
         foreach ($items as &$item) {
             if ($item['product_id'] === $productId) {
-                $item['qty'] += $qty;
+                $item['qty'] = $current + $toAdd;
                 $found = true;
                 break;
             }
@@ -41,31 +68,47 @@ class CartService
         unset($item);
 
         if (! $found) {
-            $items[] = ['product_id' => $productId, 'qty' => max(1, $qty)];
+            $items[] = ['product_id' => $productId, 'qty' => $toAdd];
         }
 
         Session::put(self::SESSION_KEY, $items);
+
+        return $toAdd;
     }
 
+    /**
+     * Set quantity. Qty below 1 removes the line. Stock is not enforced.
+     */
     public function update(int $productId, int $qty): void
     {
+        if ($qty < 1) {
+            $this->remove($productId);
+
+            return;
+        }
+
+        if (Product::query()->whereKey($productId)->doesntExist()) {
+            $this->remove($productId);
+
+            return;
+        }
+
         $items = collect($this->items())
-            ->map(function (array $item) use ($productId, $qty): ?array {
+            ->map(function (array $item) use ($productId, $qty): array {
                 if ($item['product_id'] !== $productId) {
                     return $item;
-                }
-
-                if ($qty < 1) {
-                    return null;
                 }
 
                 $item['qty'] = $qty;
 
                 return $item;
             })
-            ->filter()
             ->values()
             ->all();
+
+        if (! collect($items)->contains(fn (array $item): bool => $item['product_id'] === $productId)) {
+            $items[] = ['product_id' => $productId, 'qty' => $qty];
+        }
 
         Session::put(self::SESSION_KEY, $items);
     }
@@ -104,10 +147,12 @@ class CartService
                     return null;
                 }
 
+                $qty = max(1, (int) $item['qty']);
+
                 return [
                     'product' => $product,
-                    'qty' => $item['qty'],
-                    'line_total' => $product->price * $item['qty'],
+                    'qty' => $qty,
+                    'line_total' => $product->price * $qty,
                 ];
             })
             ->filter()

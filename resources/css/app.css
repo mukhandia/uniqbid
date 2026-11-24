@@ -99,6 +99,10 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 @layer utilities {
     /*
      * Animated border "line" around the hero card.
@@ -173,4 +177,36 @@ select:focus[data-flux-control] {
             transform: rotate(360deg);
         }
     }
+}
+
+.admin-sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(161 161 170) rgb(244 244 245);
+}
+
+.admin-sidebar-nav::-webkit-scrollbar {
+    width: 10px;
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-track {
+    background: rgb(244 244 245);
+}
+
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+    background-color: rgb(161 161 170);
+    border: 2px solid rgb(244 244 245);
+    border-radius: 9999px;
+}
+
+.dark .admin-sidebar-nav {
+    scrollbar-color: rgb(113 113 122) rgb(39 39 42);
+}
+
+.dark .admin-sidebar-nav::-webkit-scrollbar-track {
+    background: rgb(39 39 42);
+}
+
+.dark .admin-sidebar-nav::-webkit-scrollbar-thumb {
+    background-color: rgb(113 113 122);
+    border-color: rgb(39 39 42);
 }

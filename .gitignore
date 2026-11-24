@@ -1,9 +1,11 @@
 /.phpunit.cache
 /node_modules
 /public/build
+/public/flux
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/public/vendor
 /storage/*.key
 /storage/pail
 /vendor
@@ -22,3 +24,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Windows reserved device name — can appear if a shell redirect misfires
+/nul

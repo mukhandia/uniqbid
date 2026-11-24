@@ -3,68 +3,177 @@
 use App\Models\Auction;
 use App\Models\Product;
 use App\Models\SupportTicket;
+use Database\Seeders\ContentSeeder;
 use Database\Seeders\UniqBidDemoSeeder;
 use Livewire\Livewire;
 
 beforeEach(function () {
     $this->seed(UniqBidDemoSeeder::class);
+    $this->seed(ContentSeeder::class);
 });
 
 test('home page renders featured auctions and shop highlights', function () {
     $this->get(route('home'))
         ->assertOk()
         ->assertSee('The lowest')
-        ->assertSee('unique bid')
-        ->assertSee('iPhone 15 Pro');
+        ->assertSee('unique amount')
+        ->assertSee('Motorbike')
+        ->assertSee('Featured in the shop')
+        ->assertSee('Classic leather-strap dress watch')
+        ->assertSee('aria-label="Previous"', false)
+        ->assertSee('aria-label="Next"', false)
+        ->assertDontSee('scrollbar-width:thin', false)
+        ->assertDontSee('Accessories, hampers & gifts');
 });
 
-test('auctions index lists live auctions', function () {
+test('home hero prefers the featured live sale over the soonest closing sale', function () {
+    Auction::query()->update(['is_featured' => false]);
+
+    Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Soonest Closing Sale',
+        'status' => 'live',
+        'ends_at' => now()->addHour(),
+        'is_featured' => false,
+    ]);
+    Auction::factory()->onAuctionChannel()->create([
+        'name' => 'Chosen Homepage Hero',
+        'status' => 'live',
+        'ends_at' => now()->addDays(3),
+        'is_featured' => true,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Chosen Homepage Hero')
+        ->assertSee('View live auctions featuring Chosen Homepage Hero')
+        ->assertDontSee('View live auctions featuring Soonest Closing Sale');
+});
+
+test('home hero bid now and featured product link to the live auctions page', function () {
+    $featured = Auction::query()->liveOnAuctionChannel()->featured()->first()
+        ?? Auction::query()->liveOnAuctionChannel()->first();
+
+    $response = $this->get(route('home'))->assertOk();
+
+    $response->assertSee('href="'.route('auctions.index').'"', false);
+
+    $hero = str($response->getContent())->betweenFirst('<section class="relative overflow-hidden bg-navy', '</section>');
+
+    expect((string) $hero)
+        ->toContain('Bid now')
+        ->not->toContain(route('auctions.show', $featured));
+});
+
+test('home live now shows every live auction in a mobile grid', function () {
+    Auction::factory()->count(12)->onAuctionChannel()->create([
+        'status' => 'live',
+        'ends_at' => now()->addDay(),
+    ]);
+
+    $liveCount = Auction::query()->liveOnAuctionChannel()->count();
+
+    $html = $this->get(route('home'))->assertOk()->getContent();
+    $grid = (string) str($html)->after('data-test="home-live-grid"')->before('hidden md:block');
+
+    expect($liveCount)->toBeGreaterThan(10)
+        ->and(substr_count($grid, 'href="'.url('auctions').'/'))->toBe($liveCount);
+});
+
+test('home shop strip only lists featured products', function () {
+    Product::query()->update(['is_featured' => false]);
+
+    Product::factory()->create([
+        'name' => 'Homepage Shop Star',
+        'is_featured' => true,
+    ]);
+    Product::factory()->create([
+        'name' => 'Hidden Shop Filler',
+        'is_featured' => false,
+    ]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('Homepage Shop Star')
+        ->assertSee('Featured in the shop')
+        ->assertDontSee('Hidden Shop Filler');
+});
+
+test('home page keeps licence number in the footer only', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('L No. 2026/0010/008895')
+        ->assertDontSee('Licensed Kenyan Auctioneer · Est. 2024');
+});
+
+test('auctions index lists live sales', function () {
     $this->get(route('auctions.index'))
         ->assertOk()
-        ->assertSee('Live Auctions')
-        ->assertSee('Samsung 55');
+        ->assertSee('Live Sales/Auctions')
+        ->assertSee('Samsung S24');
+});
+
+test('auction detail page does not show live sale statistics', function () {
+    $auction = Auction::query()->where('slug', 'motorbike-sale')->firstOrFail();
+
+    $this->get(route('auctions.show', $auction))
+        ->assertOk()
+        ->assertDontSee('bids placed');
 });
 
 test('auction detail page is reachable by slug', function () {
-    $auction = Auction::query()->where('slug', 'iphone-15-pro')->firstOrFail();
+    $auction = Auction::query()->where('slug', 'motorbike-sale')->firstOrFail();
 
     $this->get(route('auctions.show', $auction))
         ->assertOk()
         ->assertSee($auction->name)
-        ->assertSee('Place your bid');
+        ->assertSee('Bid now');
 });
 
-test('auction countdown uses days hours and minutes without seconds', function () {
-    $auction = Auction::query()->where('slug', 'iphone-15-pro')->firstOrFail();
+test('auction pages poll the server every thirty seconds for countdown labels', function () {
+    $auction = Auction::query()->where('slug', 'motorbike-sale')->firstOrFail();
 
-    $this->get(route('auctions.show', $auction))
+    $response = $this->get(route('auctions.show', $auction));
+
+    $response
         ->assertOk()
-        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
-        ->assertDontSee("padStart(2, '0')}s", false);
+        ->assertSee('wire:poll.10s.visible="refreshLiveSnapshot"', false)
+        ->assertDontSee('wire:ignore', false);
+
+    expect($response->getContent())->toMatch('/\d+h : \d{2}m : \d{2}s/');
 
     $this->get(route('auctions.index'))
         ->assertOk()
-        ->assertSee("\${d}d : \${String(h).padStart(2, '0')}h : \${String(m).padStart(2, '0')}m", false)
-        ->assertDontSee("padStart(2, '0')}s", false);
+        ->assertSee('wire:poll.', false)
+        ->assertSee('.visible', false);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertSee('wire:poll.', false)
+        ->assertSee('.visible', false);
 });
 
 test('shop index and product detail work', function () {
-    $product = Product::query()->where('slug', 'p1')->firstOrFail();
+    $product = Product::query()->inShop()->orderBy('id')->firstOrFail();
 
     $this->get(route('shop.index'))
         ->assertOk()
-        ->assertSee('Leather Cardholder');
+        ->assertSee($product->name);
 
     $this->get(route('shop.show', $product))
         ->assertOk()
         ->assertSee($product->name)
-        ->assertSee('Add to cart');
+        ->assertSee('Add to cart')
+        ->assertSee('Delivery fee charges apply outside Nairobi');
 });
 
 test('static public pages are reachable', function () {
-    foreach (['past-sales', 'how-it-works', 'testimonials', 'legal', 'contact', 'account', 'cart'] as $route) {
+    foreach (['past-sales', 'how-it-works', 'testimonials', 'faqs', 'legal', 'contact', 'account', 'cart', 'orders.track'] as $route) {
         $this->get(route($route))->assertOk();
     }
+
+    $this->get(route('legal'))
+        ->assertSee('Delivery fee charges apply outside Nairobi')
+        ->assertDontSee('KES 350');
 });
 
 test('past sales page uses sale language without win tone', function () {
@@ -78,16 +187,24 @@ test('past sales page uses sale language without win tone', function () {
 test('how it works uses successful buy language', function () {
     $this->get(route('how-it-works'))
         ->assertOk()
-        ->assertSee('Pay for Bid')
-        ->assertSee('Successful Buy')
+        ->assertSee('Pay participation fee')
+        ->assertSee('Successful buy')
+        ->assertSee('Bid amount')
         ->assertDontSee('>Win<', false);
 });
-test('testimonials page shows placeholder customer stories', function () {
+test('testimonials page shows customer stories', function () {
     $this->get(route('testimonials'))
         ->assertOk()
         ->assertSee('What people say about UniqBid')
         ->assertSee('Amina Wanjiku')
-        ->assertSee('Browse live auctions');
+        ->assertSee('Browse live sales');
+});
+
+test('faqs page shows seeded questions', function () {
+    $this->get(route('faqs'))
+        ->assertOk()
+        ->assertSee('Frequently asked questions')
+        ->assertSee('What is a lowest unique bid?');
 });
 
 test('contact form creates a support ticket', function () {

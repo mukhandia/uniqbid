@@ -1,6 +1,10 @@
 <x-layouts::auth :title="__('Log in')">
     <div class="flex flex-col gap-6">
-        <x-auth-header :title="__('Log in to your account')" :description="__('Enter your email and password below to log in')" />
+        <x-auth-header :title="__('Admin sign in')" :description="__('Use your staff email address and password to manage UniqBid.')" />
+
+        <div class="rounded-lg border border-border bg-surface p-4 text-sm text-muted-foreground">
+            Buying or managing your bids? <a href="{{ route('mobile-login') }}" class="font-semibold text-navy hover:underline" wire:navigate>Sign in with your mobile number instead.</a>
+        </div>
 
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />

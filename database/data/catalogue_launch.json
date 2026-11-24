@@ -1,0 +1,1588 @@
+{
+  "categories": [
+    {
+      "name": "Watches",
+      "slug": "watches",
+      "sort_order": 1
+    },
+    {
+      "name": "Perfumes & Fragrances",
+      "slug": "perfumes-fragrances",
+      "sort_order": 2
+    },
+    {
+      "name": "Fashion Accessories",
+      "slug": "fashion-accessories",
+      "sort_order": 3
+    },
+    {
+      "name": "Jewellery",
+      "slug": "jewellery",
+      "sort_order": 4
+    },
+    {
+      "name": "Women's Beauty & Personal",
+      "slug": "women-s-beauty-personal",
+      "sort_order": 5
+    },
+    {
+      "name": "Men's Grooming & Accessories",
+      "slug": "men-s-grooming-accessories",
+      "sort_order": 6
+    },
+    {
+      "name": "Panties, Lingerie & Intimate",
+      "slug": "panties-lingerie-intimate",
+      "sort_order": 7
+    },
+    {
+      "name": "Gifts & Hampers",
+      "slug": "gifts-hampers",
+      "sort_order": 8
+    },
+    {
+      "name": "Kids' Gadgets & Accessories",
+      "slug": "kids-gadgets-accessories",
+      "sort_order": 9
+    },
+    {
+      "name": "Phone & Tech Accessories",
+      "slug": "phone-tech-accessories",
+      "sort_order": 10
+    },
+    {
+      "name": "Travel & Lifestyle",
+      "slug": "travel-lifestyle",
+      "sort_order": 11
+    },
+    {
+      "name": "Home & Personal Lifestyle",
+      "slug": "home-personal-lifestyle",
+      "sort_order": 12
+    },
+    {
+      "name": "Novelty, Trending & Impulse",
+      "slug": "novelty-trending-impulse",
+      "sort_order": 13
+    },
+    {
+      "name": "Solar & Power Solutions",
+      "slug": "solar-power-solutions",
+      "sort_order": 14
+    },
+    {
+      "name": "Car Accessories",
+      "slug": "car-accessories",
+      "sort_order": 15
+    }
+  ],
+  "subcategories": [
+    {
+      "category": "Watches",
+      "name": "Men's watches",
+      "slug": "men-s-watches",
+      "sort_order": 1
+    },
+    {
+      "category": "Watches",
+      "name": "Women's watches",
+      "slug": "women-s-watches",
+      "sort_order": 2
+    },
+    {
+      "category": "Watches",
+      "name": "Unisex / minimalist watches",
+      "slug": "unisex-minimalist-watches",
+      "sort_order": 3
+    },
+    {
+      "category": "Watches",
+      "name": "Smartwatches",
+      "slug": "smartwatches",
+      "sort_order": 4
+    },
+    {
+      "category": "Watches",
+      "name": "Kids' watches",
+      "slug": "kids-watches",
+      "sort_order": 5
+    },
+    {
+      "category": "Watches",
+      "name": "Couple / matching watches",
+      "slug": "couple-matching-watches",
+      "sort_order": 6
+    },
+    {
+      "category": "Watches",
+      "name": "Chronograph & automatic watches",
+      "slug": "chronograph-automatic-watches",
+      "sort_order": 7
+    },
+    {
+      "category": "Watches",
+      "name": "Watch gift sets & accessories",
+      "slug": "watch-gift-sets-accessories",
+      "sort_order": 8
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Men's EDP/EDT",
+      "slug": "men-s-edp-edt",
+      "sort_order": 9
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Women's EDP/EDT",
+      "slug": "women-s-edp-edt",
+      "sort_order": 10
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Unisex / Arabian fragrances",
+      "slug": "unisex-arabian-fragrances",
+      "sort_order": 11
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Designer-inspired fragrances",
+      "slug": "designer-inspired-fragrances",
+      "sort_order": 12
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Body mists & sprays",
+      "slug": "body-mists-sprays",
+      "sort_order": 13
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Perfume gift/miniature sets",
+      "slug": "perfume-gift-miniature-sets",
+      "sort_order": 14
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Car & home fragrance",
+      "slug": "car-home-fragrance",
+      "sort_order": 15
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Candles, diffusers & bakhoor",
+      "slug": "candles-diffusers-bakhoor",
+      "sort_order": 16
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Handbags & totes",
+      "slug": "handbags-totes",
+      "sort_order": 17
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Crossbody, clutch & shoulder bags",
+      "slug": "crossbody-clutch-shoulder-bags",
+      "sort_order": 18
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Wallets & cardholders",
+      "slug": "wallets-cardholders",
+      "sort_order": 19
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Belts",
+      "slug": "belts",
+      "sort_order": 20
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Sunglasses",
+      "slug": "sunglasses",
+      "sort_order": 21
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Caps, hats & scarves",
+      "slug": "caps-hats-scarves",
+      "sort_order": 22
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Travel & cosmetic organizers",
+      "slug": "travel-cosmetic-organizers",
+      "sort_order": 23
+    },
+    {
+      "category": "Jewellery",
+      "name": "Necklaces & chains",
+      "slug": "necklaces-chains",
+      "sort_order": 24
+    },
+    {
+      "category": "Jewellery",
+      "name": "Bracelets & bangles",
+      "slug": "bracelets-bangles",
+      "sort_order": 25
+    },
+    {
+      "category": "Jewellery",
+      "name": "Rings",
+      "slug": "rings",
+      "sort_order": 26
+    },
+    {
+      "category": "Jewellery",
+      "name": "Earrings",
+      "slug": "earrings",
+      "sort_order": 27
+    },
+    {
+      "category": "Jewellery",
+      "name": "Couple & friendship jewellery",
+      "slug": "couple-friendship-jewellery",
+      "sort_order": 28
+    },
+    {
+      "category": "Jewellery",
+      "name": "Children's jewellery",
+      "slug": "children-s-jewellery",
+      "sort_order": 29
+    },
+    {
+      "category": "Jewellery",
+      "name": "Jewellery gift sets & boxes",
+      "slug": "jewellery-gift-sets-boxes",
+      "sort_order": 30
+    },
+    {
+      "category": "Women's Beauty & Personal",
+      "name": "Makeup bags, brushes & mirrors",
+      "slug": "makeup-bags-brushes-mirrors",
+      "sort_order": 31
+    },
+    {
+      "category": "Women's Beauty & Personal",
+      "name": "Hair accessories & styling tools",
+      "slug": "hair-accessories-styling-tools",
+      "sort_order": 32
+    },
+    {
+      "category": "Women's Beauty & Personal",
+      "name": "Nail & spa accessories",
+      "slug": "nail-spa-accessories",
+      "sort_order": 33
+    },
+    {
+      "category": "Women's Beauty & Personal",
+      "name": "Travel beauty & grooming kits",
+      "slug": "travel-beauty-grooming-kits",
+      "sort_order": 34
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Grooming & beard kits",
+      "slug": "grooming-beard-kits",
+      "sort_order": 35
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Toiletry bags & travel kits",
+      "slug": "toiletry-bags-travel-kits",
+      "sort_order": 36
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Cufflinks, tie clips & ties",
+      "slug": "cufflinks-tie-clips-ties",
+      "sort_order": 37
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Men's gift sets",
+      "slug": "men-s-gift-sets",
+      "sort_order": 38
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Everyday panties (multipacks)",
+      "slug": "everyday-panties-multipacks",
+      "sort_order": 39
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Shapewear",
+      "slug": "shapewear",
+      "sort_order": 40
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Lingerie sets & bras",
+      "slug": "lingerie-sets-bras",
+      "sort_order": 41
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Sleepwear & robes",
+      "slug": "sleepwear-robes",
+      "sort_order": 42
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Men's underwear",
+      "slug": "men-s-underwear",
+      "sort_order": 43
+    },
+    {
+      "category": "Panties, Lingerie & Intimate",
+      "name": "Children's underwear",
+      "slug": "children-s-underwear",
+      "sort_order": 44
+    },
+    {
+      "category": "Gifts & Hampers",
+      "name": "Women's hampers",
+      "slug": "women-s-hampers",
+      "sort_order": 45
+    },
+    {
+      "category": "Gifts & Hampers",
+      "name": "Men's hampers",
+      "slug": "men-s-hampers",
+      "sort_order": 46
+    },
+    {
+      "category": "Gifts & Hampers",
+      "name": "Couples' hampers",
+      "slug": "couples-hampers",
+      "sort_order": 47
+    },
+    {
+      "category": "Gifts & Hampers",
+      "name": "Children's hampers",
+      "slug": "children-s-hampers",
+      "sort_order": 48
+    },
+    {
+      "category": "Gifts & Hampers",
+      "name": "Corporate hampers",
+      "slug": "corporate-hampers",
+      "sort_order": 49
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "0-3 yrs accessories",
+      "slug": "0-3-yrs-accessories",
+      "sort_order": 50
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "3-6 yrs educational gadgets",
+      "slug": "3-6-yrs-educational-gadgets",
+      "sort_order": 51
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "6-12 yrs smart devices & STEM",
+      "slug": "6-12-yrs-smart-devices-stem",
+      "sort_order": 52
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "Teen tech & lifestyle",
+      "slug": "teen-tech-lifestyle",
+      "sort_order": 53
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Cases, protectors & cables",
+      "slug": "cases-protectors-cables",
+      "sort_order": 54
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Chargers & power banks",
+      "slug": "chargers-power-banks",
+      "sort_order": 55
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Audio (earbuds, speakers)",
+      "slug": "audio-earbuds-speakers",
+      "sort_order": 56
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Content-creation gear (rings, tripods)",
+      "slug": "content-creation-gear-rings-tripods",
+      "sort_order": 57
+    },
+    {
+      "category": "Travel & Lifestyle",
+      "name": "Travel bags & organizers",
+      "slug": "travel-bags-organizers",
+      "sort_order": 58
+    },
+    {
+      "category": "Travel & Lifestyle",
+      "name": "Travel bottles & pillows",
+      "slug": "travel-bottles-pillows",
+      "sort_order": 59
+    },
+    {
+      "category": "Car Accessories",
+      "name": "Seat covers & interiors",
+      "slug": "seat-covers-interiors",
+      "sort_order": 60
+    },
+    {
+      "category": "Car Accessories",
+      "name": "Phone mounts & chargers",
+      "slug": "phone-mounts-chargers",
+      "sort_order": 61
+    },
+    {
+      "category": "Car Accessories",
+      "name": "Cleaning & care",
+      "slug": "car-cleaning-care",
+      "sort_order": 62
+    },
+    {
+      "category": "Home & Personal Lifestyle",
+      "name": "Decorative & LED lighting",
+      "slug": "decorative-led-lighting",
+      "sort_order": 63
+    },
+    {
+      "category": "Home & Personal Lifestyle",
+      "name": "Storage & desk organizers",
+      "slug": "storage-desk-organizers",
+      "sort_order": 64
+    },
+    {
+      "category": "Home & Personal Lifestyle",
+      "name": "Bedroom & bathroom accessories",
+      "slug": "bedroom-bathroom-accessories",
+      "sort_order": 65
+    },
+    {
+      "category": "Novelty, Trending & Impulse",
+      "name": "Social-media trending gadgets",
+      "slug": "social-media-trending-gadgets",
+      "sort_order": 66
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar lanterns (entry-level)",
+      "slug": "solar-lanterns-entry-level",
+      "sort_order": 65
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar home lighting kits",
+      "slug": "solar-home-lighting-kits",
+      "sort_order": 66
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar security & outdoor lights",
+      "slug": "solar-security-outdoor-lights",
+      "sort_order": 67
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar-powered power banks & chargers",
+      "slug": "solar-powered-power-banks-chargers",
+      "sort_order": 68
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar torches & camping lights",
+      "slug": "solar-torches-camping-lights",
+      "sort_order": 69
+    },
+    {
+      "category": "Solar & Power Solutions",
+      "name": "Solar radios & multi-function units",
+      "slug": "solar-radios-multi-function-units",
+      "sort_order": 70
+    },
+    {
+      "category": "Watches",
+      "name": "Unisex watches",
+      "slug": "unisex-watches",
+      "sort_order": 970
+    },
+    {
+      "category": "Watches",
+      "name": "Couple watches",
+      "slug": "couple-watches",
+      "sort_order": 971
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Perfume oils",
+      "slug": "perfume-oils",
+      "sort_order": 972
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Perfume gift sets",
+      "slug": "perfume-gift-sets",
+      "sort_order": 973
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Miniature perfume sets",
+      "slug": "miniature-perfume-sets",
+      "sort_order": 974
+    },
+    {
+      "category": "Perfumes & Fragrances",
+      "name": "Scented candles",
+      "slug": "scented-candles",
+      "sort_order": 975
+    },
+    {
+      "category": "Fashion Accessories",
+      "name": "Crossbody bags",
+      "slug": "crossbody-bags",
+      "sort_order": 976
+    },
+    {
+      "category": "Women's Beauty & Personal",
+      "name": "Makeup brushes",
+      "slug": "makeup-brushes",
+      "sort_order": 977
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Grooming kits",
+      "slug": "grooming-kits",
+      "sort_order": 978
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Beard accessories",
+      "slug": "beard-accessories",
+      "sort_order": 979
+    },
+    {
+      "category": "Men's Grooming & Accessories",
+      "name": "Wallets",
+      "slug": "wallets",
+      "sort_order": 980
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "3-6yrs educational",
+      "slug": "3-6yrs-educational",
+      "sort_order": 981
+    },
+    {
+      "category": "Kids' Gadgets & Accessories",
+      "name": "6-12yrs STEM",
+      "slug": "6-12yrs-stem",
+      "sort_order": 982
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Phone cases",
+      "slug": "phone-cases",
+      "sort_order": 983
+    },
+    {
+      "category": "Phone & Tech Accessories",
+      "name": "Bluetooth speakers",
+      "slug": "bluetooth-speakers",
+      "sort_order": 984
+    },
+    {
+      "category": "Home & Personal Lifestyle",
+      "name": "LED lights",
+      "slug": "led-lights",
+      "sort_order": 985
+    },
+    {
+      "category": "Novelty, Trending & Impulse",
+      "name": "Novelty gifts",
+      "slug": "novelty-gifts",
+      "sort_order": 986
+    }
+  ],
+  "products": [
+    {
+      "name": "Classic leather-strap dress watch",
+      "category": "Watches",
+      "subcategory": "Men's watches",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 2650,
+      "slug": "classic-leather-strap-dress-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/classic-leather-strap-dress-watch.png"
+    },
+    {
+      "name": "Steel bracelet business watch",
+      "category": "Watches",
+      "subcategory": "Men's watches",
+      "gender_age": "Men",
+      "price_tier": "Mid-range",
+      "price": 5250,
+      "slug": "steel-bracelet-business-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/steel-bracelet-business-watch.png"
+    },
+    {
+      "name": "Slim minimalist watch",
+      "category": "Watches",
+      "subcategory": "Women's watches",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 2650,
+      "slug": "slim-minimalist-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/slim-minimalist-watch.png"
+    },
+    {
+      "name": "Rose-gold bracelet watch",
+      "category": "Watches",
+      "subcategory": "Women's watches",
+      "gender_age": "Women",
+      "price_tier": "Mid-range",
+      "price": 4950,
+      "slug": "rose-gold-bracelet-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/rose-gold-bracelet-watch.png"
+    },
+    {
+      "name": "Crystal-bezel fashion watch",
+      "category": "Watches",
+      "subcategory": "Women's watches",
+      "gender_age": "Women",
+      "price_tier": "Mid-range",
+      "price": 5750,
+      "slug": "crystal-bezel-fashion-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/crystal-bezel-fashion-watch.png"
+    },
+    {
+      "name": "Canvas/NATO strap casual watch",
+      "category": "Watches",
+      "subcategory": "Unisex watches",
+      "gender_age": "Unisex",
+      "price_tier": "Budget",
+      "price": 1350,
+      "slug": "canvas-nato-strap-casual-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/canvas-nato-strap-casual-watch.png"
+    },
+    {
+      "name": "Minimalist mesh-strap watch",
+      "category": "Watches",
+      "subcategory": "Unisex watches",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2850,
+      "slug": "minimalist-mesh-strap-watch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/minimalist-mesh-strap-watch.png"
+    },
+    {
+      "name": "Fitness tracker smartwatch",
+      "category": "Watches",
+      "subcategory": "Smartwatches",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 5250,
+      "slug": "fitness-tracker-smartwatch",
+      "is_returnable": true,
+      "is_featured": true,
+      "image": "/images/products/fitness-tracker-smartwatch.png"
+    },
+    {
+      "name": "Call-function smartwatch",
+      "category": "Watches",
+      "subcategory": "Smartwatches",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 6750,
+      "slug": "call-function-smartwatch",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/call-function-smartwatch.png"
+    },
+    {
+      "name": "Digital cartoon-print watch",
+      "category": "Watches",
+      "subcategory": "Kids' watches",
+      "gender_age": "Kids",
+      "price_tier": "Budget",
+      "price": 850,
+      "slug": "digital-cartoon-print-watch",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/digital-cartoon-print-watch.png"
+    },
+    {
+      "name": "His & hers matching watch set",
+      "category": "Watches",
+      "subcategory": "Couple watches",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 6450,
+      "slug": "his-hers-matching-watch-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/his-hers-matching-watch-set.png"
+    },
+    {
+      "name": "Watch + bracelet gift box",
+      "category": "Watches",
+      "subcategory": "Watch gift sets & accessories",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 3450,
+      "slug": "watch-bracelet-gift-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/watch-bracelet-gift-box.png"
+    },
+    {
+      "name": "Designer-inspired men's EDP 100ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Men's EDP/EDT",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "designer-inspired-men-s-edp-100ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/designer-inspired-men-s-edp-100ml.png"
+    },
+    {
+      "name": "Branded men's EDT 100ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Men's EDP/EDT",
+      "gender_age": "Men",
+      "price_tier": "Mid-range",
+      "price": 5250,
+      "slug": "branded-men-s-edt-100ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/branded-men-s-edt-100ml.png"
+    },
+    {
+      "name": "Designer-inspired women's EDP 100ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Women's EDP/EDT",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "designer-inspired-women-s-edp-100ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/designer-inspired-women-s-edp-100ml.png"
+    },
+    {
+      "name": "Branded women's EDT 100ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Women's EDP/EDT",
+      "gender_age": "Women",
+      "price_tier": "Mid-range",
+      "price": 5250,
+      "slug": "branded-women-s-edt-100ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/branded-women-s-edt-100ml.png"
+    },
+    {
+      "name": "Concentrated perfume oil 12ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Perfume oils",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1250,
+      "slug": "concentrated-perfume-oil-12ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/concentrated-perfume-oil-12ml.png"
+    },
+    {
+      "name": "Fruity/floral body mist 250ml",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Body mists & sprays",
+      "gender_age": "Women",
+      "price_tier": "Budget",
+      "price": 750,
+      "slug": "fruity-floral-body-mist-250ml",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/fruity-floral-body-mist-250ml.png"
+    },
+    {
+      "name": "Men's perfume + deodorant gift set",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Perfume gift sets",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 2950,
+      "slug": "men-s-perfume-deodorant-gift-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/men-s-perfume-deodorant-gift-set.png"
+    },
+    {
+      "name": "Women's perfume + lotion gift set",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Perfume gift sets",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 2950,
+      "slug": "women-s-perfume-lotion-gift-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/women-s-perfume-lotion-gift-set.png"
+    },
+    {
+      "name": "4-piece travel perfume set",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Miniature perfume sets",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2450,
+      "slug": "4-piece-travel-perfume-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/4-piece-travel-perfume-set.png"
+    },
+    {
+      "name": "Soy scented candle (single)",
+      "category": "Perfumes & Fragrances",
+      "subcategory": "Scented candles",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1250,
+      "slug": "soy-scented-candle-single",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/soy-scented-candle-single.png"
+    },
+    {
+      "name": "Structured tote handbag",
+      "category": "Fashion Accessories",
+      "subcategory": "Handbags & totes",
+      "gender_age": "Women",
+      "price_tier": "Mid-range",
+      "price": 3950,
+      "slug": "structured-tote-handbag",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/structured-tote-handbag.png"
+    },
+    {
+      "name": "Small crossbody bag",
+      "category": "Fashion Accessories",
+      "subcategory": "Crossbody bags",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "small-crossbody-bag",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/small-crossbody-bag.png"
+    },
+    {
+      "name": "Men's leather bifold wallet",
+      "category": "Fashion Accessories",
+      "subcategory": "Wallets & cardholders",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 1550,
+      "slug": "men-s-leather-bifold-wallet",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/men-s-leather-bifold-wallet.png"
+    },
+    {
+      "name": "Women's compact wallet",
+      "category": "Fashion Accessories",
+      "subcategory": "Wallets & cardholders",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 1450,
+      "slug": "women-s-compact-wallet",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/women-s-compact-wallet.png"
+    },
+    {
+      "name": "Classic polarised sunglasses",
+      "category": "Fashion Accessories",
+      "subcategory": "Sunglasses",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1850,
+      "slug": "classic-polarised-sunglasses",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/classic-polarised-sunglasses.png"
+    },
+    {
+      "name": "Stainless steel pendant necklace",
+      "category": "Jewellery",
+      "subcategory": "Necklaces & chains",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1250,
+      "slug": "stainless-steel-pendant-necklace",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/stainless-steel-pendant-necklace.png"
+    },
+    {
+      "name": "Beaded charm bracelet",
+      "category": "Jewellery",
+      "subcategory": "Bracelets & bangles",
+      "gender_age": "Women",
+      "price_tier": "Budget",
+      "price": 650,
+      "slug": "beaded-charm-bracelet",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/beaded-charm-bracelet.png"
+    },
+    {
+      "name": "Stud earring set (5-pair pack)",
+      "category": "Jewellery",
+      "subcategory": "Earrings",
+      "gender_age": "Women",
+      "price_tier": "Budget",
+      "price": 750,
+      "slug": "stud-earring-set-5-pair-pack",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/stud-earring-set-5-pair-pack.png"
+    },
+    {
+      "name": "Makeup brush set (10-12 pcs)",
+      "category": "Women's Beauty & Personal",
+      "subcategory": "Makeup brushes",
+      "gender_age": "Women",
+      "price_tier": "Affordable",
+      "price": 1450,
+      "slug": "makeup-brush-set-10-12-pcs",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/makeup-brush-set-10-12-pcs.png"
+    },
+    {
+      "name": "Silk scrunchie set",
+      "category": "Women's Beauty & Personal",
+      "subcategory": "Hair accessories & styling tools",
+      "gender_age": "Women",
+      "price_tier": "Budget",
+      "price": 450,
+      "slug": "silk-scrunchie-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/silk-scrunchie-set.png"
+    },
+    {
+      "name": "Claw clips set (assorted)",
+      "category": "Women's Beauty & Personal",
+      "subcategory": "Hair accessories & styling tools",
+      "gender_age": "Women",
+      "price_tier": "Budget",
+      "price": 450,
+      "slug": "claw-clips-set-assorted",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/claw-clips-set-assorted.png"
+    },
+    {
+      "name": "Men's beard grooming kit",
+      "category": "Men's Grooming & Accessories",
+      "subcategory": "Grooming kits",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "men-s-beard-grooming-kit",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/men-s-beard-grooming-kit.png"
+    },
+    {
+      "name": "Beard oil & comb set",
+      "category": "Men's Grooming & Accessories",
+      "subcategory": "Beard accessories",
+      "gender_age": "Men",
+      "price_tier": "Budget",
+      "price": 1250,
+      "slug": "beard-oil-comb-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/beard-oil-comb-set.png"
+    },
+    {
+      "name": "Men's minimalist card wallet",
+      "category": "Men's Grooming & Accessories",
+      "subcategory": "Wallets",
+      "gender_age": "Men",
+      "price_tier": "Affordable",
+      "price": 1450,
+      "slug": "men-s-minimalist-card-wallet",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/men-s-minimalist-card-wallet.png"
+    },
+    {
+      "name": "Grooming gift box (wallet+belt+cufflinks)",
+      "category": "Men's Grooming & Accessories",
+      "subcategory": "Men's gift sets",
+      "gender_age": "Men",
+      "price_tier": "Mid-range",
+      "price": 4450,
+      "slug": "grooming-gift-box-wallet-belt-cufflinks",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/grooming-gift-box-wallet-belt-cufflinks.png"
+    },
+    {
+      "name": "Toddler drawing tablet",
+      "category": "Kids' Gadgets & Accessories",
+      "subcategory": "3-6yrs educational",
+      "gender_age": "Kids",
+      "price_tier": "Affordable",
+      "price": 1850,
+      "slug": "toddler-drawing-tablet",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Remote-control car",
+      "category": "Kids' Gadgets & Accessories",
+      "subcategory": "6-12yrs STEM",
+      "gender_age": "Kids",
+      "price_tier": "Affordable",
+      "price": 2450,
+      "slug": "remote-control-car",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Teen wireless earbuds",
+      "category": "Kids' Gadgets & Accessories",
+      "subcategory": "Teen tech & lifestyle",
+      "gender_age": "Teens",
+      "price_tier": "Affordable",
+      "price": 2650,
+      "slug": "teen-wireless-earbuds",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Silicone phone case",
+      "category": "Phone & Tech Accessories",
+      "subcategory": "Phone cases",
+      "gender_age": "Unisex",
+      "price_tier": "Budget",
+      "price": 550,
+      "slug": "silicone-phone-case",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "10,000mAh power bank",
+      "category": "Phone & Tech Accessories",
+      "subcategory": "Chargers & power banks",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1650,
+      "slug": "10-000mah-power-bank",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Portable Bluetooth speaker",
+      "category": "Phone & Tech Accessories",
+      "subcategory": "Bluetooth speakers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2650,
+      "slug": "portable-bluetooth-speaker",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Wireless earbuds (basic)",
+      "category": "Phone & Tech Accessories",
+      "subcategory": "Audio (earbuds, speakers)",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "wireless-earbuds-basic",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "RGB LED strip light kit",
+      "category": "Home & Personal Lifestyle",
+      "subcategory": "LED lights",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1850,
+      "slug": "rgb-led-strip-light-kit",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Galaxy/star projector light",
+      "category": "Novelty, Trending & Impulse",
+      "subcategory": "Social-media trending gadgets",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "galaxy-star-projector-light",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Mini handheld fan (TikTok style)",
+      "category": "Novelty, Trending & Impulse",
+      "subcategory": "Social-media trending gadgets",
+      "gender_age": "Unisex",
+      "price_tier": "Budget",
+      "price": 750,
+      "slug": "mini-handheld-fan-tiktok-style",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "LED photo/message frame",
+      "category": "Novelty, Trending & Impulse",
+      "subcategory": "Social-media trending gadgets",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1850,
+      "slug": "led-photo-message-frame",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Personalised acrylic photo plaque",
+      "category": "Novelty, Trending & Impulse",
+      "subcategory": "Novelty gifts",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2250,
+      "slug": "personalised-acrylic-photo-plaque",
+      "is_returnable": false,
+      "is_featured": false
+    },
+    {
+      "name": "Cloud humidifier (rain effect)",
+      "category": "Novelty, Trending & Impulse",
+      "subcategory": "Novelty gifts",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 2450,
+      "slug": "cloud-humidifier-rain-effect",
+      "is_returnable": true,
+      "is_featured": false
+    },
+    {
+      "name": "Birthday Gift Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 3500,
+      "slug": "birthday-gift-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/birthday-gift-box.png"
+    },
+    {
+      "name": "His & Hers Set",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 8750,
+      "slug": "his-hers-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/his-hers-set.png"
+    },
+    {
+      "name": "Executive Man",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 12000,
+      "slug": "executive-man",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/executive-man.png"
+    },
+    {
+      "name": "Executive Woman",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 12000,
+      "slug": "executive-woman",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/executive-woman.png"
+    },
+    {
+      "name": "Date Night Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "date-night-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/date-night-box.png"
+    },
+    {
+      "name": "Self-Care Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "self-care-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/self-care-box.png"
+    },
+    {
+      "name": "New Mum Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5250,
+      "slug": "new-mum-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/new-mum-box.png"
+    },
+    {
+      "name": "Teen Girl Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "teen-girl-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/teen-girl-box.png"
+    },
+    {
+      "name": "Teen Boy Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "teen-boy-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/teen-boy-box.png"
+    },
+    {
+      "name": "Young Gentleman",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "young-gentleman",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/young-gentleman.png"
+    },
+    {
+      "name": "Young Lady",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5750,
+      "slug": "young-lady",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/young-lady.png"
+    },
+    {
+      "name": "Kids' Birthday Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4000,
+      "slug": "kids-birthday-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/kids-birthday-box.png"
+    },
+    {
+      "name": "Back-to-School Gadget Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4500,
+      "slug": "back-to-school-gadget-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/back-to-school-gadget-box.png"
+    },
+    {
+      "name": "Travel Essentials",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5250,
+      "slug": "travel-essentials",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/travel-essentials.png"
+    },
+    {
+      "name": "Grooming Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5750,
+      "slug": "grooming-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/grooming-box.png"
+    },
+    {
+      "name": "Perfume & Watch Set",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7750,
+      "slug": "perfume-watch-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/perfume-watch-set.png"
+    },
+    {
+      "name": "Watch & Wallet Set",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7250,
+      "slug": "watch-wallet-set",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/watch-wallet-set.png"
+    },
+    {
+      "name": "Mother's Day Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 6500,
+      "slug": "mother-s-day-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/mother-s-day-box.png"
+    },
+    {
+      "name": "Father's Day Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5750,
+      "slug": "father-s-day-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/father-s-day-box.png"
+    },
+    {
+      "name": "Anniversary Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7750,
+      "slug": "anniversary-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/anniversary-box.png"
+    },
+    {
+      "name": "Corporate Executive Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 8250,
+      "slug": "corporate-executive-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/corporate-executive-box.png"
+    },
+    {
+      "name": "Bridesmaid Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7000,
+      "slug": "bridesmaid-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/bridesmaid-box.png"
+    },
+    {
+      "name": "Beauty Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "beauty-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/beauty-hamper.png"
+    },
+    {
+      "name": "Romance Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "romance-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/romance-hamper.png"
+    },
+    {
+      "name": "Client Appreciation Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7500,
+      "slug": "client-appreciation-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/client-appreciation-hamper.png"
+    },
+    {
+      "name": "New Employee Welcome Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 5250,
+      "slug": "new-employee-welcome-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/new-employee-welcome-box.png"
+    },
+    {
+      "name": "End-of-Year Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Corporate hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7750,
+      "slug": "end-of-year-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/end-of-year-hamper.png"
+    },
+    {
+      "name": "Christmas Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 6750,
+      "slug": "christmas-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/christmas-hamper.png"
+    },
+    {
+      "name": "Valentine's Couple Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 6500,
+      "slug": "valentine-s-couple-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/valentine-s-couple-box.png"
+    },
+    {
+      "name": "Graduation Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Mid-range",
+      "price": 7250,
+      "slug": "graduation-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/graduation-box.png"
+    },
+    {
+      "name": "Baby Shower Hamper",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 4750,
+      "slug": "baby-shower-hamper",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/baby-shower-hamper.png"
+    },
+    {
+      "name": "Wedding Guest Gift Box",
+      "category": "Gifts & Hampers",
+      "subcategory": "Women's hampers",
+      "gender_age": "Unisex",
+      "price_tier": "Affordable",
+      "price": 1600,
+      "slug": "wedding-guest-gift-box",
+      "is_returnable": true,
+      "is_featured": false,
+      "image": "/images/products/wedding-guest-gift-box.png"
+    }
+  ]
+}

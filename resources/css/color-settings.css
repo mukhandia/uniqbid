@@ -1,12 +1,12 @@
 :root {
     /* Brand palette */
-    --brand-navy: #355A8E; /* Shade Blue */
+    --brand-navy: #234394; /* UniqBid logo navy */
     --brand-navy-foreground: #FFFFFF;
 
-    --brand-gold: #F59E0B; /* Yellow */
+    --brand-gold: #F2B01E; /* Supporting highlight */
     --brand-gold-foreground: #1F1400;
 
-    --brand-red: #EF4444; /* CTA Red */
+    --brand-red: #E31E24; /* UniqBid logo red */
     --brand-red-foreground: #FFFFFF;
 
     /* Surfaces */
@@ -43,7 +43,7 @@
 
     /* Hero slider overlays (radial gradients) */
     --hero-overlay-1: radial-gradient(circle at 20% 20%, rgba(217,180,74,0.35), transparent 45%), radial-gradient(circle at 80% 60%, rgba(255,255,255,0.08), transparent 40%);
-    --hero-overlay-2: radial-gradient(circle at 10% 30%, rgba(53,90,142,0.45), transparent 50%), radial-gradient(circle at 90% 10%, rgba(255,255,255,0.10), transparent 45%);
+    --hero-overlay-2: radial-gradient(circle at 10% 30%, rgba(35,67,148,0.45), transparent 50%), radial-gradient(circle at 90% 10%, rgba(255,255,255,0.10), transparent 45%);
     --hero-overlay-3: radial-gradient(circle at 70% 20%, rgba(245,158,11,0.35), transparent 50%), radial-gradient(circle at 30% 80%, rgba(255,255,255,0.08), transparent 45%);
 }
 

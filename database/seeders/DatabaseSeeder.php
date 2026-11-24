@@ -15,11 +15,30 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()->create([
+        $testUser = User::query()->firstOrNew(['email' => 'test@example.com']);
+        $testUser->forceFill([
             'name' => 'Test User',
-            'email' => 'test@example.com',
+            'email_verified_at' => $testUser->email_verified_at ?? now(),
+            'is_admin' => false,
+            ...($testUser->exists ? [] : ['password' => 'password']),
+        ])->save();
+
+        $admin = User::query()->firstOrNew(['email' => config('uniqbid.admin.email')]);
+        $admin->forceFill([
+            'name' => config('uniqbid.admin.name'),
+            'email_verified_at' => $admin->email_verified_at ?? now(),
+            'is_admin' => true,
+            ...($admin->exists ? [] : ['password' => config('uniqbid.admin.password')]),
+        ])->save();
+
+        $this->call([
+            SiteSettingSeeder::class,
+            ContentSeeder::class,
+            UniqBidDemoSeeder::class,
         ]);
 
-        $this->call(UniqBidDemoSeeder::class);
+        if (class_exists(RolePermissionSeeder::class)) {
+            $this->call(RolePermissionSeeder::class);
+        }
     }
 }

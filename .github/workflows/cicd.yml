@@ -1,0 +1,249 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cicd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Setup Application
+        run: composer setup
+
+      - name: Run CI Checks
+        run: composer ci:check
+
+  deploy-staging:
+    name: Deploy Staging
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: |
+          cp .env.example .env
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Publish Livewire and Flux assets
+        run: bash scripts/publish-frontend-assets.sh
+
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          tr -d '\r' < ~/.ssh/deploy_key > ~/.ssh/deploy_key.tmp
+          mv ~/.ssh/deploy_key.tmp ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          FINGERPRINT="$(ssh-keygen -lf ~/.ssh/deploy_key | awk '{print $2}')"
+          echo "Deploy key fingerprint: ${FINGERPRINT}"
+          if [ "$FINGERPRINT" != "SHA256:pxAsLJToIGvONlTcIQ05BmaWexgQ1P31wH3SEPjWWcc" ]; then
+            echo "STAGING_SSH_KEY does not match the public key installed for uniqbid."
+            echo "Paste the private key file uniqbid_gha_deploy, including the BEGIN and END lines."
+            exit 1
+          fi
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync application files (rsync)
+        env:
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+          APP_PATH: ${{ secrets.STAGING_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          rsync -az --delete \
+            --bwlimit=10000 \
+            --exclude-from=.rsync-exclude \
+            -e "ssh -i ~/.ssh/deploy_key -p ${PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            ./ "${SSH_USER}@${SSH_HOST}:${APP_PATH}/"
+
+      - name: Run remote deploy commands
+        env:
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+          APP_PATH: ${{ secrets.STAGING_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            "bash ${APP_PATH}/scripts/remote-deploy.sh ${APP_PATH}"
+
+      - name: Verify frontend assets on server
+        env:
+          SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_PORT: ${{ secrets.STAGING_SSH_PORT }}
+          APP_PATH: ${{ secrets.STAGING_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            "set -euo pipefail; cd \"${APP_PATH}\"; for f in public/flux/flux.js public/vendor/livewire/manifest.json; do test -s \"\$f\" || { echo \"Missing on server: \$f\" >&2; exit 1; }; echo \"Found \$f (\$(wc -c < \"\$f\") bytes)\"; done"
+
+      - name: Smoke test staging
+        env:
+          APP_URL: ${{ secrets.STAGING_APP_URL }}
+        run: bash scripts/smoke-test-url.sh "$APP_URL"
+
+  deploy-production:
+    name: Deploy Production
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: |
+          cp .env.example .env
+          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Publish Livewire and Flux assets
+        run: bash scripts/publish-frontend-assets.sh
+
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Sync application files (rsync)
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          rsync -az --delete \
+            --bwlimit=10000 \
+            --exclude-from=.rsync-exclude \
+            -e "ssh -i ~/.ssh/deploy_key -p ${PORT} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            ./ "${SSH_USER}@${SSH_HOST}:${APP_PATH}/"
+
+      - name: Run remote deploy commands
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            "bash ${APP_PATH}/scripts/remote-deploy.sh ${APP_PATH}"
+
+      - name: Verify frontend assets on server
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          APP_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o IdentitiesOnly=yes \
+            "${SSH_USER}@${SSH_HOST}" \
+            "set -euo pipefail; cd \"${APP_PATH}\"; for f in public/flux/flux.js public/vendor/livewire/manifest.json; do test -s \"\$f\" || { echo \"Missing on server: \$f\" >&2; exit 1; }; echo \"Found \$f (\$(wc -c < \"\$f\") bytes)\"; done"
+
+      - name: Smoke test production
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+        run: bash scripts/smoke-test-url.sh "$APP_URL"

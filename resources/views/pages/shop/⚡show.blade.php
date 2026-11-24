@@ -10,7 +10,7 @@ use Livewire\Component;
 
 new
 #[Layout('layouts.site')]
-#[Title('Product — UniqBid Shop')]
+#[Title('Product: UniqBid Shop')]
 class extends Component {
     public Product $product;
 
@@ -18,12 +18,15 @@ class extends Component {
 
     public function mount(Product $product): void
     {
+        abort_unless($product->isInShop(), 404);
+
         $this->product = $product;
+        $this->qty = 1;
     }
 
     public function increment(): void
     {
-        $this->qty = min($this->product->stock, $this->qty + 1);
+        $this->qty = $this->qty + 1;
     }
 
     public function decrement(): void
@@ -33,23 +36,39 @@ class extends Component {
 
     public function addToCart(CartService $cart): void
     {
-        if ($this->product->stock < 1) {
+        $qty = max(1, $this->qty);
+        $added = $cart->add($this->product->id, $qty);
+
+        if ($added < 1) {
+            Flux::toast(variant: 'warning', text: 'Unable to add this item to cart.');
+
             return;
         }
 
-        $cart->add($this->product->id, $this->qty);
+        $this->dispatch('cart-updated');
+        $this->qty = 1;
 
         Flux::toast(
             variant: 'success',
-            text: "Added {$this->qty} × {$this->product->name} to cart.",
+            text: "Added {$added} × {$this->product->name} to cart.",
         );
+    }
+
+    public function with(): array
+    {
+        return [
+            'inCart' => app(CartService::class)->quantityOf($this->product->id),
+        ];
     }
 }; ?>
 
 <div class="mx-auto max-w-6xl px-4 py-8">
     <div class="text-xs text-muted-foreground">
-        <a href="{{ route('shop.index') }}" class="hover:underline">Shop</a>
+        <a href="{{ route('shop.index') }}" class="hover:underline" wire:navigate>Shop</a>
         / {{ $product->category }}
+        @if ($product->subcategory)
+            / {{ $product->subcategory }}
+        @endif
     </div>
 
     <div class="mt-4 grid gap-8 md:grid-cols-2">
@@ -64,13 +83,18 @@ class extends Component {
             <h1 class="mt-1 text-3xl font-bold text-navy">{{ $product->name }}</h1>
             <div class="mt-3 text-2xl font-bold">{{ Money::kes($product->price) }}</div>
 
-            @if ($product->stock > 0)
-                <span class="mt-2 inline-flex rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-                    In stock — {{ $product->stock }} available
-                </span>
-            @else
-                <span class="mt-2 inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700">
-                    Out of stock
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                @if ($product->price_tier)
+                    <span class="rounded-full border border-border bg-surface px-2.5 py-1 font-medium">{{ $product->price_tier }}</span>
+                @endif
+                @if ($product->gender_age)
+                    <span class="rounded-full border border-border bg-surface px-2.5 py-1 font-medium">{{ $product->gender_age }}</span>
+                @endif
+            </div>
+
+            @if ($inCart > 0)
+                <span class="mt-3 inline-flex rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                    {{ $inCart }} in cart
                 </span>
             @endif
 
@@ -79,19 +103,23 @@ class extends Component {
             <div class="mt-6 flex items-center gap-3">
                 <div class="inline-flex items-center rounded-md border border-border">
                     <button type="button" wire:click="decrement" class="p-2 hover:bg-muted" aria-label="Decrease">
-                        <flux:icon.minus class="size-4" />
+                        <flux:icon.minus class="pointer-events-none size-4" />
                     </button>
                     <span class="w-10 text-center text-sm font-semibold">{{ $qty }}</span>
-                    <button type="button" wire:click="increment" class="p-2 hover:bg-muted" aria-label="Increase">
-                        <flux:icon.plus class="size-4" />
+                    <button
+                        type="button"
+                        wire:click="increment"
+                        class="p-2 hover:bg-muted"
+                        aria-label="Increase"
+                    >
+                        <flux:icon.plus class="pointer-events-none size-4" />
                     </button>
                 </div>
                 <flux:button
                     wire:click="addToCart"
+                    icon="shopping-cart"
                     class="flex-1 bg-accent! text-accent-foreground! hover:bg-accent/90!"
-                    :disabled="$product->stock === 0"
                 >
-                    <flux:icon.shopping-cart class="size-4" />
                     Add to cart
                 </flux:button>
             </div>
@@ -99,12 +127,18 @@ class extends Component {
             <div class="mt-6 space-y-2 rounded-lg border border-border bg-surface p-4 text-sm">
                 <div class="flex items-center gap-2">
                     <flux:icon.truck class="size-4 text-navy" />
-                    Free delivery within Nairobi, or free pick-up from our office
+                    Free delivery within Nairobi, or free pick-up from our Westlands office. Delivery fee charges apply outside Nairobi.
                 </div>
                 <div class="flex items-center gap-2">
                     <flux:icon.shield-check class="size-4 text-navy" />
-                    M-Pesa secure checkout with SMS/WhatsApp confirmation
+                    M-Pesa checkout · Cancel free before dispatch · Returns within 7 days if eligible
                 </div>
+                @unless ($product->is_returnable)
+                    <div class="flex items-start gap-2 text-amber-800">
+                        <flux:icon.exclamation-triangle class="mt-0.5 size-4 shrink-0" />
+                        This item is marked non-returnable under our Refund Policy.
+                    </div>
+                @endunless
             </div>
         </div>
     </div>
