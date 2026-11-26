@@ -5,6 +5,8 @@ use App\Http\Controllers\MpesaB2cResultController;
 use App\Http\Controllers\MpesaStkCallbackController;
 use App\Livewire\Admin\ProductCreate;
 use App\Livewire\Admin\ProductEdit;
+use App\Models\Auction;
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
 Route::post('mpesa/stk/callback', MpesaStkCallbackController::class)->name('mpesa.stk.callback');
@@ -12,6 +14,33 @@ Route::post('mpesa/b2c/result', [MpesaB2cResultController::class, 'result'])->na
 Route::post('mpesa/b2c/timeout', [MpesaB2cResultController::class, 'timeout'])->name('mpesa.b2c.timeout');
 
 Route::livewire('/', 'pages::home')->name('home');
+
+Route::get('sitemap.xml', function () {
+    $urls = collect([
+        'home', 'auctions.index', 'shop.index', 'past-sales', 'how-it-works', 'faqs',
+        'contact', 'sell', 'testimonials', 'legal',
+    ])->map(fn (string $name): array => ['loc' => route($name), 'lastmod' => null]);
+
+    $auctionUrls = Auction::query()
+        ->publiclyIndexable()
+        ->get(['id', 'slug', 'updated_at'])
+        ->map(fn (Auction $auction): array => [
+            'loc' => route('auctions.show', $auction),
+            'lastmod' => $auction->updated_at,
+        ]);
+
+    $productUrls = Product::query()
+        ->inShop()
+        ->get(['id', 'slug', 'updated_at'])
+        ->map(fn (Product $product): array => [
+            'loc' => route('shop.show', $product),
+            'lastmod' => $product->updated_at,
+        ]);
+
+    return response()
+        ->view('sitemap', ['urls' => $urls->concat($auctionUrls)->concat($productUrls)])
+        ->header('Content-Type', 'application/xml; charset=UTF-8');
+})->name('sitemap');
 
 Route::livewire('auctions', 'pages::auctions.index')->name('auctions.index');
 Route::livewire('auctions/{auction}', 'pages::auctions.show')->name('auctions.show');
