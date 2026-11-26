@@ -481,31 +481,71 @@ class extends Component {
                 {{-- Main panel --}}
                 <div class="min-w-0">
                     {{-- Mobile top bar --}}
-                    <div class="flex items-center gap-3 border-b border-border px-4 py-3 lg:hidden">
-                        <flux:dropdown position="bottom" align="start" class="shrink-0">
-                            <flux:button variant="outline" size="sm" icon="bars-2" aria-label="Open account menu" />
-                            <flux:menu class="min-w-56">
-                                @foreach ($navItems as $key => $item)
-                                    <flux:menu.item
-                                        wire:click="showSection('{{ $key }}')"
-                                        :icon="$item['icon']"
-                                        :class="$section === $key ? 'font-semibold text-navy' : ''"
-                                    >
-                                        {{ $item['label'] }}
-                                    </flux:menu.item>
-                                @endforeach
-                                <flux:menu.separator />
-                                <flux:menu.item href="{{ route('auctions.index') }}" icon="scale" wire:navigate>
-                                    Browse auctions
-                                </flux:menu.item>
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <flux:menu.item type="submit" icon="arrow-right-start-on-rectangle">
-                                        Sign out
-                                    </flux:menu.item>
-                                </form>
-                            </flux:menu>
-                        </flux:dropdown>
+                    <div class="flex items-center gap-3 border-b border-border px-4 py-3 lg:hidden" x-data="{ accountMenuOpen: false }" @keydown.escape.window="accountMenuOpen = false" x-on:account-section-changed.window="accountMenuOpen = false">
+                        <button type="button" @click="accountMenuOpen = true" aria-label="Open account menu" aria-controls="mobile-account-drawer" :aria-expanded="accountMenuOpen" class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-navy/15 bg-navy/5 text-navy shadow-sm transition hover:bg-navy/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+                            <flux:icon name="bars-2" class="size-5" />
+                        </button>
+
+                        <template x-teleport="body">
+                            <div x-cloak x-show="accountMenuOpen" class="fixed inset-0 z-[100] lg:hidden" aria-label="Account navigation">
+                                <button type="button" @click="accountMenuOpen = false" class="absolute inset-0 bg-zinc-950/50" aria-label="Close account menu"></button>
+                                <aside
+                                    id="mobile-account-drawer"
+                                    x-show="accountMenuOpen"
+                                    x-transition:enter="transform transition ease-out duration-300"
+                                    x-transition:enter-start="-translate-x-full"
+                                    x-transition:enter-end="translate-x-0"
+                                    x-transition:leave="transform transition ease-in duration-200"
+                                    x-transition:leave-start="translate-x-0"
+                                    x-transition:leave-end="-translate-x-full"
+                                    class="absolute inset-y-0 start-0 flex w-[min(21rem,88vw)] flex-col border-e border-border bg-white shadow-2xl"
+                                    role="dialog"
+                                    aria-modal="true"
+                                    aria-labelledby="mobile-account-drawer-title"
+                                >
+                                    <div class="flex items-start justify-between border-b border-border bg-surface px-5 py-5">
+                                        <div class="min-w-0">
+                                            <div id="mobile-account-drawer-title" class="text-xs font-semibold uppercase tracking-[0.16em] text-gold">My Account</div>
+                                            <div class="mt-1 truncate text-base font-semibold text-navy">{{ Auth::user()->name }}</div>
+                                            <div class="mt-0.5 truncate text-sm text-muted-foreground">{{ $this->displayPhone(Auth::user()->phone) }}</div>
+                                        </div>
+                                        <button type="button" @click="accountMenuOpen = false" aria-label="Close account menu" class="ms-3 inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-white hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+                                            <flux:icon name="x-mark" class="size-5" />
+                                        </button>
+                                    </div>
+
+                                    <nav class="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Account sections">
+                                        @foreach ($navItems as $key => $item)
+                                            <button
+                                                type="button"
+                                                wire:click="showSection('{{ $key }}')"
+                                                @click="accountMenuOpen = false"
+                                                @class([
+                                                    'flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-start text-base font-medium transition',
+                                                    'bg-navy text-navy-foreground shadow-sm' => $section === $key,
+                                                    'text-zinc-700 hover:bg-surface' => $section !== $key,
+                                                ])
+                                            >
+                                                <flux:icon :name="$item['icon']" class="size-5 shrink-0" />
+                                                <span class="min-w-0 leading-snug">{{ $item['label'] }}</span>
+                                            </button>
+                                        @endforeach
+                                    </nav>
+
+                                    <div class="space-y-2 border-t border-border p-4">
+                                        <flux:button href="{{ route('auctions.index') }}" variant="ghost" class="min-h-12 w-full justify-start px-4" icon="scale" wire:navigate>
+                                            Browse auctions
+                                        </flux:button>
+                                        <form method="POST" action="{{ route('logout') }}">
+                                            @csrf
+                                            <flux:button type="submit" variant="outline" class="min-h-12 w-full justify-start px-4" icon="arrow-right-start-on-rectangle">
+                                                Sign out
+                                            </flux:button>
+                                        </form>
+                                    </div>
+                                </aside>
+                            </div>
+                        </template>
                         <div class="min-w-0 flex-1">
                             <div class="text-xs font-semibold uppercase tracking-[0.16em] text-gold">My Account</div>
                             <div class="truncate text-sm font-semibold text-navy">{{ $this->sectionLabel }}</div>

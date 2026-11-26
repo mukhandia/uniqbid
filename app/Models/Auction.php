@@ -167,6 +167,21 @@ class Auction extends Model
             });
     }
 
+    /** Public auction detail pages: currently live sales and settled sale records. */
+    public function scopePubliclyIndexable(Builder $query): Builder
+    {
+        return $query
+            ->where(function (Builder $public): void {
+                $public->where(function (Builder $live): void {
+                    $live->where('status', 'live')->where('ends_at', '>', now());
+                })->orWhereNotNull('settled_at');
+            })
+            ->whereNotIn('status', ['voided', 'draft'])
+            ->whereHas('product', function (Builder $product): void {
+                $product->whereIn('channel', [Product::CHANNEL_AUCTION, Product::CHANNEL_BOTH]);
+            });
+    }
+
     /**
      * @param  Builder<Auction>  $query
      * @return Builder<Auction>

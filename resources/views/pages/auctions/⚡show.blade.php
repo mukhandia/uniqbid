@@ -45,15 +45,19 @@ class extends Component {
 
     public bool $accountCreated = false;
 
+    public bool $isArchived = false;
+
     public bool $awaitsMpesa = false;
 
     public string $failureReason = '';
 
     public function mount(Auction $auction): void
     {
-        abort_unless($auction->status === 'live', 404);
+        abort_unless($auction->status === 'live' || $auction->settled_at !== null, 404);
+        abort_unless($auction->product_id !== null && $auction->product?->isInAuctionChannel(), 404);
 
         $this->auction = $auction->load('images');
+        $this->isArchived = $auction->settled_at !== null;
 
         $user = Auth::user();
 
@@ -370,6 +374,18 @@ class extends Component {
         <div>
             <div class="sticky top-20 space-y-4">
                 <div class="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5">
+                    @if ($isArchived)
+                        <div class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completed auction</div>
+                        <div class="mt-2 text-xl font-bold text-navy sm:text-2xl">Sale record</div>
+                        <p class="mt-2 text-sm text-muted-foreground">This auction has ended. Browse current live auctions to take part in another sale.</p>
+                        @if ($auction->result)
+                            <div class="mt-4 rounded-lg bg-surface p-3 text-sm">
+                                <div class="font-semibold text-navy">Sale result</div>
+                                <div class="mt-1">{{ $auction->result->name }} — sold for {{ Money::kes($auction->result->sale_price) }}</div>
+                            </div>
+                        @endif
+                        <flux:button href="{{ route('auctions.index') }}" class="mt-4 w-full bg-accent! text-accent-foreground!" wire:navigate>Browse live auctions</flux:button>
+                    @else
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
                             <div class="text-xs text-muted-foreground">Product value</div>
@@ -587,6 +603,7 @@ class extends Component {
                     </div>
                     <p class="mt-1">You pay the participation fee now to confirm each entry. Product value is never charged as a participation payment.</p>
                 </div>
+                    @endif
             </div>
         </div>
     </div>
