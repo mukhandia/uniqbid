@@ -54,7 +54,6 @@ class extends Component {
     public function mount(Auction $auction): void
     {
         abort_unless($auction->status === 'live' || $auction->settled_at !== null, 404);
-        abort_unless($auction->product_id !== null && $auction->product?->isInAuctionChannel(), 404);
 
         $this->auction = $auction->load('images');
         $this->isArchived = $auction->settled_at !== null;
