@@ -110,7 +110,7 @@ class extends Component {
     {
         $this->validate([
             'saleProductId' => ['required', 'exists:products,id'],
-            'saleBidFee' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'saleBidFee' => ['nullable', 'integer', 'min:'.CreateSaleFromProductService::MINIMUM_BID_FEE, 'max:100000'],
             'saleEndsInHours' => ['required', 'integer', 'min:1', 'max:168'],
             'saleReserveStock' => ['boolean'],
             'saleFeatureOnHomepage' => ['boolean'],
@@ -251,8 +251,8 @@ class extends Component {
             <div class="grid gap-4 sm:grid-cols-2">
                 <flux:field class="sm:col-span-2">
                     <flux:label>Bid fee</flux:label>
-                    <flux:input type="number" wire:model="saleBidFee" min="1" inputmode="numeric" />
-                    <flux:description>Leave blank to use 0.1% of the product price ({{ Money::kes(CreateSaleFromProductService::pricingFromProduct($saleProduct)['bid_fee']) }}).</flux:description>
+                    <flux:input type="number" wire:model="saleBidFee" min="{{ CreateSaleFromProductService::MINIMUM_BID_FEE }}" inputmode="numeric" />
+                    <flux:description>Minimum {{ Money::kes(CreateSaleFromProductService::MINIMUM_BID_FEE) }}. Leave blank to use 0.1% of the product price ({{ Money::kes(CreateSaleFromProductService::pricingFromProduct($saleProduct)['bid_fee']) }}).</flux:description>
                     <flux:error name="saleBidFee" />
                 </flux:field>
                 <div class="rounded-lg border border-amber-200/80 bg-white/70 px-3 py-2 dark:border-amber-900 dark:bg-zinc-900/50">

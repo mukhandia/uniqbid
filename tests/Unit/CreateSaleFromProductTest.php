@@ -60,6 +60,24 @@ test('sale pricing defaults to zero point one percent fee and ten percent max bi
         ->and($auction->max_bid)->toBe(10_000);
 });
 
+test('sale pricing applies the minimum participation fee to low-priced products', function () {
+    $product = Product::factory()->create(['price' => 4_950]);
+
+    expect(CreateSaleFromProductService::pricingFromProduct($product)['bid_fee'])->toBe(20);
+});
+
+test('sale creation rejects a participation fee below the minimum', function () {
+    $product = Product::factory()->create();
+
+    try {
+        app(CreateSaleFromProductService::class)->handle($product, ['bid_fee' => 19]);
+        $this->fail('A sale with a participation fee below KES 20 should not be created.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors()['bid_fee'][0])->toContain('at least KES 20')
+            ->and(Auction::query()->where('product_id', $product->id)->exists())->toBeFalse();
+    }
+});
+
 test('creating a featured sale from a product makes it the only homepage hero', function () {
     $previous = Auction::factory()->create(['is_featured' => true]);
     $product = Product::factory()->create([

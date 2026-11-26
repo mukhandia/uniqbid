@@ -11,9 +11,11 @@ use Illuminate\Validation\ValidationException;
 
 class CreateSaleFromProductService
 {
+    public const MINIMUM_BID_FEE = 20;
+
     /**
      * Default sale pricing from product retail value:
-     * bid fee 0.1%, min bid 1, max bid 10%.
+     * bid fee 0.1% with a KES 20 minimum, min bid 1, max bid 10%.
      *
      * @return array{bid_fee: int, min_bid: int, max_bid: int}
      */
@@ -22,7 +24,7 @@ class CreateSaleFromProductService
         $price = max(0, (int) $product->price);
 
         return [
-            'bid_fee' => max(1, (int) round($price * 0.001)),
+            'bid_fee' => max(self::MINIMUM_BID_FEE, (int) round($price * 0.001)),
             'min_bid' => 1,
             'max_bid' => max(1, (int) round($price * 0.10)),
         ];
@@ -65,6 +67,12 @@ class CreateSaleFromProductService
             $minBid = (int) ($options['min_bid'] ?? $pricing['min_bid']);
             $bidFee = (int) ($options['bid_fee'] ?? $pricing['bid_fee']);
             $hours = (float) ($options['ends_in_hours'] ?? 24);
+
+            if ($bidFee < self::MINIMUM_BID_FEE) {
+                throw ValidationException::withMessages([
+                    'bid_fee' => 'The participation fee must be at least KES '.self::MINIMUM_BID_FEE.'.',
+                ]);
+            }
 
             $slugBase = Str::slug($product->name).'-sale';
             $slug = $slugBase;
