@@ -12,7 +12,7 @@ class PublicSeoMetadata
     public static function forRequest(Request $request): array
     {
         $route = $request->route();
-        $name = $route?->getName() ?? '';
+        $name = $route->getName() ?? '';
         $title = match ($name) {
             'home' => 'UniqBid Kenya | Lowest-Unique Auctions & Online Shop',
             'auctions.index' => 'Live Auctions in Kenya | UniqBid',
@@ -24,8 +24,8 @@ class PublicSeoMetadata
             'sell' => 'Sell on UniqBid | Online Marketplace Kenya',
             'testimonials' => 'Customer Stories | UniqBid Kenya',
             'legal' => 'Legal, Terms & Privacy | UniqBid Kenya',
-            'auctions.show' => self::auctionTitle($route?->parameter('auction')),
-            'shop.show' => self::productTitle($route?->parameter('product')),
+            'auctions.show' => self::auctionTitle($route->parameter('auction')),
+            'shop.show' => self::productTitle($route->parameter('product')),
             default => trim((string) ($request->attributes->get('page_title') ?? config('app.name', 'UniqBid'))),
         };
 
@@ -40,17 +40,17 @@ class PublicSeoMetadata
             'sell' => 'Learn how to list products for sale on UniqBid and review seller requirements and marketplace information.',
             'testimonials' => 'Read customer experiences with UniqBid auctions and online shopping in Kenya.',
             'legal' => 'Read UniqBid terms, privacy information, and legal and compliance policies.',
-            'auctions.show' => self::auctionDescription($route?->parameter('auction')),
-            'shop.show' => self::productDescription($route?->parameter('product')),
+            'auctions.show' => self::auctionDescription($route->parameter('auction')),
+            'shop.show' => self::productDescription($route->parameter('product')),
             default => 'Explore auctions, products, and services from UniqBid Kenya.',
         };
 
         $canonical = match ($name) {
             'home' => route('home'),
             'auctions.index' => route('auctions.index'),
-            'auctions.show' => $route?->parameter('auction') instanceof Auction ? route('auctions.show', $route->parameter('auction')) : $request->url(),
+            'auctions.show' => $route->parameter('auction') instanceof Auction ? route('auctions.show', $route->parameter('auction')) : $request->url(),
             'shop.index' => route('shop.index'),
-            'shop.show' => $route?->parameter('product') instanceof Product ? route('shop.show', $route->parameter('product')) : $request->url(),
+            'shop.show' => $route->parameter('product') instanceof Product ? route('shop.show', $route->parameter('product')) : $request->url(),
             'past-sales', 'how-it-works', 'faqs', 'contact', 'sell', 'testimonials', 'legal' => route($name),
             default => $request->url(),
         };

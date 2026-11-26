@@ -167,7 +167,12 @@ class Auction extends Model
             });
     }
 
-    /** Public auction detail pages: currently live sales and settled sale records. */
+    /**
+     * Public auction detail pages: currently live sales and settled sale records.
+     *
+     * @param  Builder<Auction>  $query
+     * @return Builder<Auction>
+     */
     public function scopePubliclyIndexable(Builder $query): Builder
     {
         return $query
