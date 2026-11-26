@@ -398,7 +398,7 @@ test('admin can create a sale from a product as the homepage hero', function () 
 
     Livewire::test('pages::admin.products')
         ->call('openSaleForm', $product->id)
-        ->assertSet('saleBidFee', 3)
+        ->assertSet('saleBidFee', 20)
         ->assertSet('saleMinBid', 1)
         ->assertSet('saleMaxBid', 265)
         ->set('saleFeatureOnHomepage', true)
@@ -408,14 +408,14 @@ test('admin can create a sale from a product as the homepage hero', function () 
     $sale = Auction::query()->where('product_id', $product->id)->first();
 
     expect($sale)->not->toBeNull()
-        ->and($sale->bid_fee)->toBe(3)
+        ->and($sale->bid_fee)->toBe(20)
         ->and($sale->min_bid)->toBe(1)
         ->and($sale->max_bid)->toBe(265)
         ->and($sale->is_featured)->toBeTrue()
         ->and($previous->fresh()->is_featured)->toBeFalse();
 });
 
-test('a sale uses a typed bid fee and falls back to 0.1 percent when the fee is left blank', function () {
+test('a sale uses a typed bid fee and applies the minimum when the fee is left blank', function () {
     $this->actingAs($this->admin);
 
     $typed = Product::factory()->create([
@@ -427,11 +427,11 @@ test('a sale uses a typed bid fee and falls back to 0.1 percent when the fee is 
 
     Livewire::test('pages::admin.products')
         ->call('openSaleForm', $typed->id)
-        ->set('saleBidFee', 8)
+        ->set('saleBidFee', 28)
         ->call('createSale')
         ->assertHasNoErrors();
 
-    expect(Auction::query()->where('product_id', $typed->id)->value('bid_fee'))->toBe(8);
+    expect(Auction::query()->where('product_id', $typed->id)->value('bid_fee'))->toBe(28);
 
     $blank = Product::factory()->create([
         'name' => 'Blank fee watch',
@@ -446,7 +446,25 @@ test('a sale uses a typed bid fee and falls back to 0.1 percent when the fee is 
         ->call('createSale')
         ->assertHasNoErrors();
 
-    expect(Auction::query()->where('product_id', $blank->id)->value('bid_fee'))->toBe(3);
+    expect(Auction::query()->where('product_id', $blank->id)->value('bid_fee'))->toBe(20);
+});
+
+test('admin cannot create a sale with a bid fee below KES 20', function () {
+    $this->actingAs($this->admin);
+
+    $product = Product::factory()->create([
+        'price' => 2_650,
+        'stock' => 2,
+        'reserved_stock' => 0,
+    ]);
+
+    Livewire::test('pages::admin.products')
+        ->call('openSaleForm', $product->id)
+        ->set('saleBidFee', 19)
+        ->call('createSale')
+        ->assertHasErrors(['saleBidFee']);
+
+    expect(Auction::query()->where('product_id', $product->id)->exists())->toBeFalse();
 });
 
 test('create sale opens in a modal and closing it resets the form', function () {
