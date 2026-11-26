@@ -256,7 +256,7 @@ class LaunchAuctionCatalogueSeeder extends Seeder
                 'name' => '1 Dollar Shop',
                 'subcategory' => $subcategories['dollar-shop'],
                 'price' => 15000,
-                'bid_fee' => 15,
+                'bid_fee' => 20,
                 'max_bid' => 3000,
                 'image' => '/images/auctions/dollar-shop.png',
                 'description' => '1 Dollar Shop voucher bundle for everyday household picks. Redeemed after a successful buy.',
